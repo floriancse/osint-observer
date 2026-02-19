@@ -57,8 +57,7 @@ export default function AreaPanel({ areaName, onClose }) {
             <>
               <Heatmap
                 areaName={areaName}
-                tensionScore={tensionScore}     // ← nouveau
-              // tensionColor={tensionColor}  // plus besoin
+                tensionScore={tensionScore}
               /> 
 
               <TensionIndex

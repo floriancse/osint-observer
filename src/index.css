@@ -31,11 +31,6 @@
      font-family: 'Roboto Mono', monospace
  }
 
- .tweets-feed-panel.visible,
- .area-panel.visible,
- .important-tweets-panel {
-     height: 100% !important;
- }
 
  body {
      margin: 0;
@@ -652,19 +647,21 @@
 
  /* Panneau des tweets à gauche */
  .tweets-feed-panel {
+     bottom: 0px;
      position: fixed;
      top: 65px;
      left: -450px;
      width: 400px;
      background: var(--surface);
      border-left: none;
-     border-radius: 12px;
+     border-top-left-radius: 12px;
+     border-top-right-radius: 12px;
      color: #e7e9ea;
      transition: left 0.35s ease;
      z-index: 950;
      display: flex;
      flex-direction: column;
-     overflow: hidden;
+
  }
 
  .tweets-feed-panel.visible {
@@ -904,12 +901,13 @@
  .area-panel {
      position: fixed;
      top: 65px;
-     bottom: 150px;
+     bottom: 0px;
      right: -420px;
      width: 400px;
      background: var(--surface);
      border: 1px solid rgb(29, 29, 29);
-     border-radius: 12px;
+     border-top-left-radius: 12px;
+     border-top-right-radius: 12px;
      color: #e7e9ea;
      transition: right 0.35s ease;
      z-index: 999;
