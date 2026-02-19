@@ -20,7 +20,7 @@ export default function TensionIndex({ areaName }) {
     setError(false);
     setData(null);
 
-    fetch(`https://api-conflit-twitter.ovh//api/twitter_conflicts/tension_index?area=${encodeURIComponent(areaName)}`)
+    fetch(`${process.env.REACT_APP_API_URL}/api/twitter_conflicts/tension_index?area=${encodeURIComponent(areaName)}`)
       .then(r => r.json())
       .then(d => { setData(d); setLoading(false); })
       .catch(() => { setError(true); setLoading(false); });

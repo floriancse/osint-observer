@@ -14,9 +14,8 @@ export function useAuthors() {
         return;
       }
       const { start, end } = getDateRange(days);
-      const response = await fetch(
-        `https://api-conflit-twitter.ovh/api/twitter_conflicts/authors?start_date=${start}&end_date=${end}`
-      );
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/twitter_conflicts/authors?start_date=${start}&end_date=${end}`)
+
       const data = await response.json();
       const authors = data.authors || [];
       cachedAuthors[days] = authors;

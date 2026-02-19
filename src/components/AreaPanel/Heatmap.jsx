@@ -41,7 +41,7 @@ export default function Heatmap({ areaName, tensionColor = '#ff2d2d' }) {
     const start = new Date(now.getFullYear(), now.getMonth(), 1);
     start.setHours(0, 0, 0, 0);
 
-    fetch(`https://api-conflit-twitter.ovh/api/twitter_conflicts/tweets.geojson?area=${encodeURIComponent(areaName)}&start_date=${start.toISOString()}&end_date=${now.toISOString()}`)
+    fetch(`${process.env.REACT_APP_API_URL}/api/twitter_conflicts/tweets.geojson?area=${encodeURIComponent(areaName)}&start_date=${start.toISOString()}&end_date=${now.toISOString()}`)
       .then(r => r.json())
       .then(data => {
         const now2 = new Date();

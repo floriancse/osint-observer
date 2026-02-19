@@ -10,7 +10,7 @@
     "@testing-library/user-event": "^13.5.0",
     "chart.js": "^4.5.1",
     "chartjs-plugin-crosshair": "^2.0.0",
-    "maplibre-gl": "^5.18.0",
+    "maplibre-gl": "5.16.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-scripts": "5.0.1",

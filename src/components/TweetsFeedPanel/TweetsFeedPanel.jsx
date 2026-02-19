@@ -23,15 +23,14 @@ export default function TweetsFeedPanel({
 
       if (selectedAreaName) {
         const { start, end } = getDateRange(currentDays);
-        const url = `https://api-conflit-twitter.ovh/api/twitter_conflicts/tweets.geojson?start_date=${start}&end_date=${end}&area=${encodeURIComponent(selectedAreaName)}`;
+        const url = `${process.env.REACT_APP_API_URL}/api/twitter_conflicts/tweets.geojson?start_date=${start}&end_date=${end}&area=${encodeURIComponent(selectedAreaName)}`;
         const response = await fetch(url);
         data = await response.json();
       } else if (cachedData) {
         data = cachedData;
       } else {
         const { start, end } = getDateRange(currentDays);
-        const response = await fetch(
-          `https://api-conflit-twitter.ovh/api/twitter_conflicts/tweets.geojson?start_date=${start}&end_date=${end}`
+        const response = await fetch(`${process.env.REACT_APP_API_URL}/api/twitter_conflicts/tweets.geojson?start_date=${start}&end_date=${end}`
         );
         data = await response.json();
       }
