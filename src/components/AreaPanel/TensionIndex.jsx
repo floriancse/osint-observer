@@ -3,7 +3,7 @@ import React, { useEffect, useRef } from 'react';
 function getTensionColor(score) {
   if (score >= 100) return '#ff2d2d';
   if (score >= 40) return '#ff7b00';
-  if (score >= 20) return '#ffd600';
+  if (score >= 15) return '#ffd600';
   if (score >= 2) return '#4a8fff';
   return '#6d6d6d';
 }
@@ -26,7 +26,7 @@ export default function TensionIndex({ areaName }) {
       .catch(() => { setError(true); setLoading(false); });
   }, [areaName]);
 
-  // Anime la barre après le rendu
+  // Animation de la barre
   useEffect(() => {
     if (!data || !fillRef.current) return;
     const pct = Math.min(100, data.tension_score);
@@ -43,11 +43,12 @@ export default function TensionIndex({ areaName }) {
   const score = data.tension_score;
   const color = getTensionColor(score);
   const events = (data.evenements || []).filter(ev => ev.summary?.trim());
-  const maxContrib = Math.max(...events.map(e => parseFloat(e.score_contribution_normalized)), 0);
+  const maxContrib = Math.max(...events.map(e => parseFloat(e.score_contribution_normalized)), 0) || 1;
   const ticks = Array(20).fill(0);
 
   return (
-    <>
+    <div className="tension-index-container">
+      {/* Partie haute fixe : jauge + score */}
       <div className="t-header">
         <div className="t-region-label">Zone de conflit · Indice de tension</div>
         <div className="t-gauge-row">
@@ -71,30 +72,33 @@ export default function TensionIndex({ areaName }) {
         </div>
       </div>
 
-      <div className="t-events-header">
-        <span className="t-events-label">Événements récents</span>
-        <span className="t-events-count">{events.length} entrées</span>
+      {/* Partie basse : scrollable */}
+      <div className="t-events-section">
+        <div className="t-events-header">
+          <span className="t-events-label">Événements récents</span>
+          <span className="t-events-count">{events.length} entrées</span>
+        </div>
+
+        <ul className="t-timeline">
+          {events.map((ev, i) => {
+            const contrib = parseFloat(ev.score_contribution_normalized);
+            const opacity = 0.3 + (contrib / maxContrib) * 0.7;
+            const intensityColor = contrib >= 1 ? '#ff2d2d' : contrib >= 0.5 ? '#ff7b00' : '#ffd60055';
+            const scoreClass = contrib < 0.5 ? 'low' : '';
+
+            return (
+              <li key={i} className="t-event" style={{ animationDelay: `${i * 60}ms` }}>
+                <div className="t-event-intensity" style={{ background: intensityColor, opacity }} />
+                <div className="t-event-meta">
+                  <span className="t-event-date">{ev.date}</span>
+                  <span className={`t-event-score ${scoreClass}`}>+{contrib.toFixed(2)}</span>
+                </div>
+                <p className="t-event-text">{ev.summary}.</p>
+              </li>
+            );
+          })}
+        </ul>
       </div>
-
-      <ul className="t-timeline">
-        {events.map((ev, i) => {
-          const contrib = parseFloat(ev.score_contribution_normalized);
-          const opacity = 0.3 + (contrib / maxContrib) * 0.7;
-          const intensityColor = contrib >= 1 ? '#ff2d2d' : contrib >= 0.5 ? '#ff7b00' : '#ffd60055';
-          const scoreClass = contrib < 0.5 ? 'low' : '';
-
-          return (
-            <li key={i} className="t-event" style={{ animationDelay: `${i * 60}ms` }}>
-              <div className="t-event-intensity" style={{ background: intensityColor, opacity }} />
-              <div className="t-event-meta">
-                <span className="t-event-date">{ev.date}</span>
-                <span className={`t-event-score ${scoreClass}`}>+{contrib.toFixed(2)}</span>
-              </div>
-              <p className="t-event-text">{ev.summary}.</p>
-            </li>
-          );
-        })}
-      </ul>
-    </>
+    </div>
   );
 }

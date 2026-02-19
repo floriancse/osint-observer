@@ -2098,8 +2098,6 @@
      cursor: default;
  }
 
-
-
  .t-event::before {
      display: none;
  }

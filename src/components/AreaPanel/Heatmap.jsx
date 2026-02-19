@@ -7,6 +7,14 @@ function hexToRgba(hex, alpha) {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
+function getTensionColor(score) {
+  if (score >= 100) return '#ff2d2d';
+  if (score >= 40) return '#ff7b00';
+  if (score >= 15) return '#ffd600';
+  if (score >= 2) return '#4a8fff';
+  return '#6d6d6d';
+}
+
 function getLevelStyle(level, color) {
   const styles = [
     `background:rgba(255,255,255,0.03);border-color:rgba(255,255,255,0.04)`,
@@ -28,7 +36,8 @@ function styleStringToObj(str) {
   );
 }
 
-export default function Heatmap({ areaName, tensionColor = '#ff2d2d' }) {
+export default function Heatmap({ areaName, tensionScore = 0 }){
+  const tensionColor = getTensionColor(tensionScore);
   const [dayData, setDayData] = useState({});
   const [loading, setLoading] = useState(true);
   const [tooltip, setTooltip] = useState({ visible: false, text: '', x: 0, y: 0 });
