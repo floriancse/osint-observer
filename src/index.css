@@ -1815,7 +1815,6 @@
 
  .tension-score {
      font-size: 36px;
-     /* valeur mise en avant — intentionnellement grande */
      font-weight: 700;
      line-height: 1;
  }
@@ -2218,8 +2217,8 @@
 
  #area-title {
      font-family: var(--display);
-     font-size: 28px;
-     letter-spacing: 0.05em;
+     font-size: 38px;
+     letter-spacing: 0.07em;
      color: var(--text-bright);
      line-height: 1;
  }

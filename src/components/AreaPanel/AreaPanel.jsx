@@ -59,7 +59,7 @@ export default function AreaPanel({ areaName, onClose }) {
                 areaName={areaName}
                 tensionScore={tensionScore}     // ← nouveau
               // tensionColor={tensionColor}  // plus besoin
-              />
+              /> 
 
               <TensionIndex
                 areaName={areaName}
