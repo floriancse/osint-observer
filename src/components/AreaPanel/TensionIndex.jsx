@@ -37,8 +37,8 @@ export default function TensionIndex({ areaName }) {
     });
   }, [data]);
 
-  if (loading) return <div className="t-loading">— CHARGEMENT —</div>;
-  if (error || !data) return <div className="t-error">ERREUR DE CONNEXION</div>;
+  if (loading) return <div className="t-loading"></div>;
+  if (error || !data) return <div className="t-error"></div>;
 
   const score = data.tension_score;
   const color = getTensionColor(score);
