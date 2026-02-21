@@ -42,7 +42,7 @@ export default function TensionIndex({ areaName }) {
 
   const score = data.tension_score;
   const color = getTensionColor(score);
-  const events = (data.evenements || []).filter(ev => ev.text?.trim());
+  const events = (data.evenements || []).filter(ev => ev.SUMMARY_TEXT?.trim() || ev.text?.trim()); 
   const maxContrib = Math.max(...events.map(e => parseFloat(e.score_contribution_normalized)), 0) || 1;
   const ticks = Array(20).fill(0);
 
@@ -93,7 +93,7 @@ export default function TensionIndex({ areaName }) {
                   <span className="t-event-date">{ev.date}</span>
                   <span className={`t-event-score ${scoreClass}`}>+{contrib.toFixed(2)}</span>
                 </div>
-                <p className="t-event-text">{ev.summary_text || ev.text}</p>
+                <p className="t-event-text">{ev.SUMMARY_TEXT || ev.text}</p>
               </li>
             );
           })}
