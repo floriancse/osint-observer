@@ -258,7 +258,7 @@ export default function MapView({
                 filter: ['all', ['>=', ['coalesce', ['to-number', ['get', 'importance_score']], 0], 4]],
                 paint: {
                     'circle-color': 'transparent', 'circle-radius': 20,
-                    'circle-stroke-color': ['match', ['get', 'typology'], 'MIL', '#ff3b5c', 'rgba(108,172,251,1)'],
+                    'circle-stroke-color': ['match', ['get', 'conflict_typology'], 'MIL', '#ff3b5c', 'rgba(108,172,251,1)'],
                     'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 2, 1.5, 6, 2.5, 10, 4],
                     'circle-stroke-opacity': 0, 'circle-opacity': 0,
                 },
@@ -266,7 +266,7 @@ export default function MapView({
 
             map.addLayer({
                 id: 'tweets_points', type: 'circle', source: 'tweets',
-                filter: ['==', ['get', 'typology'], 'MIL'],
+                filter: ['==', ['get', 'conflict_typology'], 'MIL'],
                 paint: {
                     'circle-color': '#ff3b5c',
                     'circle-opacity': ['interpolate', ['linear'], ['zoom'], 3, 0.4, 5, 0.5, 10, 0.6, 18, 1],
@@ -276,7 +276,7 @@ export default function MapView({
 
             map.addLayer({
                 id: 'tweets_heatmap_other', type: 'heatmap', source: 'tweets',
-                filter: ['!=', ['get', 'typology'], 'MIL'],
+                filter: ['!=', ['get', 'conflict_typology'], 'MIL'],
                 paint: {
                     'heatmap-weight': ['interpolate', ['linear'], ['get', 'importance_score'], 1, 0.5, 5, 1],
                     'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 0, 1, 9, 3],
@@ -289,7 +289,7 @@ export default function MapView({
 
             map.addLayer({
                 id: 'tweets_viseur', type: 'circle', source: 'tweets',
-                filter: ['==', ['get', 'typology'], 'MIL'],
+                filter: ['==', ['get', 'conflict_typology'], 'MIL'],
                 paint: {
                     'circle-color': '#ff3b5c', 'circle-opacity': 0.3,
                     'circle-radius': ['interpolate', ['linear'], ['coalesce', ['to-number', ['get', 'importance_score']], 1], 1, 2, 2, 4, 3, 6, 4, 10, 5, 20],

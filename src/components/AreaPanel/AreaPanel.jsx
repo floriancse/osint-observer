@@ -52,7 +52,7 @@ export default function AreaPanel({ areaName, onClose }) {
       </div>
 
       <div className="panel-content">
-        <div id="summary-tab" className="tab-content active">
+        <div id="summary_text-tab" className="tab-content active">
           {areaName && (
             <>
               <Heatmap

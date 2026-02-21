@@ -709,7 +709,7 @@
      color: #34d399;
  }
 
- .feed-tweet-typology {
+ .feed-tweet-conflict_typology {
      display: inline-flex;
      align-items: center;
      padding: 2px 8px;
@@ -719,12 +719,12 @@
      font-weight: 600;
  }
 
- .feed-tweet-typology.MIL {
+ .feed-tweet-conflict_typology.MIL {
      background: rgba(255, 59, 92, 0.2);
      color: #ff3b5c;
  }
 
- .feed-tweet-typology.OTHER {
+ .feed-tweet-conflict_typology.OTHER {
      background: rgba(108, 172, 251, 0.2);
      color: #6cacfb;
  }
@@ -774,8 +774,9 @@
      z-index: 999;
      display: flex;
      flex-direction: column;
-     overflow: hidden;
+     overflow-x: hidden;
  }
+
 
  .area-panel.visible {
      right: 20px;
@@ -866,7 +867,6 @@
      display: none;
      flex-direction: column;
      flex: 1;
-     overflow-y: auto;
  }
 
  .tab-content.active {
@@ -1712,7 +1712,7 @@
      /* texte corps */
  }
 
- .ev-typology {
+ .ev-conflict_typology {
      padding: 1px 6px;
      border-radius: 4px;
      font-size: 10px;
@@ -1752,13 +1752,13 @@
      /* texte corps */
  }
 
- .ev-summary {
+ .ev-summary_text {
      color: #e5e7eb;
      line-height: 1.6;
      flex: 1 1 100%;
      margin-bottom: 15px;
      font-size: 13px;
-     /* texte secondaire */
+     overflow: hidden;
  }
 
  .tension-max {
