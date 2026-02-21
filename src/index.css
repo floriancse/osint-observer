@@ -1978,7 +1978,7 @@
 
  .t-event-date {
      font-family: var(--mono);
-     font-size: 10px;
+     font-size: 11px;
      color: var(--dim);
      letter-spacing: 0.05em;
  }
@@ -2003,6 +2003,7 @@
      line-height: 1.55;
      color: var(--text);
      font-weight: 400;
+     font-style: italic;
  }
 
  /* ── FOOTER ── */

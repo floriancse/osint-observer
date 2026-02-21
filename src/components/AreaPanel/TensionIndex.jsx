@@ -93,7 +93,7 @@ export default function TensionIndex({ areaName }) {
                   <span className="t-event-date">{ev.date}</span>
                   <span className={`t-event-score ${scoreClass}`}>+{contrib.toFixed(2)}</span>
                 </div>
-                <p className="t-event-text">{ev.SUMMARY_TEXT || ev.text}</p>
+                <p className="t-event-text">"{ev.SUMMARY_TEXT || ev.text}"</p>
               </li>
             );
           })}
