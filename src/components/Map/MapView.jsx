@@ -306,8 +306,13 @@ export default function MapView({
             map.on('mouseenter', 'tweets_hover_area', (e) => {
                 if (popupPinnedRef.current) return;
                 map.getCanvas().style.cursor = 'pointer';
+
                 const features = map.queryRenderedFeatures(e.point, { layers: ['tweets_hover_area'] });
-                features.sort((a, b) => (parseFloat(b.properties.importance_score) || 0) - (parseFloat(a.properties.importance_score) || 0));
+
+                features.sort((a, b) => {
+                    return Date.parse(b.properties.created_at) - Date.parse(a.properties.created_at);
+                });
+
                 if (!features.length) return;
 
                 const feature = features[0];
@@ -332,7 +337,9 @@ export default function MapView({
                 popupPinnedRef.current = true;
                 popupRef.current.remove();
                 currentFeaturesRef.current = map.queryRenderedFeatures(e.point, { layers: ['tweets_hover_area'] });
-                currentFeaturesRef.current.sort((a, b) => (parseFloat(b.properties.importance_score) || 0) - (parseFloat(a.properties.importance_score) || 0));
+                currentFeaturesRef.current.sort((a, b) =>
+                    Date.parse(b.properties.created_at) - Date.parse(a.properties.created_at)
+                );
                 if (!currentFeaturesRef.current.length) return;
                 currentIndexRef.current = 0;
                 showPopupAtIndex(0);
@@ -340,6 +347,10 @@ export default function MapView({
 
             // Animation pulse
             const animatePulse = () => {
+                if (!mapRef.current) {
+                    animFrameRef.current = null;
+                    return;
+                }
                 const now = performance.now() / 1000;
                 const zoom = map.getZoom();
                 const duration = 2.8;
@@ -360,7 +371,15 @@ export default function MapView({
                 map.setPaintProperty('pulse-high-importance_score', 'circle-radius', radius);
                 animFrameRef.current = requestAnimationFrame(animatePulse);
             };
-            animatePulse();
+            // 2. Stocker le handler pour pouvoir le retirer au cleanup
+            const handleVisibilityChange = () => {
+                if (document.hidden) {
+                    if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+                } else {
+                    animatePulse();
+                }
+            };
+            document.addEventListener('visibilitychange', handleVisibilityChange);
 
             document.addEventListener('visibilitychange', () => {
                 if (document.hidden) {
@@ -374,9 +393,11 @@ export default function MapView({
         });
 
         return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
             if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
             if (rotationRef.current) clearInterval(rotationRef.current);
             map.remove();
+            mapRef.current = null; // s'assurer que mapRef est null après remove
         };
     }, []); // eslint-disable-line
 
