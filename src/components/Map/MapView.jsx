@@ -5,7 +5,7 @@ import { createPopupHTML } from './popupUtils';
 
 const LAYER_IDS = {
     disputed: ['disputed_areas_fill', 'disputed_areas_outline'],
-    heatmap: ['tweets_points', 'tweets_viseur', 'tweets_hover_area', 'tweets_heatmap_other', 'pulse-high-importance'],
+    heatmap: ['tweets_points', 'tweets_viseur', 'tweets_hover_area', 'tweets_heatmap_other', 'pulse-high-importance_score'],
 };
 
 
@@ -254,8 +254,8 @@ export default function MapView({
 
             // Layers tweets
             map.addLayer({
-                id: 'pulse-high-importance', type: 'circle', source: 'tweets',
-                filter: ['all', ['>=', ['coalesce', ['to-number', ['get', 'importance']], 0], 4]],
+                id: 'pulse-high-importance_score', type: 'circle', source: 'tweets',
+                filter: ['all', ['>=', ['coalesce', ['to-number', ['get', 'importance_score']], 0], 4]],
                 paint: {
                     'circle-color': 'transparent', 'circle-radius': 20,
                     'circle-stroke-color': ['match', ['get', 'typology'], 'MIL', '#ff3b5c', 'rgba(108,172,251,1)'],
@@ -270,7 +270,7 @@ export default function MapView({
                 paint: {
                     'circle-color': '#ff3b5c',
                     'circle-opacity': ['interpolate', ['linear'], ['zoom'], 3, 0.4, 5, 0.5, 10, 0.6, 18, 1],
-                    'circle-radius': ['interpolate', ['linear'], ['coalesce', ['to-number', ['get', 'importance']], 1], 1, 1, 2, 2, 3, 3, 4, 4, 5, 10],
+                    'circle-radius': ['interpolate', ['linear'], ['coalesce', ['to-number', ['get', 'importance_score']], 1], 1, 1, 2, 2, 3, 3, 4, 4, 5, 10],
                 },
             });
 
@@ -278,7 +278,7 @@ export default function MapView({
                 id: 'tweets_heatmap_other', type: 'heatmap', source: 'tweets',
                 filter: ['!=', ['get', 'typology'], 'MIL'],
                 paint: {
-                    'heatmap-weight': ['interpolate', ['linear'], ['get', 'importance'], 1, 0.5, 5, 1],
+                    'heatmap-weight': ['interpolate', ['linear'], ['get', 'importance_score'], 1, 0.5, 5, 1],
                     'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 0, 1, 9, 3],
                     'heatmap-color': ['interpolate', ['linear'], ['heatmap-density'],
                         0, 'rgba(0,0,0,0)', 0.2, 'rgba(108,172,251,1)', 1, '#b4cff1'],
@@ -292,7 +292,7 @@ export default function MapView({
                 filter: ['==', ['get', 'typology'], 'MIL'],
                 paint: {
                     'circle-color': '#ff3b5c', 'circle-opacity': 0.3,
-                    'circle-radius': ['interpolate', ['linear'], ['coalesce', ['to-number', ['get', 'importance']], 1], 1, 2, 2, 4, 3, 6, 4, 10, 5, 20],
+                    'circle-radius': ['interpolate', ['linear'], ['coalesce', ['to-number', ['get', 'importance_score']], 1], 1, 2, 2, 4, 3, 6, 4, 10, 5, 20],
                     'circle-stroke-width': 1, 'circle-stroke-color': '#ff3b5c', 'circle-stroke-opacity': 0.8,
                 },
             });
@@ -307,7 +307,7 @@ export default function MapView({
                 if (popupPinnedRef.current) return;
                 map.getCanvas().style.cursor = 'pointer';
                 const features = map.queryRenderedFeatures(e.point, { layers: ['tweets_hover_area'] });
-                features.sort((a, b) => (parseFloat(b.properties.importance) || 0) - (parseFloat(a.properties.importance) || 0));
+                features.sort((a, b) => (parseFloat(b.properties.importance_score) || 0) - (parseFloat(a.properties.importance_score) || 0));
                 if (!features.length) return;
 
                 const feature = features[0];
@@ -332,7 +332,7 @@ export default function MapView({
                 popupPinnedRef.current = true;
                 popupRef.current.remove();
                 currentFeaturesRef.current = map.queryRenderedFeatures(e.point, { layers: ['tweets_hover_area'] });
-                currentFeaturesRef.current.sort((a, b) => (parseFloat(b.properties.importance) || 0) - (parseFloat(a.properties.importance) || 0));
+                currentFeaturesRef.current.sort((a, b) => (parseFloat(b.properties.importance_score) || 0) - (parseFloat(a.properties.importance_score) || 0));
                 if (!currentFeaturesRef.current.length) return;
                 currentIndexRef.current = 0;
                 showPopupAtIndex(0);
@@ -355,9 +355,9 @@ export default function MapView({
                 const baseRadius = zoom < 3 ? 7 : zoom < 6 ? 6 : zoom < 9 ? 5 : 4;
                 const maxGrow = baseRadius * (zoom < 6 ? 15 : zoom < 9 ? 8 : 10);
                 const radius = baseRadius + (maxGrow - baseRadius) * phase;
-                map.setPaintProperty('pulse-high-importance', 'circle-stroke-opacity', opacity);
-                map.setPaintProperty('pulse-high-importance', 'circle-opacity', opacity);
-                map.setPaintProperty('pulse-high-importance', 'circle-radius', radius);
+                map.setPaintProperty('pulse-high-importance_score', 'circle-stroke-opacity', opacity);
+                map.setPaintProperty('pulse-high-importance_score', 'circle-opacity', opacity);
+                map.setPaintProperty('pulse-high-importance_score', 'circle-radius', radius);
                 animFrameRef.current = requestAnimationFrame(animatePulse);
             };
             animatePulse();

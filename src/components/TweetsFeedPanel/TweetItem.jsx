@@ -71,7 +71,7 @@ const IconMapPin = () => (
 export default function TweetItem({ feature, onLocate }) {
   const props = feature.properties;
   const images = parseImages(props.images);
-  const isImportant = ['4', '5'].includes(String(props.importance || '0').trim());
+  const isImportant = ['4', '5'].includes(String(props.importance_score || '0').trim());
   const hasGeo = feature.geometry?.coordinates?.length >= 2;
 
   const handleAvatarError = (e) => {

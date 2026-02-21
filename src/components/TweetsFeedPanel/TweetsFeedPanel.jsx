@@ -44,7 +44,7 @@ export default function TweetsFeedPanel({
           usernamesToShow.includes(f.properties.username);
         const searchMatch =
           !currentSearch.trim() ||
-          f.properties.body.toLowerCase().includes(currentSearch.toLowerCase());
+          f.properties.text.toLowerCase().includes(currentSearch.toLowerCase());
         return usernameMatch && searchMatch;
       });
 
