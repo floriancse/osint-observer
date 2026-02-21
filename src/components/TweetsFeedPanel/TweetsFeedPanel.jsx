@@ -6,8 +6,8 @@ export default function TweetsFeedPanel({
   isOpen,
   onClose,
   currentDays,
-  allAuthors,
-  selectedAuthors,
+  allusernames,
+  selectedusernames,
   currentSearch,
   selectedAreaName,
   cachedData,
@@ -35,17 +35,17 @@ export default function TweetsFeedPanel({
         data = await response.json();
       }
 
-      const authorsToShow = allAuthors.filter(a => !selectedAuthors.has(a));
+      const usernamesToShow = allusernames.filter(a => !selectedusernames.has(a));
 
       let filtered = (data.features || []).filter(f => {
-        const authorMatch =
-          authorsToShow.length === 0 ||
-          authorsToShow.length === allAuthors.length ||
-          authorsToShow.includes(f.properties.author);
+        const usernameMatch =
+          usernamesToShow.length === 0 ||
+          usernamesToShow.length === allusernames.length ||
+          usernamesToShow.includes(f.properties.username);
         const searchMatch =
           !currentSearch.trim() ||
           f.properties.body.toLowerCase().includes(currentSearch.toLowerCase());
-        return authorMatch && searchMatch;
+        return usernameMatch && searchMatch;
       });
 
       filtered.sort((a, b) =>
@@ -59,7 +59,7 @@ export default function TweetsFeedPanel({
     } finally {
       setLoading(false);
     }
-  }, [currentDays, allAuthors, selectedAuthors, currentSearch, selectedAreaName, cachedData]);
+  }, [currentDays, allusernames, selectedusernames, currentSearch, selectedAreaName, cachedData]);
 
   // Recharge le feed à chaque fois qu'il s'ouvre ou que les filtres changent
   useEffect(() => {

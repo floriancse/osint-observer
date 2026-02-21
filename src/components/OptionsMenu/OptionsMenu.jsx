@@ -8,9 +8,9 @@ const ALL_LAYERS = [
 export default function OptionsMenu({
   isOpen,
   onClose,
-  allAuthors,
-  selectedAuthors,
-  onToggleAuthor,
+  allusernames,
+  selectedusernames,
+  onToggleusername,
   selectedLayers,
   onToggleLayer,
 }) {
@@ -33,7 +33,7 @@ export default function OptionsMenu({
 
   return (
     <div className="bottom-right-controls">
-      <div className="author-filter-container">
+      <div className="username-filter-container">
 
         <button
           ref={btnRef}
@@ -57,7 +57,7 @@ export default function OptionsMenu({
               {ALL_LAYERS.map(layer => (
                 <div
                   key={layer.id}
-                  className="layer-item author-item"
+                  className="layer-item username-item"
                   onClick={() => onToggleLayer(layer.id)}
                 >
                   <input
@@ -80,26 +80,26 @@ export default function OptionsMenu({
               <i className="fas fa-rss"></i> Sources
             </div>
             <div className="checkbox-list">
-              {allAuthors.map(author => (
+              {allusernames.map(username => (
                 <div
-                  key={author}
-                  className="author-item"
-                  onClick={() => onToggleAuthor(author)}
+                  key={username}
+                  className="username-item"
+                  onClick={() => onToggleusername(username)}
                 >
                   <input
                     type="checkbox"
-                    checked={!selectedAuthors.has(author)}
-                    onChange={() => onToggleAuthor(author)}
+                    checked={!selectedusernames.has(username)}
+                    onChange={() => onToggleusername(username)}
                     onClick={e => e.stopPropagation()}
                   />
                   <label style={{ cursor: 'pointer', flex: 1, display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <img
-                      src={`img/${author}.jpg`}
+                      src={`img/${username}.jpg`}
                       style={{ width: 20, height: 20, borderRadius: '50%' }}
                       onError={e => { e.target.style.display = 'none'; }}
-                      alt={author}
+                      alt={username}
                     />
-                    <span>{author}</span>
+                    <span>{username}</span>
                   </label>
                 </div>
               ))}

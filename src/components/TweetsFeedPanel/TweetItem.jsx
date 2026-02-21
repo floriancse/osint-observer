@@ -1,5 +1,5 @@
 import React from 'react';
-import { formatTweetTime, getAuthorInitials, parseImages } from '../../utils/helpers';
+import { formatTweetTime, getusernameInitials, parseImages } from '../../utils/helpers';
 
 function TweetImages({ images }) {
   if (!images || images.length === 0) return null;
@@ -76,7 +76,7 @@ export default function TweetItem({ feature, onLocate }) {
 
   const handleAvatarError = (e) => {
     e.target.style.display = 'none';
-    e.target.parentElement.textContent = getAuthorInitials(props.author);
+    e.target.parentElement.textContent = getusernameInitials(props.username);
   };
 
   return (
@@ -84,9 +84,9 @@ export default function TweetItem({ feature, onLocate }) {
 
       <div className="feed-tweet-header">
         <div className="feed-tweet-avatar">
-          <img src={`img/${props.author}.jpg`} alt={props.author} onError={handleAvatarError} />
+          <img src={`img/${props.username}.jpg`} alt={props.username} onError={handleAvatarError} />
         </div>
-        <div className="feed-tweet-author">{props.author}</div>
+        <div className="feed-tweet-username">{props.username}</div>
         <div className="feed-tweet-time">{formatTweetTime(props.date_published)}</div>
       </div>
 

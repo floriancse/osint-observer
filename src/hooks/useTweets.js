@@ -7,23 +7,23 @@ export function useTweets() {
     const [tweets, setTweets] = useState({ type: 'FeatureCollection', features: [] });
     const [tweetCount, setTweetCount] = useState(0);
 
-    const filterAndSetTweets = useCallback((data, allAuthors, selectedAuthors, currentSearch) => {
-        const authorsToShow = allAuthors.filter(a => !selectedAuthors.has(a));
+    const filterAndSetTweets = useCallback((data, allusernames, selectedusernames, currentSearch) => {
+        const usernamesToShow = allusernames.filter(a => !selectedusernames.has(a));
 
         let features = data.features || [];
 
-        if (selectedAuthors.size === allAuthors.length) {
+        if (selectedusernames.size === allusernames.length) {
             features = [];
         } else {
             features = features.filter(f => {
-                const authorMatch =
-                    authorsToShow.length === 0 ||
-                    authorsToShow.length === allAuthors.length ||
-                    authorsToShow.includes(f.properties.author);
+                const usernameMatch =
+                    usernamesToShow.length === 0 ||
+                    usernamesToShow.length === allusernames.length ||
+                    usernamesToShow.includes(f.properties.username);
                 const searchMatch =
                     !currentSearch.trim() ||
                     f.properties.body.toLowerCase().includes(currentSearch.toLowerCase());
-                return authorMatch && searchMatch;
+                return usernameMatch && searchMatch;
             });
         }
 
@@ -33,7 +33,7 @@ export function useTweets() {
         return filtered;
     }, []);
 
-    const loadTweets = useCallback(async (days, allAuthors, selectedAuthors, currentSearch) => {
+    const loadTweets = useCallback(async (days, allusernames, selectedusernames, currentSearch) => {
         try {
             let data;
             if (cachedData[days]) {
@@ -45,7 +45,7 @@ export function useTweets() {
                 data = await response.json();
                 cachedData[days] = data;
             }
-            return filterAndSetTweets(data, allAuthors, selectedAuthors, currentSearch);
+            return filterAndSetTweets(data, allusernames, selectedusernames, currentSearch);
         } catch (err) {
             console.error('Erreur chargement tweets:', err);
         }
@@ -63,8 +63,8 @@ export function useTweets() {
             ]);
             if (authRes?.ok) {
                 const d = await authRes.json();
-                // On stocke dans le cache de useAuthors via export partagé
-                cachedData[`authors_${days}`] = d.authors || [];
+                // On stocke dans le cache de useusernames via export partagé
+                cachedData[`usernames_${days}`] = d.usernames || [];
             }
             if (tweetsRes?.ok) {
                 cachedData[days] = await tweetsRes.json();

@@ -1,4 +1,4 @@
-import { getAuthorInitials } from '../../utils/helpers';
+import { getusernameInitials } from '../../utils/helpers';
 
 function imagesHTML(images) {
   if (!images?.length) return '';
@@ -46,10 +46,10 @@ export function createPopupHTML(props, pinned, currentIndex, totalCount) {
 <div class="tweet-card${isImportant ? ' important-tweet' : ''}">
   <div class="tweet-card-header">
     <div class="tweet-card-avatar">
-      <img src="img/${props.author}.jpg" alt="${props.author}"
-           onerror="this.style.display='none';this.parentElement.textContent='${getAuthorInitials(props.author)}'">
+      <img src="img/${props.username}.jpg" alt="${props.username}"
+           onerror="this.style.display='none';this.parentElement.textContent='${getusernameInitials(props.username)}'">
     </div>
-    <div class="tweet-card-author">${props.author}</div>
+    <div class="tweet-card-username">${props.username}</div>
     <div class="tweet-card-time">${formattedTime} · ${formattedDate}</div>
     <button onclick="window.closePopup()" class="close-btn" style="display:${pinned ? 'flex' : 'none'}">×</button>
   </div>

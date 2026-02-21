@@ -4,7 +4,7 @@ import TopBar from './components/TopBar/TopBar';
 import TweetsFeedPanel from './components/TweetsFeedPanel/TweetsFeedPanel';
 import AreaPanel from './components/AreaPanel/AreaPanel';
 import OptionsMenu from './components/OptionsMenu/OptionsMenu';
-import { useAuthors } from './hooks/useAuthors';
+import { useusernames } from './hooks/useusernames';
 import { useTweets } from './hooks/useTweets';
 
 export default function App() {
@@ -17,7 +17,7 @@ export default function App() {
   const [selectedLayers, setSelectedLayers] = useState(new Set());
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
 
-  const { allAuthors, selectedAuthors, loadAuthors, toggleAuthor } = useAuthors();
+  const { allusernames, selectedusernames, loadusernames, toggleusername } = useusernames();
   const { tweets, tweetCount, loadTweets, preloadAll, getRawData } = useTweets();
 
   const locateHandlerRef = useRef(null);
@@ -25,20 +25,20 @@ export default function App() {
   // Préchargement initial
   useEffect(() => {
     preloadAll().then(() => {
-      loadAuthors(1);
+      loadusernames(1);
       loadTweets(1, [], new Set(), '');
     });
   }, []); // eslint-disable-line
 
   // Rechargement quand les filtres changent
   useEffect(() => {
-    loadTweets(currentDays, allAuthors, selectedAuthors, currentSearch);
-  }, [currentDays, allAuthors, selectedAuthors, currentSearch]); // eslint-disable-line
+    loadTweets(currentDays, allusernames, selectedusernames, currentSearch);
+  }, [currentDays, allusernames, selectedusernames, currentSearch]); // eslint-disable-line
 
   const handleDaysChange = useCallback(async (days) => {
     setCurrentDays(days);
-    await loadAuthors(days);
-  }, [loadAuthors]);
+    await loadusernames(days);
+  }, [loadusernames]);
 
   const handleToggleLayer = useCallback((layerId) => {
     setSelectedLayers(prev => {
@@ -88,8 +88,8 @@ export default function App() {
         isOpen={isFeedOpen}
         onClose={() => setIsFeedOpen(false)}
         currentDays={currentDays}
-        allAuthors={allAuthors}
-        selectedAuthors={selectedAuthors}
+        allusernames={allusernames}
+        selectedusernames={selectedusernames}
         currentSearch={currentSearch}
         selectedAreaName={selectedAreaName}
         cachedData={getRawData(currentDays)}
@@ -104,9 +104,9 @@ export default function App() {
       <OptionsMenu
         isOpen={isOptionsOpen}
         onClose={() => setIsOptionsOpen(v => !v)}
-        allAuthors={allAuthors}
-        selectedAuthors={selectedAuthors}
-        onToggleAuthor={toggleAuthor}
+        allusernames={allusernames}
+        selectedusernames={selectedusernames}
+        onToggleusername={toggleusername}
         selectedLayers={selectedLayers}
         onToggleLayer={handleToggleLayer}
       />

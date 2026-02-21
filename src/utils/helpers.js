@@ -16,10 +16,10 @@ export function formatTweetTime(dateString) {
   return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
 
-export function getAuthorInitials(author) {
-  const parts = author.replace('@', '').split(/[_\s]/);
+export function getusernameInitials(username) {
+  const parts = username.replace('@', '').split(/[_\s]/);
   if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
-  return author.substring(0, 2).toUpperCase();
+  return username.substring(0, 2).toUpperCase();
 }
 
 export function parseImages(images) {
