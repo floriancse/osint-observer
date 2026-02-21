@@ -276,7 +276,8 @@
 
  /* Les autres boutons/labels – on harmonise */
  #tweet-count,
- .banner-label {
+ .banner-label,
+ .tvToggleBtn {
      color: #e7e9ea;
      padding: 8px 12px;
      border-radius: 50px;
@@ -314,7 +315,8 @@
 
  .time-btn,
  #tweet-count,
- .banner-label {
+ .banner-label,
+ .tvToggleBtn {
      height: 37px;
      padding: 8px 12px;
      line-height: 1;

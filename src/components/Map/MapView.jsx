@@ -4,7 +4,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { createPopupHTML } from './popupUtils';
 
 const LAYER_IDS = {
-    disputed: ['disputed_area_fill', 'disputed_area_outline'],
+    disputed: ['disputed_areas_fill', 'disputed_areas_outline'],
     heatmap: ['tweets_points', 'tweets_viseur', 'tweets_hover_area', 'tweets_heatmap_other', 'pulse-high-importance'],
 };
 
@@ -135,7 +135,7 @@ export default function MapView({
         map.on('load', async () => {
             const API = process.env.REACT_APP_API_URL;
             const [disputedData, worldAreasData] = await Promise.all([
-                fetch(`${API}/api/twitter_conflicts/disputed_area.geojson`).then(r => r.json()),
+                fetch(`${API}/api/twitter_conflicts/disputed_areas.geojson`).then(r => r.json()),
                 fetch(`${API}/api/twitter_conflicts/world_areas.geojson`).then(r => r.json()),
             ]);
             map.setProjection({ type: 'globe' });
@@ -155,7 +155,7 @@ export default function MapView({
             map.addImage('hatch-pattern', { width: size, height: size, data: hatchImage });
 
             // Sources
-            map.addSource('disputed_area', {
+            map.addSource('disputed_areas', {
                 type: 'geojson',
                 data: disputedData,
             });
@@ -171,11 +171,11 @@ export default function MapView({
 
             // Layers disputed
             map.addLayer({
-                id: 'disputed_area_fill', type: 'fill', source: 'disputed_area',
+                id: 'disputed_areas_fill', type: 'fill', source: 'disputed_areas',
                 paint: { 'fill-pattern': 'hatch-pattern', 'fill-opacity': 0.5 }
             });
             map.addLayer({
-                id: 'disputed_area_outline', type: 'line', source: 'disputed_area',
+                id: 'disputed_areas_outline', type: 'line', source: 'disputed_areas',
                 paint: { 'line-color': '#880000', 'line-width': 1, 'line-opacity': 1 }
             });
 
