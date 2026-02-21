@@ -4,7 +4,7 @@ import TopBar from './components/TopBar/TopBar';
 import TweetsFeedPanel from './components/TweetsFeedPanel/TweetsFeedPanel';
 import AreaPanel from './components/AreaPanel/AreaPanel';
 import OptionsMenu from './components/OptionsMenu/OptionsMenu';
-import { useusernames } from './hooks/useusernames';
+import { useUsernames } from './hooks/useUsernames';
 import { useTweets } from './hooks/useTweets';
 
 export default function App() {
@@ -17,7 +17,7 @@ export default function App() {
   const [selectedLayers, setSelectedLayers] = useState(new Set());
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
 
-  const { allusernames, selectedusernames, loadusernames, toggleusername } = useusernames();
+  const { allusernames, selectedusernames, loadusernames, toggleusername } = useUsernames();
   const { tweets, tweetCount, loadTweets, preloadAll, getRawData } = useTweets();
 
   const locateHandlerRef = useRef(null);
