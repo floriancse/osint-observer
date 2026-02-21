@@ -49,7 +49,7 @@ export default function TweetsFeedPanel({
       });
 
       filtered.sort((a, b) =>
-        new Date(b.properties.date_published) - new Date(a.properties.date_published)
+        new Date(b.properties.created_at) - new Date(a.properties.created_at)
       );
 
       setFeatures(filtered);

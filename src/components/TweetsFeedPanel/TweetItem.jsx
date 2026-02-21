@@ -87,7 +87,7 @@ export default function TweetItem({ feature, onLocate }) {
           <img src={`img/${props.username}.jpg`} alt={props.username} onError={handleAvatarError} />
         </div>
         <div className="feed-tweet-username">{props.username}</div>
-        <div className="feed-tweet-time">{formatTweetTime(props.date_published)}</div>
+        <div className="feed-tweet-time">{formatTweetTime(props.created_at)}</div>
       </div>
 
       <div className="feed-tweet-text">{props.text}</div>

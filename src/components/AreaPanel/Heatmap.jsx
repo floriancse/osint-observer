@@ -62,7 +62,7 @@ export default function Heatmap({ areaName, tensionScore = 0 }){
         const counts = {};
         for (let i = 1; i <= daysInMonth; i++) counts[getKey(new Date(year, month, i))] = 0;
         (data.features || []).forEach(f => {
-          const k = getKey(new Date(f.properties.date_published));
+          const k = getKey(new Date(f.properties.created_at));
           if (k in counts) counts[k]++;
         });
         setDayData(counts);
