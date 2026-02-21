@@ -3,7 +3,7 @@ import { getDateRange } from '../utils/helpers';
 
 const cachedusernames = { 1: null, 7: null, 30: null };
 
-export function useusernames() {
+export function useUsernames() {
   const [allusernames, setAllusernames] = useState([]);
   const [selectedusernames, setSelectedusernames] = useState(new Set());
 

@@ -63,7 +63,7 @@ export function useTweets() {
             ]);
             if (authRes?.ok) {
                 const d = await authRes.json();
-                // On stocke dans le cache de useusernames via export partagé
+                // On stocke dans le cache de useUsernames via export partagé
                 cachedData[`usernames_${days}`] = d.usernames || [];
             }
             if (tweetsRes?.ok) {
