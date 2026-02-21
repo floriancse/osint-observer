@@ -53,7 +53,7 @@ export function createPopupHTML(props, pinned, currentIndex, totalCount) {
     <div class="tweet-card-time">${formattedTime} · ${formattedDate}</div>
     <button onclick="window.closePopup()" class="close-btn" style="display:${pinned ? 'flex' : 'none'}">×</button>
   </div>
-  <div class="tweet-card-body">${props.body}</div>
+  <div class="tweet-card-text">${props.text}</div>
   ${imagesHTML(images)}
   <div class="tweet-card-actions">
     <a href="${props.url}" class="tweet-card-link" target="_blank">Voir le tweet ↗</a>

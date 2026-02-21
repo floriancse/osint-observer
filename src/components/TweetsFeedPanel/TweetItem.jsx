@@ -90,7 +90,7 @@ export default function TweetItem({ feature, onLocate }) {
         <div className="feed-tweet-time">{formatTweetTime(props.date_published)}</div>
       </div>
 
-      <div className="feed-tweet-body">{props.body}</div>
+      <div className="feed-tweet-text">{props.text}</div>
 
       <TweetImages images={images} />
 
