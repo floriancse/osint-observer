@@ -1,11 +1,15 @@
 import React, { useEffect, useRef } from 'react';
 
-function getTensionColor(score) {
-  if (score >= 100) return '#ff2d2d';
-  if (score >= 40) return '#ff7b00';
-  if (score >= 14) return '#ffd600';
-  if (score >= 2) return '#4a8fff';
-  return '#6d6d6d';
+function getTensionColor(niveau) {
+  const map = {
+    'Guerre ouverte':             '#ff2d2d',
+    'Conflit actif majeur':       '#ff7b00',
+    'Haute tension stratégique':  '#ffd600',
+    'Tension notable':            '#00ffb7',
+    'Activité modérée':           '#4a8fff',
+    'Stable / faible':            '#6d6d6d',
+  };
+  return map[niveau] ?? '#6d6d6d';
 }
 
 export default function TensionIndex({ areaName }) {
@@ -41,7 +45,7 @@ export default function TensionIndex({ areaName }) {
   if (error || !data) return <div className="t-error"></div>;
 
   const score = data.tension_score;
-  const color = getTensionColor(score);
+  const color = getTensionColor(data.niveau_tension);
   const events = (data.evenements || []).filter(ev => ev.SUMMARY_TEXT?.trim() || ev.text?.trim());
   const maxContrib = Math.max(...events.map(e => parseFloat(e.score_contribution_normalized)), 0) || 1;
   const ticks = Array(20).fill(0);

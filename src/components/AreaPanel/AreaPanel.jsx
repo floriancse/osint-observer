@@ -2,18 +2,23 @@ import React, { useState, useEffect } from 'react';
 import Heatmap from './Heatmap';
 import TensionIndex from './TensionIndex';
 
-function getTensionColor(score) {
-  if (score >= 100) return '#ff2d2d';
-  if (score >= 40) return '#ff7b00';
-  if (score >= 20) return '#ffd600';
-  if (score >= 2) return '#4a8fff';
-  return '#6d6d6d';
+function getTensionColor(niveau) {
+  const map = {
+    'Guerre ouverte': '#ff2d2d',
+    'Conflit actif majeur': '#ff7b00',
+    'Haute tension stratégique': '#ffd600',
+    'Tension notable': '#00ffb7',
+    'Activité modérée': '#4a8fff',
+    'Stable / faible': '#6d6d6d',
+  };
+  return map[niveau] ?? '#6d6d6d';
 }
 
-export default function AreaPanel({ areaName, onClose }) {
+export default function AreaPanel({ areaName, onClose, onLocate }) {
   const [tensionColor, setTensionColor] = useState('#6d6d6d');
   const [tensionScore, setTensionScore] = useState(0);
   const [loadingTension, setLoadingTension] = useState(true);
+  const [niveauTension, setNiveauTension] = useState('Stable / faible');
 
   useEffect(() => {
     if (!areaName) {
@@ -33,7 +38,8 @@ export default function AreaPanel({ areaName, onClose }) {
       .then(data => {
         const score = Number(data.tension_score) || 0;
         setTensionScore(score);
-        setTensionColor(getTensionColor(score));
+        setNiveauTension(data.niveau_tension ?? 'Stable / faible'); // ← ajouter
+        setTensionColor(getTensionColor(data.niveau_tension));
       })
       .catch(err => {
         console.warn('Could not load tension index:', err);
@@ -55,10 +61,7 @@ export default function AreaPanel({ areaName, onClose }) {
         <div id="summary_text-tab" className="tab-content active">
           {areaName && (
             <>
-              <Heatmap
-                areaName={areaName}
-                tensionScore={tensionScore}
-              /> 
+              <Heatmap areaName={areaName} niveauTension={niveauTension} />
 
               <TensionIndex
                 areaName={areaName}

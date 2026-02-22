@@ -7,7 +7,7 @@ function TweetImages({ images }) {
 
   if (count === 1) return (
     <div className="tweet-card-images single">
-      <img src={images[0]} alt="tweet" loading="lazy"
+      <img src={images[0]} alt="media-img" loading="lazy"
         onError={e => { e.target.parentElement.style.display = 'none'; }} />
     </div>
   );
@@ -15,7 +15,7 @@ function TweetImages({ images }) {
   if (count === 2) return (
     <div className="tweet-card-images double">
       {images.map((img, i) => (
-        <img key={i} src={img} alt="tweet" loading="lazy"
+        <img key={i} src={img} alt="media-img" loading="lazy"
           onError={e => { e.target.style.display = 'none'; }} />
       ))}
     </div>
@@ -23,12 +23,12 @@ function TweetImages({ images }) {
 
   if (count === 3) return (
     <div className="tweet-card-images triple">
-      <img src={images[0]} alt="tweet" loading="lazy" className="main-img"
+      <img src={images[0]} alt="media-img" loading="lazy" className="main-img"
         onError={e => { e.target.style.display = 'none'; }} />
       <div className="secondary-imgs">
-        <img src={images[1]} alt="tweet" loading="lazy"
+        <img src={images[1]} alt="media-img" loading="lazy"
           onError={e => { e.target.style.display = 'none'; }} />
-        <img src={images[2]} alt="tweet" loading="lazy"
+        <img src={images[2]} alt="media-img" loading="lazy"
           onError={e => { e.target.style.display = 'none'; }} />
       </div>
     </div>
@@ -40,7 +40,7 @@ function TweetImages({ images }) {
     <div className="tweet-card-images quad">
       {display.map((img, i) => (
         <div key={i} className={`img-wrapper${i === 3 && remaining > 0 ? ' has-more' : ''}`}>
-          <img src={img} alt="tweet" loading="lazy"
+          <img src={img} alt="media-img" loading="lazy"
             onError={e => { e.target.style.display = 'none'; }} />
           {i === 3 && remaining > 0 && (
             <div className="more-overlay">+{remaining}</div>

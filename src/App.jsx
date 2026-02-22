@@ -3,6 +3,7 @@ import MapView from './components/Map/MapView';
 import TopBar from './components/TopBar/TopBar';
 import TweetsFeedPanel from './components/TweetsFeedPanel/TweetsFeedPanel';
 import AreaPanel from './components/AreaPanel/AreaPanel';
+import TensionIndex from './components/AreaPanel/TensionIndex';
 import OptionsMenu from './components/OptionsMenu/OptionsMenu';
 import { useUsernames } from './hooks/useUsernames';
 import { useTweets } from './hooks/useTweets';
@@ -99,6 +100,7 @@ export default function App() {
       <AreaPanel
         areaName={selectedAreaName}
         onClose={() => setSelectedAreaName(null)}
+        onLocate={handleLocateTweet} 
       />
 
       <OptionsMenu
@@ -111,6 +113,9 @@ export default function App() {
         onToggleLayer={handleToggleLayer}
       />
 
+      <TensionIndex
+        areaName={selectedAreaName}
+      />
     </div>
   );
 }

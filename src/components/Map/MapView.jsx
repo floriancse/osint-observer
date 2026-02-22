@@ -8,8 +8,6 @@ const LAYER_IDS = {
     heatmap: ['tweets_points', 'tweets_viseur', 'tweets_hover_area', 'tweets_heatmap_other', 'pulse-high-importance_score'],
 };
 
-
-
 export default function MapView({
     tweetsData,
     selectedLayers,
@@ -28,6 +26,7 @@ export default function MapView({
     const currentFeaturesRef = useRef([]);
     const currentIndexRef = useRef(0);
     const animFrameRef = useRef(null);
+    const visibilityHandlerRef = useRef(null);
 
     // ── Rotation ──
     const startRotation = useCallback(() => {
@@ -102,10 +101,6 @@ export default function MapView({
             stopRotation();
             const coords = feature.geometry.coordinates.slice();
             map.flyTo({ center: coords, zoom: Math.max(map.getZoom(), 5), duration: 1000 });
-            popupPinnedRef.current = true;
-            currentFeaturesRef.current = [feature];
-            currentIndexRef.current = 0;
-            showPopupAtIndex(0);
         });
     }, [registerLocateHandler, stopRotation, showPopupAtIndex]);
 
@@ -380,20 +375,13 @@ export default function MapView({
                 }
             };
             document.addEventListener('visibilitychange', handleVisibilityChange);
-
-            document.addEventListener('visibilitychange', () => {
-                if (document.hidden) {
-                    if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
-                } else {
-                    animatePulse();
-                }
-            });
+            visibilityHandlerRef.current = handleVisibilityChange; // ← store in ref
 
             startRotation();
         });
 
         return () => {
-            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            document.removeEventListener('visibilitychange', visibilityHandlerRef.current); // ← uses ref
             if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
             if (rotationRef.current) clearInterval(rotationRef.current);
             map.remove();

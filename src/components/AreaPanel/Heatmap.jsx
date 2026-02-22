@@ -7,12 +7,16 @@ function hexToRgba(hex, alpha) {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
-function getTensionColor(score) {
-  if (score >= 100) return '#ff2d2d';
-  if (score >= 40) return '#ff7b00';
-  if (score >= 15) return '#ffd600';
-  if (score >= 2) return '#4a8fff';
-  return '#6d6d6d';
+function getTensionColor(niveau) {
+  const map = {
+    'Guerre ouverte':             '#ff2d2d',
+    'Conflit actif majeur':       '#ff7b00',
+    'Haute tension stratégique':  '#ffd600',
+    'Tension notable':            '#00ffb7',
+    'Activité modérée':           '#4a8fff',
+    'Stable / faible':            '#6d6d6d',
+  };
+  return map[niveau] ?? '#6d6d6d';
 }
 
 function getLevelStyle(level, color) {
@@ -36,8 +40,8 @@ function styleStringToObj(str) {
   );
 }
 
-export default function Heatmap({ areaName, tensionScore = 0 }){
-  const tensionColor = getTensionColor(tensionScore);
+export default function Heatmap({ areaName, niveauTension = 'Stable / faible' }){
+  const tensionColor = getTensionColor(niveauTension);
   const [dayData, setDayData] = useState({});
   const [loading, setLoading] = useState(true);
   const [tooltip, setTooltip] = useState({ visible: false, text: '', x: 0, y: 0 });
