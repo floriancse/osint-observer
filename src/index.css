@@ -1944,67 +1944,83 @@
      background: linear-gradient(to bottom, var(--red), transparent);
      opacity: 0.2;
  }
+.t-event {
+  position: relative;
+  padding: 14px 16px 14px 32px;
+  border-left: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  transition: background 0.2s;
+  cursor: default;
+}
 
- .t-event {
-     position: relative;
-     padding: 14px 16px 14px 32px;
-     border-left: 1px solid var(--border);
-     border-right: 1px solid var(--border);
-     border-bottom: 1px solid var(--border);
-     background: var(--surface);
-     transition: background 0.2s;
-     cursor: default;
- }
+.t-event-intensity {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--red);
+}
 
- .t-event::before {
-     display: none;
- }
+.t-event-meta {
+  margin-bottom: 8px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--dim);
+  letter-spacing: 0.05em;
+}
 
- .t-event-intensity {
-     position: absolute;
-     left: 0;
-     top: 0;
-     bottom: 0;
-     width: 3px;
-     background: var(--red);
- }
+.t-event-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 3px;   /* espace entre les lignes */
+}
 
- .t-event-meta {
-     display: flex;
-     align-items: center;
-     gap: 8px;
-     margin-bottom: 5px;
- }
+.t-event-line--header {
+  font-weight: 500;
+  margin-bottom: 5px;   /* un peu plus d'espace après la première ligne */
+}
 
- .t-event-date {
-     font-family: var(--mono);
-     font-size: 11px;
-     color: var(--dim);
-     letter-spacing: 0.05em;
- }
+.t-event-date {
+  /* peut rester comme avant si tu veux */
+}
 
- .t-event-score {
-     font-family: var(--mono);
-     font-size: 10px;
-     font-weight: 600;
-     color: var(--red);
-     background: rgba(255, 45, 45, 0.08);
-     padding: 1px 6px;
-     border-radius: 2px;
- }
+.t-event-score {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--red);
+  background: rgba(255, 45, 45, 0.08);
+  padding: 1px 6px;
+  border-radius: 2px;
+}
 
- .t-event-score.low {
-     color: var(--yellow);
-     background: rgba(255, 214, 0, 0.08);
- }
+.t-event-score.low {
+  color: var(--yellow);
+  background: rgba(255, 214, 0, 0.08);
+}
 
- .t-event-text {
-     font-size: 13px;
-     line-height: 1.55;
-     color: var(--text);
-     font-weight: 400;
-     font-style: italic;
- }
+.t-event-location_name{
+    color : var(--text);
+    font-weight: 700;
+    font-size: 12px;
+}
+.t-event-location_name,
+.t-event-coordinates {
+  /* déjà ok, mais tu peux ajouter si besoin */
+  display: block;
+}
+
+.t-event-text {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text);
+  font-weight: 400;
+  font-style: italic;
+  margin: 0;
+}
 
  /* ── FOOTER ── */
  .t-footer {

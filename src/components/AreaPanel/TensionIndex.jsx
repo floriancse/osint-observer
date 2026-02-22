@@ -3,7 +3,7 @@ import React, { useEffect, useRef } from 'react';
 function getTensionColor(score) {
   if (score >= 100) return '#ff2d2d';
   if (score >= 40) return '#ff7b00';
-  if (score >= 15) return '#ffd600';
+  if (score >= 14) return '#ffd600';
   if (score >= 2) return '#4a8fff';
   return '#6d6d6d';
 }
@@ -42,7 +42,7 @@ export default function TensionIndex({ areaName }) {
 
   const score = data.tension_score;
   const color = getTensionColor(score);
-  const events = (data.evenements || []).filter(ev => ev.SUMMARY_TEXT?.trim() || ev.text?.trim()); 
+  const events = (data.evenements || []).filter(ev => ev.SUMMARY_TEXT?.trim() || ev.text?.trim());
   const maxContrib = Math.max(...events.map(e => parseFloat(e.score_contribution_normalized)), 0) || 1;
   const ticks = Array(20).fill(0);
 
@@ -89,10 +89,27 @@ export default function TensionIndex({ areaName }) {
             return (
               <li key={i} className="t-event" style={{ animationDelay: `${i * 60}ms` }}>
                 <div className="t-event-intensity" style={{ background: intensityColor, opacity }} />
+
                 <div className="t-event-meta">
-                  <span className="t-event-date">{ev.date}</span>
-                  <span className={`t-event-score ${scoreClass}`}>+{contrib.toFixed(2)}</span>
+                  {/* Ligne 1 : date + score */}
+                  <div className="t-event-line t-event-line--header">
+                    <span className="t-event-date">{ev.date}</span>
+                    <span className={`t-event-score ${scoreClass}`}>+{contrib.toFixed(2)}</span>
+                  </div>
+
+                  {/* Ligne 2 : lieu */}
+                  <div className="t-event-line">
+                    <span className="t-event-location_name">{ev.location_name}</span>
+                  </div>
+
+                  {/* Ligne 3 : coordonnées */}
+                  <div className="t-event-line">
+                    <span className="t-event-coordinates">
+                      {ev.latitude}° {ev.longitude}°
+                    </span>
+                  </div>
                 </div>
+
                 <p className="t-event-text">"{ev.SUMMARY_TEXT || ev.text}"</p>
               </li>
             );
