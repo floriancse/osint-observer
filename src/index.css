@@ -215,6 +215,7 @@
      justify-content: space-between;
      align-items: center;
      gap: 20px;
+     pointer-events: none;
  }
 
  .right-controls {
