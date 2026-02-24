@@ -1926,43 +1926,69 @@
      color: var(--dim);
  }
 
- /* ── TIMELINE ── */
+ /* ── TIMELINE*/
  .t-timeline {
      position: relative;
-     padding: 0;
+     padding: 20px 0 0 0;
      list-style: none;
-     font-family: 'Roboto Mono', monospace
  }
 
  .t-timeline::before {
      content: '';
      position: absolute;
-     left: 24px;
+     left: 20px;
      top: 0;
      bottom: 0;
      width: 1px;
-     background: linear-gradient(to bottom, var(--red), transparent);
-     opacity: 0.2;
+     background: var(--border);
+     transform: translateX(-50%);
+     z-index: 0;
  }
 
  .t-event {
      position: relative;
-     padding: 14px 16px 14px 32px;
-     border-left: 1px solid var(--border);
-     border-right: 1px solid var(--border);
-     border-bottom: 1px solid var(--border);
+     margin-bottom: 15px;
+     margin-left: 40px;
+     padding: 16px;
      background: var(--surface);
-     transition: background 0.2s;
-     cursor: default;
+     border: 1px solid var(--border);
+     border-radius: 4px;
  }
 
- .t-event-intensity {
+ .t-event::before {
+     content: '';
      position: absolute;
-     left: 0;
-     top: 0;
-     bottom: 0;
-     width: 3px;
-     background: var(--red);
+     left: -20px;
+     top: 24px;
+     width: 11px;
+     height: 11px;
+     transform: translate(-50%, -50%);
+     background: var(--border);
+     outline: 1px solid rgb(79, 79, 79);
+     border-radius: 50%;
+     z-index: 999;
+     box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.12);
+ }
+
+ .t-event:hover::before {
+     background: var(--event-dot-color);
+ }
+
+  .t-event:hover{
+    cursor: pointer;
+  }
+.t-event:hover >  .t-event-text{
+    color:var(--text)
+}
+ .t-event::after {
+     content: '';
+     position: absolute;
+     left: 27px;
+     top: 27px;
+     width: 21px;
+     height: 1px;
+     background: var(--border);
+     z-index: 1;
  }
 
  .t-event-meta {
@@ -1978,17 +2004,11 @@
      align-items: center;
      gap: 10px;
      margin-bottom: 3px;
-     /* espace entre les lignes */
  }
 
  .t-event-line--header {
      font-weight: 500;
      margin-bottom: 5px;
-     /* un peu plus d'espace après la première ligne */
- }
-
- .t-event-date {
-     /* peut rester comme avant si tu veux */
  }
 
  .t-event-score {
@@ -2019,51 +2039,10 @@
 
  .t-event-text {
      font-size: 13px;
-     color: var(--text);
+     color: oklch(70.7% .022 261.325);
      font-weight: 400;
      font-style: italic;
      margin: 0;
- }
-
- /* ── FOOTER ── */
- .t-footer {
-     border: 1px solid var(--border);
-     border-top: none;
-     background: rgba(255, 45, 45, 0.03);
-     padding: 10px 24px;
-     display: flex;
-     justify-content: space-between;
-     align-items: center;
-     border-radius: 0 0 4px 4px;
- }
-
- .t-footer-label {
-     font-family: var(--mono);
-     font-size: 10px;
-     color: var(--dim);
-     letter-spacing: 0.1em;
- }
-
- .t-pulse {
-     width: 6px;
-     height: 6px;
-     border-radius: 50%;
-     background: var(--red);
-     animation: pulse 2s ease-in-out infinite;
- }
-
- @keyframes pulse {
-
-     0%,
-     100% {
-         opacity: 1;
-         transform: scale(1);
-     }
-
-     50% {
-         opacity: 0.4;
-         transform: scale(0.7);
-     }
  }
 
  /* ── STATES ── */

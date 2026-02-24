@@ -2,12 +2,12 @@ import React, { useEffect, useRef } from 'react';
 
 function getTensionColor(niveau) {
   const map = {
-    'Guerre ouverte':             '#ff2d2d',
-    'Conflit actif majeur':       '#ff7b00',
-    'Haute tension stratégique':  '#ffd600',
-    'Tension notable':            '#00ffb7',
-    'Activité modérée':           '#4a8fff',
-    'Stable / faible':            '#6d6d6d',
+    'Guerre ouverte': '#ff2d2d',
+    'Conflit actif majeur': '#ff7b00',
+    'Haute tension stratégique': '#ffd600',
+    'Tension notable': '#00ffb7',
+    'Activité modérée': '#4a8fff',
+    'Stable / faible': '#6d6d6d',
   };
   return map[niveau] ?? '#6d6d6d';
 }
@@ -51,7 +51,10 @@ export default function TensionIndex({ areaName }) {
   const ticks = Array(20).fill(0);
 
   return (
-    <div className="tension-index-container">
+    <div
+      className="tension-index-container"
+      style={{ '--event-dot-color': color }}    // ← on passe la couleur ici
+    >
       {/* Partie haute fixe : jauge + score */}
       <div className="t-header">
         <div className="t-region-label">Zone de conflit · Indice de tension</div>
