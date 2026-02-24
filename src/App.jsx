@@ -25,11 +25,12 @@ export default function App() {
 
   // Préchargement initial
   useEffect(() => {
-    preloadAll().then(() => {
-      loadusernames(1);
-      loadTweets(1, [], new Set(), '');
+    preloadAll().then(async () => {
+      const usernames = await loadusernames(1); // ← loadusernames doit retourner les usernames
+      loadTweets(1, usernames, new Set(), '');
     });
-  }, []); // eslint-disable-line
+  }, []);
+
 
   // Rechargement quand les filtres changent
   useEffect(() => {
@@ -100,7 +101,12 @@ export default function App() {
       <AreaPanel
         areaName={selectedAreaName}
         onClose={() => setSelectedAreaName(null)}
-        onLocate={handleLocateTweet} 
+        onLocate={handleLocateTweet}
+      />
+
+      <TensionIndex
+        areaName={selectedAreaName}
+        onLocate={handleLocateTweet}           // ← AJOUTE ÇA SI C'EST ABSENT
       />
 
       <OptionsMenu
@@ -113,9 +119,6 @@ export default function App() {
         onToggleLayer={handleToggleLayer}
       />
 
-      <TensionIndex
-        areaName={selectedAreaName}
-      />
     </div>
   );
 }

@@ -11,17 +11,18 @@ export function useUsernames() {
     try {
       if (cachedusernames[days]) {
         setAllusernames(cachedusernames[days]);
-        return;
+        return cachedusernames[days];
       }
       const { start, end } = getDateRange(days);
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/twitter_conflicts/usernames?start_date=${start}&end_date=${end}`)
-
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/twitter_conflicts/usernames?start_date=${start}&end_date=${end}`);
       const data = await response.json();
       const usernames = data.usernames || [];
       cachedusernames[days] = usernames;
       setAllusernames(usernames);
+      return usernames;
     } catch (err) {
       console.error('Erreur chargement auteurs:', err);
+      return [];
     }
   }, []);
 

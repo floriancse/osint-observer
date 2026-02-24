@@ -12,7 +12,7 @@ function getTensionColor(niveau) {
   return map[niveau] ?? '#6d6d6d';
 }
 
-export default function TensionIndex({ areaName }) {
+export default function TensionIndex({ areaName, onLocate }) {
   const [data, setData] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState(false);
@@ -49,7 +49,7 @@ export default function TensionIndex({ areaName }) {
   const events = (data.evenements || []).filter(ev => ev.SUMMARY_TEXT?.trim() || ev.text?.trim());
   const maxContrib = Math.max(...events.map(e => parseFloat(e.score_contribution_normalized)), 0) || 1;
   const ticks = Array(20).fill(0);
-
+console.log("TensionIndex rendu - areaName:", areaName, " | onLocate type:", typeof onLocate);
   return (
     <div
       className="tension-index-container"
@@ -91,9 +91,34 @@ export default function TensionIndex({ areaName }) {
             const contrib = parseFloat(ev.score_contribution_normalized);
             const scoreClass = contrib < 0.5 ? 'low' : '';
 
-            return (
-              <li key={i} className="t-event" style={{ animationDelay: `${i * 60}ms` }}>
+            const lat = parseFloat(ev.latitude);
+            const lng = parseFloat(ev.longitude);
+            const isValidCoord = !isNaN(lat) && !isNaN(lng);
 
+            return (
+              <li
+                key={i}
+                className="t-event"
+                style={{ animationDelay: `${i * 60}ms` }}
+                onClick={(e) => {
+                  console.log("CLIC DETECTÉ sur événement", i, ev.location_name);
+                  console.log("Coordonnées :", ev.latitude, ev.longitude);
+                  console.log("onLocate existe ?", !!onLocate);
+
+                  if (isValidCoord && onLocate) {
+                    console.log("→ on appelle onLocate avec :", [lng, lat]);
+                    onLocate({
+                      geometry: { coordinates: [lng, lat] },
+                      properties: ev
+                    });
+                  } else {
+                    console.warn("Clic ignoré → raisons :",
+                      !isValidCoord ? "coordonnées invalides" : "",
+                      !onLocate ? "onLocate non fourni" : ""
+                    );
+                  }
+                }}
+              >
                 <div className="t-event-meta">
                   {/* Ligne 1 : date + score */}
                   <div className="t-event-line t-event-line--header">

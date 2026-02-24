@@ -376,6 +376,7 @@ export default function MapView({
             };
             document.addEventListener('visibilitychange', handleVisibilityChange);
             visibilityHandlerRef.current = handleVisibilityChange; // ← store in ref
+            mapRef.current._sourcesReady = true;
             animatePulse();
             startRotation();
         });
@@ -393,8 +394,26 @@ export default function MapView({
     useEffect(() => {
         const map = mapRef.current;
         if (!map || !tweetsData) return;
-        const source = map.getSource('tweets');
-        if (source) source.setData(tweetsData);
+
+        const applyData = () => {
+            const source = map.getSource('tweets');
+            if (source) {
+                source.setData(tweetsData);
+            }
+        };
+
+        if (map._sourcesReady) {
+            applyData();
+        } else {
+            // Attend que les sources soient prêtes
+            const interval = setInterval(() => {
+                if (map.getSource('tweets')) {
+                    clearInterval(interval);
+                    applyData();
+                }
+            }, 50);
+            return () => clearInterval(interval);
+        }
     }, [tweetsData]);
 
     // ── Sync layers visibility ──

@@ -65,6 +65,7 @@ export default function AreaPanel({ areaName, onClose, onLocate }) {
 
               <TensionIndex
                 areaName={areaName}
+                onLocate={onLocate}          // ← forward la prop reçue par AreaPanel
               />
             </>
           )}
