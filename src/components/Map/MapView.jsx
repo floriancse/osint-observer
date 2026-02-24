@@ -376,7 +376,7 @@ export default function MapView({
             };
             document.addEventListener('visibilitychange', handleVisibilityChange);
             visibilityHandlerRef.current = handleVisibilityChange; // ← store in ref
-
+            animatePulse();
             startRotation();
         });
 

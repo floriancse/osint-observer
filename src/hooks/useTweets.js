@@ -52,7 +52,7 @@ export function useTweets() {
     }, [filterAndSetTweets]);
 
     const preloadAll = useCallback(async () => {
-        const periods = [1, 7, 30];
+        const periods = [1, 7];
         for (const days of periods) {
             const { start, end } = getDateRange(days);
             const [authRes, tweetsRes] = await Promise.all([
