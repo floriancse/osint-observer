@@ -86,13 +86,10 @@ export default function TensionIndex({ areaName }) {
         <ul className="t-timeline">
           {events.map((ev, i) => {
             const contrib = parseFloat(ev.score_contribution_normalized);
-            const opacity = 0.3 + (contrib / maxContrib) * 0.7;
-            const intensityColor = contrib >= 1 ? '#ff2d2d' : contrib >= 0.5 ? '#ff7b00' : '#ffd60055';
             const scoreClass = contrib < 0.5 ? 'low' : '';
 
             return (
               <li key={i} className="t-event" style={{ animationDelay: `${i * 60}ms` }}>
-                <div className="t-event-intensity" style={{ background: intensityColor, opacity }} />
 
                 <div className="t-event-meta">
                   {/* Ligne 1 : date + score */}
