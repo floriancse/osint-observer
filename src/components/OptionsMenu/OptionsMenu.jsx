@@ -51,7 +51,7 @@ export default function OptionsMenu({
           {/* Couches */}
           <div className="menu-section">
             <div className="section-title">
-              <i className="fas fa-layer-group"></i> Couches
+              <i className="fas fa-layer-group"></i> Layers
             </div>
             <div className="checkbox-list">
               {ALL_LAYERS.map(layer => (
