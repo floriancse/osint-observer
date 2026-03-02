@@ -2,12 +2,11 @@ import React, { useEffect, useRef } from 'react';
 
 function getTensionColor(niveau) {
   const map = {
-    'Guerre ouverte': '#de1d1d',
-    'Conflit actif majeur': '#de1d1d',
-    'Haute tension stratégique': '#d3b30e',
-    'Tension notable': '#00ffb7',
-    'Activité modérée': '#4a8fff',
-    'Stable / faible': '#6d6d6d',
+    'Open Warfare':             '#ed3f3f',
+    'High Strategic Tension':  '#edb33f',
+    'Significant Tension':            '#3fedbc',
+    'Moderate Tension':           '#4a8fff',
+    'Low Tension / Stable':            '#6d6d6d',
   };
   return map[niveau] ?? '#6d6d6d';
 }

@@ -1,9 +1,9 @@
 import React, { useState, useCallback } from 'react';
 
 const PERIODS = [
-  { label: '1 j.', days: 1 },
-  { label: '7 j.', days: 7 },
-  { label: '30 j.', days: 30 },
+  { label: '1 d.', days: 1 },
+  { label: '7 d.', days: 7 },
+  { label: '30 d.', days: 30 },
 ];
 
 const IconSearch = () => (
