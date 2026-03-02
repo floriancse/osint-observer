@@ -8,7 +8,7 @@ export default function AreaPanel({ areaName, onClose, onLocate }) {
   return (
     <div className={`area-panel${areaName ? ' visible' : ''}`}>
       <div className="panel-header">
-        <h3 id="area-title">{areaName || 'Pays sélectionné'}</h3>
+        <h3 id="area-title">{areaName || 'Selected country'}</h3>
         <button className="close-btn" onClick={onClose}>×</button>
       </div>
       <div className="panel-content">
@@ -19,7 +19,7 @@ export default function AreaPanel({ areaName, onClose, onLocate }) {
               <TensionIndex
                 areaName={areaName}
                 onLocate={onLocate}
-                onDataLoaded={(d) => setNiveauTension(d.niveau_tension ?? 'Stable / faible')}
+                onDataLoaded={(d) => setNiveauTension(d.tension_level ?? 'Stable / faible')}
               />
             </>
           )}
