@@ -220,6 +220,7 @@ export default function MapView({
 
             // Click world area
             map.on('click', 'world_areas_fill', (e) => {
+                
                 if (!e.features?.length) return;
                 const tweets = map.queryRenderedFeatures(e.point, { layers: ['tweets_hover_area'] });
                 if (tweets?.length) return;
@@ -358,8 +359,9 @@ export default function MapView({
                     opacity = maxOpacity * (1 - t);
                 }
                 if (zoom < 3) opacity *= 0.6;
-                const baseRadius = zoom < 3 ? 7 : zoom < 6 ? 6 : zoom < 9 ? 5 : 4;
-                const maxGrow = baseRadius * (zoom < 6 ? 15 : zoom < 9 ? 8 : 10);
+                const baseRadius = zoom < 3 ? 4 : zoom < 6 ? 5 : zoom < 9 ? 5 : 4;
+                const maxGrow = baseRadius * (zoom < 3 ? 8 : zoom < 6 ? 10 : zoom < 9 ? 10 : 10);
+
                 const radius = baseRadius + (maxGrow - baseRadius) * phase;
                 map.setPaintProperty('pulse-high-importance_score', 'circle-stroke-opacity', opacity);
                 map.setPaintProperty('pulse-high-importance_score', 'circle-opacity', opacity);
@@ -386,9 +388,9 @@ export default function MapView({
             if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
             if (rotationRef.current) clearInterval(rotationRef.current);
             map.remove();
-            mapRef.current = null; // s'assurer que mapRef est null après remove
+            mapRef.current = null; 
         };
-    }, []); // eslint-disable-line
+    }, []);
 
     // ── Sync tweets data ──
     useEffect(() => {
@@ -405,7 +407,6 @@ export default function MapView({
         if (map._sourcesReady) {
             applyData();
         } else {
-            // Attend que les sources soient prêtes
             const interval = setInterval(() => {
                 if (map.getSource('tweets')) {
                     clearInterval(interval);

@@ -2,9 +2,9 @@ import React, { useEffect, useRef } from 'react';
 
 function getTensionColor(niveau) {
   const map = {
-    'Guerre ouverte': '#ff2d2d',
-    'Conflit actif majeur': '#ff7b00',
-    'Haute tension stratégique': '#ffd600',
+    'Guerre ouverte': '#de1d1d',
+    'Conflit actif majeur': '#de1d1d',
+    'Haute tension stratégique': '#d3b30e',
     'Tension notable': '#00ffb7',
     'Activité modérée': '#4a8fff',
     'Stable / faible': '#6d6d6d',
@@ -12,7 +12,7 @@ function getTensionColor(niveau) {
   return map[niveau] ?? '#6d6d6d';
 }
 
-export default function TensionIndex({ areaName, onLocate }) {
+export default function TensionIndex({ areaName, onLocate, onDataLoaded }) {
   const [data, setData] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState(false);
@@ -26,7 +26,11 @@ export default function TensionIndex({ areaName, onLocate }) {
 
     fetch(`${process.env.REACT_APP_API_URL}/api/twitter_conflicts/tension_index?area=${encodeURIComponent(areaName)}`)
       .then(r => r.json())
-      .then(d => { setData(d); setLoading(false); })
+      .then(d => {
+        setData(d);
+        setLoading(false);
+        onDataLoaded?.(d); // ← ajoute ça
+      })
       .catch(() => { setError(true); setLoading(false); });
   }, [areaName]);
 
@@ -49,7 +53,6 @@ export default function TensionIndex({ areaName, onLocate }) {
   const events = (data.evenements || []).filter(ev => ev.SUMMARY_TEXT?.trim() || ev.text?.trim());
   const maxContrib = Math.max(...events.map(e => parseFloat(e.score_contribution_normalized)), 0) || 1;
   const ticks = Array(20).fill(0);
-console.log("TensionIndex rendu - areaName:", areaName, " | onLocate type:", typeof onLocate);
   return (
     <div
       className="tension-index-container"
@@ -57,7 +60,7 @@ console.log("TensionIndex rendu - areaName:", areaName, " | onLocate type:", typ
     >
       {/* Partie haute fixe : jauge + score */}
       <div className="t-header">
-        <div className="t-region-label">Zone de conflit · Indice de tension</div>
+        <div className="t-region-label">Conflict zone · Tension index</div>
         <div className="t-gauge-row">
           <div className="t-score-block">
             <div className="t-score-value" style={{ color }}>{score.toFixed(0)}</div>
@@ -82,8 +85,8 @@ console.log("TensionIndex rendu - areaName:", areaName, " | onLocate type:", typ
       {/* Partie basse : scrollable */}
       <div className="t-events-section">
         <div className="t-events-header">
-          <span className="t-events-label">Événements récents</span>
-          <span className="t-events-count">{events.length} entrées</span>
+          <span className="t-events-label">Recent events</span>
+          <span className="t-events-count">{events.length} entries</span>
         </div>
 
         <ul className="t-timeline">
@@ -101,12 +104,8 @@ console.log("TensionIndex rendu - areaName:", areaName, " | onLocate type:", typ
                 className="t-event"
                 style={{ animationDelay: `${i * 60}ms` }}
                 onClick={(e) => {
-                  console.log("CLIC DETECTÉ sur événement", i, ev.location_name);
-                  console.log("Coordonnées :", ev.latitude, ev.longitude);
-                  console.log("onLocate existe ?", !!onLocate);
 
                   if (isValidCoord && onLocate) {
-                    console.log("→ on appelle onLocate avec :", [lng, lat]);
                     onLocate({
                       geometry: { coordinates: [lng, lat] },
                       properties: ev

@@ -66,7 +66,7 @@ export default function TopBar({
         {/* Compteur */}
         <div id="tweet-count">
           <i className="fas fa-eye eye-icon"></i>
-          {' '}{tweetCount} événement{tweetCount > 1 ? 's' : ''}
+          {' '}{tweetCount} event{tweetCount > 1 ? 's' : ''}
         </div>
       </div>
 
@@ -86,7 +86,7 @@ export default function TopBar({
           <input
             type="text"
             id="tweet-search"
-            placeholder="Filtrer les événements par mot-clé"
+            placeholder="Filter events by keyword"
             autoComplete="off"
             value={searchValue}
             onChange={handleSearch}

@@ -375,7 +375,6 @@
      padding: 4px 8px;
      border-radius: 4px;
      font-size: 12px;
-     /* label */
      cursor: pointer;
      transition: all 0.2s;
  }
@@ -1968,18 +1967,25 @@
      border-radius: 50%;
      z-index: 999;
      box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.12);
+     transition: background 0.2s ease;
+ }
+
+ .t-event:hover {
+     cursor: pointer;
+ }
+
+ .t-event:hover>.t-event-date {
+     color: var(--event-dot-color)
  }
 
  .t-event:hover::before {
      background: var(--event-dot-color);
  }
 
-  .t-event:hover{
-    cursor: pointer;
-  }
-.t-event:hover >  .t-event-text{
-    color:var(--text)
-}
+ .t-event:hover>.t-event-text {
+     color: var(--text)
+ }
+
  .t-event::after {
      content: '';
      position: absolute;
@@ -2043,6 +2049,7 @@
      font-weight: 400;
      font-style: italic;
      margin: 0;
+     transition: color 0.2s ease;
  }
 
  /* ── STATES ── */

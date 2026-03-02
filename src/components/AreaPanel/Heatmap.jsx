@@ -10,7 +10,7 @@ function hexToRgba(hex, alpha) {
 function getTensionColor(niveau) {
   const map = {
     'Guerre ouverte':             '#ff2d2d',
-    'Conflit actif majeur':       '#ff7b00',
+    'Conflit actif majeur':       '#de1d1d',
     'Haute tension stratégique':  '#ffd600',
     'Tension notable':            '#00ffb7',
     'Activité modérée':           '#4a8fff',
@@ -84,7 +84,7 @@ export default function Heatmap({ areaName, niveauTension = 'Stable / faible' })
   const firstDay = new Date(year, month, 1).getDay();
   const getKey = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   const todayKey = getKey(now);
-  const monthName = now.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+  const monthName = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
   const values = Object.values(dayData);
   const totalEvents = values.reduce((a, b) => a + b, 0);
@@ -118,7 +118,7 @@ export default function Heatmap({ areaName, niveauTension = 'Stable / faible' })
   return (
     <div className="heatmap-container">
       <div className="heatmap-header">
-        <span className="heatmap-region-label">Activité mensuelle</span>
+        <span className="heatmap-region-label">Monthly activity</span>
         <span className="heatmap-month">{monthName}</span>
       </div>
 
@@ -141,8 +141,8 @@ export default function Heatmap({ areaName, niveauTension = 'Stable / faible' })
                   onMouseEnter={e => {
                     const [y, m, d2] = day.date.split('-');
                     const date = new Date(y, m - 1, d2);
-                    const weekday = capitalize(date.toLocaleDateString('fr-FR', { weekday: 'long' }));
-                    const mon = capitalize(date.toLocaleDateString('fr-FR', { month: 'long' }));
+                    const weekday = capitalize(date.toLocaleDateString('en-US', { weekday: 'long' }));
+                    const mon = capitalize(date.toLocaleDateString('en-US', { month: 'long' }));
                     setTooltip({
                       visible: true,
                       text: `${weekday} ${date.getDate()} ${mon}`,
@@ -190,7 +190,7 @@ export default function Heatmap({ areaName, niveauTension = 'Stable / faible' })
         <div className="heatmap-tooltip" style={{ left: tooltip.x, top: tooltip.y - 8 }}>
           {tooltip.text}{'\n'}
           <span className="tt-count" style={{ color: tensionColor }}>
-            {tooltip.count} événement{tooltip.count > 1 ? 's' : ''}
+            {tooltip.count} event{tooltip.count > 1 ? 's' : ''}
           </span>
         </div>
       )}

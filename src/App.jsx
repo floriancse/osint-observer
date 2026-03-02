@@ -3,7 +3,6 @@ import MapView from './components/Map/MapView';
 import TopBar from './components/TopBar/TopBar';
 import TweetsFeedPanel from './components/TweetsFeedPanel/TweetsFeedPanel';
 import AreaPanel from './components/AreaPanel/AreaPanel';
-import TensionIndex from './components/AreaPanel/TensionIndex';
 import OptionsMenu from './components/OptionsMenu/OptionsMenu';
 import { useUsernames } from './hooks/useUsernames';
 import { useTweets } from './hooks/useTweets';
@@ -104,10 +103,7 @@ export default function App() {
         onLocate={handleLocateTweet}
       />
 
-      <TensionIndex
-        areaName={selectedAreaName}
-        onLocate={handleLocateTweet}           // ← AJOUTE ÇA SI C'EST ABSENT
-      />
+
 
       <OptionsMenu
         isOpen={isOptionsOpen}

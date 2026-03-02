@@ -70,18 +70,18 @@ export default function TweetsFeedPanel({
     <div className={`tweets-feed-panel${isOpen ? ' visible' : ''}`}>
       <div className="panel-header">
         <div className="panel-titles">
-          <h2>Feed OSINT</h2>
-          <h3>Derniers événements</h3>
+          <h2>OSINT Feed</h2>
+          <h3>Last events</h3>
         </div>
         <button className="close-btn" onClick={onClose}>×</button>
       </div>
 
       <div className="tweets-feed-content">
         {loading && (
-          <div className="feed-loading">Chargement des tweets...</div>
+          <div className="feed-loading">Loading tweets...</div>
         )}
         {!loading && features.length === 0 && (
-          <div className="feed-empty">Aucun tweet trouvé pour cette période</div>
+          <div className="feed-empty">No tweets found for this period</div>
         )}
         {!loading && features.map((feature, i) => (
           <TweetItem
