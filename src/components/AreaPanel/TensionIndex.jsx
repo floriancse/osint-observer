@@ -48,7 +48,7 @@ export default function TensionIndex({ areaName, onLocate, onDataLoaded }) {
   if (error || !data) return <div className="t-error"></div>;
 
   const score = data.tension_score;
-  const color = getTensionColor(data.niveau_tension);
+  const color = getTensionColor(data.tension_level);
   const events = (data.evenements || []).filter(ev => ev.SUMMARY_TEXT?.trim() || ev.text?.trim());
   const maxContrib = Math.max(...events.map(e => parseFloat(e.score_contribution_normalized)), 0) || 1;
   const ticks = Array(20).fill(0);
@@ -66,7 +66,7 @@ export default function TensionIndex({ areaName, onLocate, onDataLoaded }) {
             <div className="t-score-max">/ 100</div>
           </div>
           <div className="t-gauge-bar-wrap">
-            <div className="t-niveau" style={{ color }}>{data.niveau_tension}</div>
+            <div className="t-niveau" style={{ color }}>{data.tension_level}</div>
             <div className="t-bar-bg">
               <div
                 ref={fillRef}
