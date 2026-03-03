@@ -167,12 +167,12 @@ export default function Heatmap({ areaName, niveauTension = 'Stable / faible' })
         <div className="heatmap-stat-divider" />
         <div className="heatmap-stat">
           <div className="heatmap-stat-value">{maxEvents}</div>
-          <div className="heatmap-stat-label">Pic / day</div>
+          <div className="heatmap-stat-label">Peak / day</div>
         </div>
         <div className="heatmap-stat-divider" />
         <div className="heatmap-stat">
           <div className="heatmap-stat-value">{avgEvents.toFixed(1)}</div>
-          <div className="heatmap-stat-label">Mean / day</div>
+          <div className="heatmap-stat-label">Avg. / day</div>
         </div>
       </div>
 
