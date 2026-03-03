@@ -225,10 +225,10 @@ export default function MapView({
                 source: 'military_actions',
                 layout: { 'line-join': 'round', 'line-cap': 'round' },
                 paint: {
-                    'line-color': '#ff3b5c',
+                    'line-color': '#10b981',
                     'line-width': 1.5,
-                    'line-opacity': 0.7,
-                    'line-dasharray': [2, 3],
+                    'line-opacity': 0.8,
+                    'line-dasharray': [2, 2],
                 },
             });
             // Hover world areas

@@ -167,22 +167,22 @@ export default function Heatmap({ areaName, niveauTension = 'Stable / faible' })
         <div className="heatmap-stat-divider" />
         <div className="heatmap-stat">
           <div className="heatmap-stat-value">{maxEvents}</div>
-          <div className="heatmap-stat-label">Pic / jour</div>
+          <div className="heatmap-stat-label">Pic / day</div>
         </div>
         <div className="heatmap-stat-divider" />
         <div className="heatmap-stat">
           <div className="heatmap-stat-value">{avgEvents.toFixed(1)}</div>
-          <div className="heatmap-stat-label">Moy. / jour</div>
+          <div className="heatmap-stat-label">Mean / day</div>
         </div>
       </div>
 
       <div className="heatmap-legend">
-        <span className="heatmap-legend-label">Moins</span>
+        <span className="heatmap-legend-label">Less</span>
         {[0,1,2,3,4].map(l => (
           <div key={l} className="heatmap-legend-box"
             style={styleStringToObj(getLevelStyle(l, tensionColor) + ';width:10px;height:10px;border-radius:2px')} />
         ))}
-        <span className="heatmap-legend-label">Plus</span>
+        <span className="heatmap-legend-label">More</span>
       </div>
 
       {tooltip.visible && (
