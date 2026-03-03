@@ -7,114 +7,134 @@ import OptionsMenu from './components/OptionsMenu/OptionsMenu';
 import { useUsernames } from './hooks/useUsernames';
 import { useTweets } from './hooks/useTweets';
 
+const API = process.env.REACT_APP_API_URL;
+
 export default function App() {
+    const [currentDays, setCurrentDays] = useState(1);
+    const [currentSearch, setCurrentSearch] = useState('');
+    const [isFeedOpen, setIsFeedOpen] = useState(false);
+    const [isRotating, setIsRotating] = useState(true);
+    const [selectedAreaName, setSelectedAreaName] = useState(null);
+    const [selectedLayers, setSelectedLayers] = useState(new Set());
+    const [isOptionsOpen, setIsOptionsOpen] = useState(false);
+    const [militaryActionsData, setMilitaryActionsData] = useState(null);
 
-  const [currentDays, setCurrentDays] = useState(1);
-  const [currentSearch, setCurrentSearch] = useState('');
-  const [isFeedOpen, setIsFeedOpen] = useState(false);
-  const [isRotating, setIsRotating] = useState(true);
-  const [selectedAreaName, setSelectedAreaName] = useState(null);
-  const [selectedLayers, setSelectedLayers] = useState(new Set());
-  const [isOptionsOpen, setIsOptionsOpen] = useState(false);
+    const { allusernames, selectedusernames, loadusernames, toggleusername } = useUsernames();
+    const { tweets, tweetCount, loadTweets, preloadAll, getRawData } = useTweets();
+    const locateHandlerRef = useRef(null);
 
-  const { allusernames, selectedusernames, loadusernames, toggleusername } = useUsernames();
-  const { tweets, tweetCount, loadTweets, preloadAll, getRawData } = useTweets();
+    // Préchargement initial
+    useEffect(() => {
+        preloadAll().then(async () => {
+            const usernames = await loadusernames(1);
+            loadTweets(1, usernames, new Set(), '');
+        });
+    }, []);
 
-  const locateHandlerRef = useRef(null);
+    // Rechargement quand les filtres changent
+    useEffect(() => {
+        loadTweets(currentDays, allusernames, selectedusernames, currentSearch);
+    }, [currentDays, allusernames, selectedusernames, currentSearch]); // eslint-disable-line
 
-  // Préchargement initial
-  useEffect(() => {
-    preloadAll().then(async () => {
-      const usernames = await loadusernames(1); // ← loadusernames doit retourner les usernames
-      loadTweets(1, usernames, new Set(), '');
-    });
-  }, []);
+    // Fetch military actions quand l'area ou les jours changent
+    useEffect(() => {
+        if (!selectedAreaName) {
+            setMilitaryActionsData(null);
+            return;
+        }
 
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - currentDays);
 
-  // Rechargement quand les filtres changent
-  useEffect(() => {
-    loadTweets(currentDays, allusernames, selectedusernames, currentSearch);
-  }, [currentDays, allusernames, selectedusernames, currentSearch]); // eslint-disable-line
+        const params = new URLSearchParams({
+            aggressor: selectedAreaName,
+            start_date: startDate.toISOString(),
+            end_date: endDate.toISOString(),
+        });
 
-  const handleDaysChange = useCallback(async (days) => {
-    setCurrentDays(days);
-    await loadusernames(days);
-  }, [loadusernames]);
+        fetch(`${API}/api/twitter_conflicts/military_actions.geojson?${params}`)
+            .then(res => res.json())
+            .then(setMilitaryActionsData)
+            .catch(err => console.error('Erreur military actions:', err));
 
-  const handleToggleLayer = useCallback((layerId) => {
-    setSelectedLayers(prev => {
-      const next = new Set(prev);
-      if (next.has(layerId)) next.delete(layerId);
-      else next.add(layerId);
-      return next;
-    });
-  }, []);
+    }, [selectedAreaName, currentDays]);
 
-  const handleLocateTweet = useCallback((feature) => {
-    if (locateHandlerRef.current) locateHandlerRef.current(feature);
-    if (window.innerWidth <= 640) setIsFeedOpen(false);
-  }, []);
+    const handleAreaSelect = useCallback((name) => {
+        setSelectedAreaName(name);
+        if (isFeedOpen) setIsFeedOpen(false);
+        if (!name) setMilitaryActionsData(null);
+    }, [isFeedOpen]);
 
-  const registerLocateHandler = useCallback((fn) => {
-    locateHandlerRef.current = fn;
-  }, []);
+    const handleDaysChange = useCallback(async (days) => {
+        setCurrentDays(days);
+        await loadusernames(days);
+    }, [loadusernames]);
 
-  return (
-    <div style={{ width: '100vw', height: '100dvh', overflow: 'hidden', position: 'relative' }}>
+    const handleToggleLayer = useCallback((layerId) => {
+        setSelectedLayers(prev => {
+            const next = new Set(prev);
+            if (next.has(layerId)) next.delete(layerId);
+            else next.add(layerId);
+            return next;
+        });
+    }, []);
 
-      <MapView
-        tweetsData={tweets}
-        selectedLayers={selectedLayers}
-        onAreaSelect={(name) => {
-          setSelectedAreaName(name);
-          if (isFeedOpen) setIsFeedOpen(false);
-        }}
-        isRotating={isRotating}
-        onRotationChange={setIsRotating}
-        registerLocateHandler={registerLocateHandler}
-      />
+    const handleLocateTweet = useCallback((feature) => {
+        if (locateHandlerRef.current) locateHandlerRef.current(feature);
+        if (window.innerWidth <= 640) setIsFeedOpen(false);
+    }, []);
 
-      <TopBar
-        currentDays={currentDays}
-        onDaysChange={handleDaysChange}
-        tweetCount={tweetCount}
-        onSearchChange={setCurrentSearch}
-        isFeedOpen={isFeedOpen}
-        onFeedToggle={() => setIsFeedOpen(v => !v)}
-        isRotating={isRotating}
-        onRotationToggle={() => setIsRotating(v => !v)}
-      />
+    const registerLocateHandler = useCallback((fn) => {
+        locateHandlerRef.current = fn;
+    }, []);
 
-      <TweetsFeedPanel
-        isOpen={isFeedOpen}
-        onClose={() => setIsFeedOpen(false)}
-        currentDays={currentDays}
-        allusernames={allusernames}
-        selectedusernames={selectedusernames}
-        currentSearch={currentSearch}
-        selectedAreaName={selectedAreaName}
-        cachedData={getRawData(currentDays)}
-        onLocate={handleLocateTweet}
-      />
-
-      <AreaPanel
-        areaName={selectedAreaName}
-        onClose={() => setSelectedAreaName(null)}
-        onLocate={handleLocateTweet}
-      />
-
-
-
-      <OptionsMenu
-        isOpen={isOptionsOpen}
-        onClose={() => setIsOptionsOpen(v => !v)}
-        allusernames={allusernames}
-        selectedusernames={selectedusernames}
-        onToggleusername={toggleusername}
-        selectedLayers={selectedLayers}
-        onToggleLayer={handleToggleLayer}
-      />
-
-    </div>
-  );
+    return (
+        <div style={{ width: '100vw', height: '100dvh', overflow: 'hidden', position: 'relative' }}>
+            <MapView
+                tweetsData={tweets}
+                militaryActionsData={militaryActionsData}
+                selectedLayers={selectedLayers}
+                onAreaSelect={handleAreaSelect}
+                isRotating={isRotating}
+                onRotationChange={setIsRotating}
+                registerLocateHandler={registerLocateHandler}
+            />
+            <TopBar
+                currentDays={currentDays}
+                onDaysChange={handleDaysChange}
+                tweetCount={tweetCount}
+                onSearchChange={setCurrentSearch}
+                isFeedOpen={isFeedOpen}
+                onFeedToggle={() => setIsFeedOpen(v => !v)}
+                isRotating={isRotating}
+                onRotationToggle={() => setIsRotating(v => !v)}
+            />
+            <TweetsFeedPanel
+                isOpen={isFeedOpen}
+                onClose={() => setIsFeedOpen(false)}
+                currentDays={currentDays}
+                allusernames={allusernames}
+                selectedusernames={selectedusernames}
+                currentSearch={currentSearch}
+                selectedAreaName={selectedAreaName}
+                cachedData={getRawData(currentDays)}
+                onLocate={handleLocateTweet}
+            />
+            <AreaPanel
+                areaName={selectedAreaName}
+                onClose={() => setSelectedAreaName(null)}
+                onLocate={handleLocateTweet}
+            />
+            <OptionsMenu
+                isOpen={isOptionsOpen}
+                onClose={() => setIsOptionsOpen(v => !v)}
+                allusernames={allusernames}
+                selectedusernames={selectedusernames}
+                onToggleusername={toggleusername}
+                selectedLayers={selectedLayers}
+                onToggleLayer={handleToggleLayer}
+            />
+        </div>
+    );
 }

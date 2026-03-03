@@ -10,6 +10,7 @@ const LAYER_IDS = {
 
 export default function MapView({
     tweetsData,
+    militaryActionsData,  // ← ajoute ici
     selectedLayers,
     onAreaSelect,
     onLocateTweet,
@@ -104,6 +105,26 @@ export default function MapView({
         });
     }, [registerLocateHandler, stopRotation, showPopupAtIndex]);
 
+    useEffect(() => {
+        const map = mapRef.current;
+        if (!map || !militaryActionsData) return;
+
+        const applyData = () => {
+            const source = map.getSource('military_actions');
+            if (source) source.setData(militaryActionsData);
+        };
+
+        if (map._sourcesReady) applyData();
+        else {
+            const interval = setInterval(() => {
+                if (map.getSource('military_actions')) {
+                    clearInterval(interval);
+                    applyData();
+                }
+            }, 50);
+            return () => clearInterval(interval);
+        }
+    }, [militaryActionsData]);
     // ── Init carte ──
     useEffect(() => {
         const map = new maplibregl.Map({
@@ -163,7 +184,10 @@ export default function MapView({
                 type: 'geojson',
                 data: { type: 'FeatureCollection', features: [] },
             });
-
+            map.addSource('military_actions', {
+                type: 'geojson',
+                data: { type: 'FeatureCollection', features: [] },
+            });
             // Layers disputed
             map.addLayer({
                 id: 'disputed_areas_fill', type: 'fill', source: 'disputed_areas',
@@ -195,7 +219,18 @@ export default function MapView({
                     ],
                 },
             });
-
+            map.addLayer({
+                id: 'military_actions_lines',
+                type: 'line',
+                source: 'military_actions',
+                layout: { 'line-join': 'round', 'line-cap': 'round' },
+                paint: {
+                    'line-color': '#ff3b5c',
+                    'line-width': 1.5,
+                    'line-opacity': 0.7,
+                    'line-dasharray': [2, 3],
+                },
+            });
             // Hover world areas
             let hoveredId = null;
             let selectedId = null;
@@ -220,7 +255,7 @@ export default function MapView({
 
             // Click world area
             map.on('click', 'world_areas_fill', (e) => {
-                
+
                 if (!e.features?.length) return;
                 const tweets = map.queryRenderedFeatures(e.point, { layers: ['tweets_hover_area'] });
                 if (tweets?.length) return;
@@ -388,7 +423,7 @@ export default function MapView({
             if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
             if (rotationRef.current) clearInterval(rotationRef.current);
             map.remove();
-            mapRef.current = null; 
+            mapRef.current = null;
         };
     }, []);
 

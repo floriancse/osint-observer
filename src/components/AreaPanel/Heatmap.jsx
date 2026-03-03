@@ -74,7 +74,7 @@ export default function Heatmap({ areaName, niveauTension = 'Stable / faible' })
       .catch(() => setLoading(false));
   }, [areaName]);
 
-  if (loading) return <div className="t-loading">— CHARGEMENT —</div>;
+  if (loading) return <div className="t-loading">— LOADING —</div>;
 
   const now = new Date();
   const year = now.getFullYear();
