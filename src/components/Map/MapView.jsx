@@ -204,6 +204,10 @@ export default function MapView({
                 data: worldAreasData,
                 generateId: true,
             });
+            map.addSource('shipping_lanes', {
+                type: 'geojson',
+                data: shippingLanes,
+            });
             map.addSource('tweets', {
                 type: 'geojson',
                 data: { type: 'FeatureCollection', features: [] },
@@ -246,6 +250,19 @@ export default function MapView({
                         ['boolean', ['feature-state', 'hover'], false], 1,
                         0
                     ],
+                },
+            });
+
+            map.addLayer({
+                id: 'shipping_lanes_lines',
+                type: 'line',
+                source: 'shipping_lanes',
+                layout: { 'line-join': 'round', 'line-cap': 'round' },
+                paint: {
+                    'line-color': '#6e8e9d',
+                    'line-width': 1,
+                    'line-opacity': 0.5,
+                    'line-dasharray': [2, 2],
                 },
             });
             map.addLayer({
