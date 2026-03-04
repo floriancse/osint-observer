@@ -353,8 +353,8 @@ export default function MapView({
                 layout: { 'line-join': 'round', 'line-cap': 'round' },
                 paint: {
                     'line-color': '#6e8e9d',
-                    'line-width': 1,
-                    'line-opacity': 0.5,
+                    'line-width': .75,
+                    'line-opacity': .5,
                     'line-dasharray': [2, 2],
                 },
             });
@@ -366,7 +366,7 @@ export default function MapView({
                 paint: {
                     'circle-radius': 4,
                     'circle-color': '#121212',
-                    'circle-opacity': 1,
+                    'circle-opacity': 0,
                     'circle-stroke-width': 1,
                     'circle-stroke-color': '#6e8e9d',
                 },
