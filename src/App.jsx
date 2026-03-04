@@ -18,6 +18,7 @@ export default function App() {
     const [selectedLayers, setSelectedLayers] = useState(new Set());
     const [isOptionsOpen, setIsOptionsOpen] = useState(false);
     const [militaryActionsData, setMilitaryActionsData] = useState(null);
+    const [aggressorRangeData, setAggressorRangeData] = useState(null);
 
     const { allusernames, selectedusernames, loadusernames, toggleusername } = useUsernames();
     const { tweets, tweetCount, loadTweets, preloadAll, getRawData } = useTweets();
@@ -40,6 +41,7 @@ export default function App() {
     useEffect(() => {
         if (!selectedAreaName) {
             setMilitaryActionsData(null);
+            setAggressorRangeData(null);
             return;
         }
 
@@ -57,6 +59,11 @@ export default function App() {
             .then(res => res.json())
             .then(setMilitaryActionsData)
             .catch(err => console.error('Erreur military actions:', err));
+
+        fetch(`${API}/api/twitter_conflicts/aggressor_range.geojson?aggressor=${encodeURIComponent(selectedAreaName)}`)
+            .then(res => res.json())
+            .then(setAggressorRangeData)
+            .catch(err => console.error('Erreur aggressor range:', err));
 
     }, [selectedAreaName, currentDays]);
 
@@ -98,6 +105,7 @@ export default function App() {
                 onAreaSelect={handleAreaSelect}
                 isRotating={isRotating}
                 onRotationChange={setIsRotating}
+                aggressorRangeData={aggressorRangeData}
                 registerLocateHandler={registerLocateHandler}
             />
             <TopBar

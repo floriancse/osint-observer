@@ -16,6 +16,7 @@ export default function MapView({
     onLocateTweet,
     isRotating,
     onRotationChange,
+    aggressorRangeData,
     registerLocateHandler,
 }) {
 
@@ -107,11 +108,11 @@ export default function MapView({
 
     useEffect(() => {
         const map = mapRef.current;
-        if (!map || !militaryActionsData) return;
+        if (!map) return;
 
         const applyData = () => {
             const source = map.getSource('military_actions');
-            if (source) source.setData(militaryActionsData);
+            if (source) source.setData(militaryActionsData || { type: 'FeatureCollection', features: [] });
         };
 
         if (map._sourcesReady) applyData();
@@ -125,6 +126,27 @@ export default function MapView({
             return () => clearInterval(interval);
         }
     }, [militaryActionsData]);
+
+    useEffect(() => {
+        const map = mapRef.current;
+        if (!map) return;
+
+        const applyData = () => {
+            const source = map.getSource('aggressor_range');
+            if (source) source.setData(aggressorRangeData || { type: 'FeatureCollection', features: [] });
+        };
+
+        if (map._sourcesReady) applyData();
+        else {
+            const interval = setInterval(() => {
+                if (map.getSource('aggressor_range')) {
+                    clearInterval(interval);
+                    applyData();
+                }
+            }, 50);
+            return () => clearInterval(interval);
+        }
+    }, [aggressorRangeData]);
     // ── Init carte ──
     useEffect(() => {
         const map = new maplibregl.Map({
@@ -188,6 +210,11 @@ export default function MapView({
                 type: 'geojson',
                 data: { type: 'FeatureCollection', features: [] },
             });
+            map.addSource('aggressor_range', {
+                type: 'geojson',
+                data: { type: 'FeatureCollection', features: [] },
+            });
+
             // Layers disputed
             map.addLayer({
                 id: 'disputed_areas_fill', type: 'fill', source: 'disputed_areas',
@@ -213,8 +240,8 @@ export default function MapView({
                         'rgba(0,0,0,0)'
                     ],
                     'line-width': ['case',
-                        ['boolean', ['feature-state', 'selected'], false], 3,
-                        ['boolean', ['feature-state', 'hover'], false], 2,
+                        ['boolean', ['feature-state', 'selected'], false], 2,
+                        ['boolean', ['feature-state', 'hover'], false], 1,
                         0
                     ],
                 },
@@ -229,6 +256,28 @@ export default function MapView({
                     'line-width': 1.5,
                     'line-opacity': 0.8,
                     'line-dasharray': [2, 2],
+                },
+            });
+
+            map.addLayer({
+                id: 'aggressor_range_fill',
+                type: 'fill',
+                source: 'aggressor_range',
+                paint: {
+                    'fill-color': '#10b981',
+                    'fill-opacity': 0.08,
+                },
+            });
+
+            map.addLayer({
+                id: 'aggressor_range_outline',
+                type: 'line',
+                source: 'aggressor_range',
+                paint: {
+                    'line-color': '#10b981',
+                    'line-width': 1.5,
+                    'line-opacity': 0.6,
+                    'line-dasharray': [3, 2],
                 },
             });
             // Hover world areas
@@ -283,15 +332,21 @@ export default function MapView({
                 if (!areas.length) onAreaSelect(null);
             });
 
-            // Layers tweets
             map.addLayer({
-                id: 'pulse-high-importance_score', type: 'circle', source: 'tweets',
-                filter: ['all', ['>=', ['coalesce', ['to-number', ['get', 'importance_score']], 0], 4]],
+                id: 'pulse-high-importance_score',
+                type: 'circle',
+                source: 'tweets',
+                filter: ['all', ['>=', ['coalesce', ['to-number', ['get', 'importance_score']], 0], 5]],
                 paint: {
-                    'circle-color': 'transparent', 'circle-radius': 20,
-                    'circle-stroke-color': ['match', ['get', 'conflict_typology'], 'MIL', '#ff3b5c', 'rgba(108,172,251,1)'],
-                    'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 2, 1.5, 6, 2.5, 10, 4],
-                    'circle-stroke-opacity': 0, 'circle-opacity': 0,
+                    'circle-color': 'transparent',
+                    'circle-radius': 8,              // ⬅ réduit (était 15)
+                    'circle-stroke-color': ['match', ['get', 'conflict_typology'],
+                        'MIL', '#ff3b5c',
+                        'rgba(108,172,251,1)'
+                    ],
+                    'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 2, 1, 6, 1.5, 10, 2.5],
+                    'circle-stroke-opacity': 0.8,
+                    'circle-opacity': 0,
                 },
             });
 
@@ -300,7 +355,7 @@ export default function MapView({
                 filter: ['==', ['get', 'conflict_typology'], 'MIL'],
                 paint: {
                     'circle-color': '#ff3b5c',
-                    'circle-opacity': ['interpolate', ['linear'], ['zoom'], 3, 0.4, 5, 0.5, 10, 0.6, 18, 1],
+                    'circle-opacity': ['interpolate', ['linear'], ['zoom'], 1, 0.4, 3, 0.5, 7, 0.6, 15, 1],
                     'circle-radius': ['interpolate', ['linear'], ['coalesce', ['to-number', ['get', 'importance_score']], 1], 1, 1, 2, 2, 3, 3, 4, 4, 5, 10],
                 },
             });
@@ -313,7 +368,7 @@ export default function MapView({
                     'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 0, 1, 9, 3],
                     'heatmap-color': ['interpolate', ['linear'], ['heatmap-density'],
                         0, 'rgba(0,0,0,0)', 0.2, 'rgba(108,172,251,1)', 1, '#b4cff1'],
-                    'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 0, 7, 9, 15],
+                    'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 0, 5, 7, 13],
                     'heatmap-opacity': ['interpolate', ['linear'], ['zoom'], 7, 1, 9, 0.8],
                 },
             });
@@ -323,7 +378,7 @@ export default function MapView({
                 filter: ['==', ['get', 'conflict_typology'], 'MIL'],
                 paint: {
                     'circle-color': '#ff3b5c', 'circle-opacity': 0.3,
-                    'circle-radius': ['interpolate', ['linear'], ['coalesce', ['to-number', ['get', 'importance_score']], 1], 1, 2, 2, 4, 3, 6, 4, 10, 5, 20],
+                    'circle-radius': ['interpolate', ['linear'], ['coalesce', ['to-number', ['get', 'importance_score']], 1], 1, 2, 2, 3, 3, 5, 4, 8, 5, 15],
                     'circle-stroke-width': 1, 'circle-stroke-color': '#ff3b5c', 'circle-stroke-opacity': 0.8,
                 },
             });
