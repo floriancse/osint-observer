@@ -172,8 +172,9 @@ export default function MapView({
 
         map.on('load', async () => {
             const API = process.env.REACT_APP_API_URL;
-            const [disputedData, worldAreasData] = await Promise.all([
+            const [disputedData, worldAreasDat, shippingLanes] = await Promise.all([
                 fetch(`${API}/api/twitter_conflicts/disputed_areas.geojson`).then(r => r.json()),
+                fetch(`${API}/api/twitter_conflicts/shipping_lanes.geojson`).then(r => r.json()),
                 fetch(`${API}/api/twitter_conflicts/world_areas.geojson`).then(r => r.json()),
             ]);
             map.setProjection({ type: 'globe' });
@@ -259,27 +260,27 @@ export default function MapView({
                 },
             });
 
-            map.addLayer({
-                id: 'aggressor_range_fill',
-                type: 'fill',
-                source: 'aggressor_range',
-                paint: {
-                    'fill-color': '#10b981',
-                    'fill-opacity': 0.08,
-                },
-            });
+            // map.addLayer({
+            //     id: 'aggressor_range_fill',
+            //     type: 'fill',
+            //     source: 'aggressor_range',
+            //     paint: {
+            //         'fill-color': '#10b981',
+            //         'fill-opacity': 0.08,
+            //     },
+            // });
 
-            map.addLayer({
-                id: 'aggressor_range_outline',
-                type: 'line',
-                source: 'aggressor_range',
-                paint: {
-                    'line-color': '#10b981',
-                    'line-width': 1.5,
-                    'line-opacity': 0.6,
-                    'line-dasharray': [3, 2],
-                },
-            });
+            // map.addLayer({
+            //     id: 'aggressor_range_outline',
+            //     type: 'line',
+            //     source: 'aggressor_range',
+            //     paint: {
+            //         'line-color': '#10b981',
+            //         'line-width': 1.5,
+            //         'line-opacity': 0.6,
+            //         'line-dasharray': [3, 2],
+            //     },
+            // });
             // Hover world areas
             let hoveredId = null;
             let selectedId = null;
