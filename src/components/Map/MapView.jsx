@@ -172,10 +172,11 @@ export default function MapView({
 
         map.on('load', async () => {
             const API = process.env.REACT_APP_API_URL;
-            const [disputedData, worldAreasData, shippingLanes] = await Promise.all([
+            const [disputedData, worldAreasData, shippingLanes, chokepoints] = await Promise.all([
                 fetch(`${API}/api/twitter_conflicts/disputed_areas.geojson`).then(r => r.json()),
                 fetch(`${API}/api/twitter_conflicts/world_areas.geojson`).then(r => r.json()),
                 fetch(`${API}/api/twitter_conflicts/shipping_lanes.geojson`).then(r => r.json()),
+                fetch(`${API}/api/twitter_conflicts/chokepoints.geojson`).then(r => r.json()),
 
             ]);
             map.setProjection({ type: 'globe' });
@@ -207,6 +208,10 @@ export default function MapView({
             map.addSource('shipping_lanes', {
                 type: 'geojson',
                 data: shippingLanes,
+            });
+            map.addSource('chokepoints', {
+                type: 'geojson',
+                data: chokepoints,
             });
             map.addSource('tweets', {
                 type: 'geojson',
@@ -253,25 +258,15 @@ export default function MapView({
                 },
             });
 
-            map.addLayer({
-                id: 'shipping_lanes_lines',
-                type: 'line',
-                source: 'shipping_lanes',
-                layout: { 'line-join': 'round', 'line-cap': 'round' },
-                paint: {
-                    'line-color': '#6e8e9d',
-                    'line-width': 1,
-                    'line-opacity': 0.5,
-                    'line-dasharray': [2, 2],
-                },
-            });
+
+
             map.addLayer({
                 id: 'military_actions_lines',
                 type: 'line',
                 source: 'military_actions',
                 layout: { 'line-join': 'round', 'line-cap': 'round' },
                 paint: {
-                    'line-color': '#10b981',
+                    'line-color': '#ff3b5c',
                     'line-width': 1.5,
                     'line-opacity': 0.8,
                     'line-dasharray': [2, 2],
@@ -351,6 +346,31 @@ export default function MapView({
                 if (!areas.length) onAreaSelect(null);
             });
 
+            map.addLayer({
+                id: 'shipping_lanes_lines',
+                type: 'line',
+                source: 'shipping_lanes',
+                layout: { 'line-join': 'round', 'line-cap': 'round' },
+                paint: {
+                    'line-color': '#6e8e9d',
+                    'line-width': 1,
+                    'line-opacity': 0.5,
+                    'line-dasharray': [2, 2],
+                },
+            });
+
+            map.addLayer({
+                id: 'chokepoints',
+                type: 'circle',
+                source: 'chokepoints',
+                paint: {
+                    'circle-radius': 4,
+                    'circle-color': '#121212',
+                    'circle-opacity': 1,
+                    'circle-stroke-width': 1,
+                    'circle-stroke-color': '#6e8e9d',
+                },
+            });
             map.addLayer({
                 id: 'pulse-high-importance_score',
                 type: 'circle',
