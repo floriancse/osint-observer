@@ -172,10 +172,11 @@ export default function MapView({
 
         map.on('load', async () => {
             const API = process.env.REACT_APP_API_URL;
-            const [disputedData, worldAreasDat, shippingLanes] = await Promise.all([
+            const [disputedData, worldAreasData, shippingLanes] = await Promise.all([
                 fetch(`${API}/api/twitter_conflicts/disputed_areas.geojson`).then(r => r.json()),
-                fetch(`${API}/api/twitter_conflicts/shipping_lanes.geojson`).then(r => r.json()),
                 fetch(`${API}/api/twitter_conflicts/world_areas.geojson`).then(r => r.json()),
+                fetch(`${API}/api/twitter_conflicts/shipping_lanes.geojson`).then(r => r.json()),
+
             ]);
             map.setProjection({ type: 'globe' });
 
