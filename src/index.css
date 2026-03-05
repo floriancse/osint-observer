@@ -318,7 +318,7 @@
  .username-item {
      padding: 8px 12px;
      color: #e7e9ea;
-     font-size: 13px;
+     font-size: 12px;
      /* texte secondaire */
      cursor: pointer;
      transition: background-color 0.2s;
@@ -511,7 +511,7 @@
      position: fixed;
      top: 65px;
      left: -450px;
-     width: 400px;
+     width: 350px;
      background: var(--surface);
      border-left: none;
      border-top-left-radius: 12px;
@@ -610,7 +610,7 @@
      border-radius: 50%;
      background: linear-gradient(135deg, #1d9bf0 0%, #0d6efd 100%);
      color: white;
-     font-size: 13px;
+     font-size: 12px;
      /* initiale dans avatar 32px */
      font-weight: bold;
      display: flex;
@@ -645,7 +645,7 @@
  }
 
  .feed-tweet-text {
-     font-size: 13px;
+     font-size: 12px;
      color: #d1d5db;
      white-space: pre-wrap;
      word-wrap: break-word;
@@ -744,7 +744,7 @@
      text-align: center;
      padding: 20px;
      color: #6e767d;
-     font-size: 13px;
+     font-size: 12px;
      /* texte secondaire */
  }
 
@@ -752,7 +752,7 @@
      text-align: center;
      padding: 40px 20px;
      color: #6e767d;
-     font-size: 13px;
+     font-size: 12px;
      /* texte secondaire */
  }
 
@@ -763,7 +763,7 @@
      top: 65px;
      bottom: 0px;
      right: -420px;
-     width: 400px;
+     width: 350px;
      background: var(--surface);
      border: 1px solid rgb(29, 29, 29);
      border-top-left-radius: 12px;
@@ -835,7 +835,7 @@
      color: #71767b;
      padding: 8px;
      font-family: 'Roboto Mono', monospace;
-     font-size: 13px;
+     font-size: 12px;
      /* texte secondaire */
      font-weight: 500;
      cursor: pointer;
@@ -1296,7 +1296,7 @@
 
  .no-tweets-message {
      color: #6e767d;
-     font-size: 13px;
+     font-size: 12px;
      /* texte secondaire */
      text-align: center;
      padding: 20px;
@@ -1349,7 +1349,6 @@
 
  /* Styles pour les images dans les tweet cards */
  .tweet-card-images {
-     margin: 12px 0;
      border-radius: 12px;
      overflow: hidden;
      background: #1a1a1a;
@@ -1562,7 +1561,7 @@
      align-items: center;
      gap: 10px;
      cursor: pointer;
-     font-size: 13px;
+     font-size: 12px;
      /* texte secondaire — harmonisé depuis 13.5px */
  }
 
@@ -1575,7 +1574,7 @@
  .section-title {
      padding: 6px 16px;
      color: #9ca3af;
-     font-size: 13px;
+     font-size: 12px;
      /* texte secondaire */
      font-weight: 500;
      display: flex;
@@ -1690,7 +1689,7 @@
  .tension-events ul {
      margin: 0;
      padding-left: 16px;
-     font-size: 13px;
+     font-size: 12px;
      /* texte secondaire */
      color: #e5e7eb;
      line-height: 1.6;
@@ -1729,7 +1728,7 @@
      padding: 12px 12px 30px 12px;
      background: rgba(255, 255, 255, 0.04);
      border-radius: 6px;
-     font-size: 13px;
+     font-size: 12px;
      /* texte secondaire */
      border-left: 3px solid rgba(255, 255, 255, 0.08);
  }
@@ -1741,6 +1740,7 @@
      flex-direction: column;
      gap: 12px;
  }
+
 
  .ev-meta {
      display: flex;
@@ -1757,7 +1757,7 @@
      line-height: 1.6;
      flex: 1 1 100%;
      margin-bottom: 15px;
-     font-size: 13px;
+     font-size: 12px;
      overflow: hidden;
  }
 
@@ -1841,7 +1841,7 @@
 
  .t-score-max {
      font-family: var(--mono);
-     font-size: 13px;
+     font-size: 12px;
      color: var(--dim);
  }
 
@@ -1929,7 +1929,7 @@
  /* ── TIMELINE*/
  .t-timeline {
      position: relative;
-     padding: 20px 0 0 0;
+     padding: 0;
      list-style: none;
  }
 
@@ -1964,7 +1964,6 @@
      height: 11px;
      transform: translate(-50%, -50%);
      background: var(--border);
-     outline: 1px solid rgb(79, 79, 79);
      border-radius: 50%;
      z-index: 999;
      box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.12);
@@ -2045,8 +2044,8 @@
  }
 
  .t-event-text {
-     font-size: 13px;
-     color: oklch(70.7% .022 261.325);
+     font-size: 12px;
+     color: rgb(153, 161, 175);
      font-weight: 400;
      font-style: italic;
      margin: 0;
@@ -2087,4 +2086,10 @@
      letter-spacing: 0.07em;
      color: var(--text-bright);
      line-height: 1;
+ }
+
+ .tweet-card-location{
+    font-style: italic;
+    color: var(--text);
+    font-size: 11px;
  }

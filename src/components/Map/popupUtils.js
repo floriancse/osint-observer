@@ -1,5 +1,19 @@
 import { getusernameInitials } from '../../utils/helpers';
 
+function decimalToDMS(decimal, isLat) {
+  const abs = Math.abs(decimal);
+  const deg = Math.floor(abs);
+  const minFloat = (abs - deg) * 60;
+  const min = Math.floor(minFloat);
+  const sec = ((minFloat - min) * 60).toFixed(1);
+
+  const dir = isLat
+    ? (decimal >= 0 ? 'N' : 'S')
+    : (decimal >= 0 ? 'E' : 'W');
+
+  return `${deg}°${min}'${sec}"${dir}`;
+}
+
 function imagesHTML(images) {
   if (!images?.length) return '';
   const count = images.length;
@@ -36,33 +50,40 @@ function imagesHTML(images) {
 }
 
 export function createPopupHTML(props, pinned, currentIndex, totalCount) {
+  console.log(props)
   const isImportant = ['4', '5'].includes(String(props.importance_score || '0').trim());
   const date = new Date(props.created_at);
-  const formattedDate = date.toLocaleDateString('fr-FR', { year: 'numeric', month: 'short', day: 'numeric' });
-  const formattedTime = date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  const formattedDate = date.toLocaleDateString('en-UK', { year: 'numeric', month: 'short', day: 'numeric' });
+  const formattedTime = date.toLocaleTimeString('en-UK', { hour: '2-digit', minute: '2-digit' });
   const images = Array.isArray(props.images) ? props.images : [];
 
   return `
-<div class="tweet-card${isImportant ? ' important-tweet' : ''}">
-  <div class="tweet-card-header">
-    <div class="tweet-card-avatar">
-      <img src="img/${props.username}.jpg" alt="${props.username}"
-           onerror="this.style.display='none';this.parentElement.textContent='${getusernameInitials(props.username)}'">
-    </div>
-    <div class="tweet-card-username">${props.username}</div>
-    <div class="tweet-card-time">${formattedTime} · ${formattedDate}</div>
-    <button onclick="window.closePopup()" class="close-btn" style="display:${pinned ? 'flex' : 'none'}">×</button>
-  </div>
-  <div class="tweet-card-text">${props.text}</div>
-  ${imagesHTML(images)}
-  <div class="tweet-card-actions">
-    <a href="${props.url}" class="tweet-card-link" target="_blank">Voir le tweet ↗</a>
-    ${pinned && totalCount > 1 ? `
-      <div class="tweet-card-nav">
-        <span class="tweet-card-nav-count">${currentIndex + 1}/${totalCount}</span>
-        <button onclick="window.previousTweet()" class="tweet-card-nav-btn">←</button>
-        <button onclick="window.nextTweet()" class="tweet-card-nav-btn">→</button>
-      </div>` : ''}
-  </div>
-</div>`;
+    <div class="tweet-card${isImportant ? ' important-tweet' : ''}">
+      <div class="tweet-card-header">
+        <div class="tweet-card-avatar">
+          <img src="img/${props.username}.jpg" alt="${props.username}"
+              onerror="this.style.display='none';this.parentElement.textContent='${getusernameInitials(props.username)}'">
+        </div>
+        <div class="tweet-card-username">${props.username}</div>
+        <div class="tweet-card-time">${formattedTime} · ${formattedDate}</div>
+        <button onclick="window.closePopup()" class="close-btn" style="display:${pinned ? 'flex' : 'none'}">×</button>
+      </div>
+      
+      <div class="tweet-card-text">${props.text}</div>
+      ${imagesHTML(images)}
+      ${props.location_name ? `
+      <div class="tweet-card-location">
+        <span class="location-name">${props.location_name}</span>
+        <span class="location-coords">${decimalToDMS(props.latitude, true)} ${decimalToDMS(props.longitude, false)}</span>      </div>` : ''}
+
+      <div class="tweet-card-actions">
+        <a href="${props.url}" class="tweet-card-link" target="_blank">Voir le tweet ↗</a>
+        ${pinned && totalCount > 1 ? `
+          <div class="tweet-card-nav">
+            <span class="tweet-card-nav-count">${currentIndex + 1}/${totalCount}</span>
+            <button onclick="window.previousTweet()" class="tweet-card-nav-btn">←</button>
+            <button onclick="window.nextTweet()" class="tweet-card-nav-btn">→</button>
+          </div>` : ''}
+      </div>
+    </div>`;
 }

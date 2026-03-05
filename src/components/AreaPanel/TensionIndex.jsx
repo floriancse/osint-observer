@@ -2,62 +2,70 @@ import React, { useEffect, useRef } from 'react';
 
 function getTensionColor(niveau) {
   const map = {
-    'Open Warfare':             '#ed3f3f',
-    'High Strategic Tension':  '#edb33f',
-    'Significant Tension':            '#3fedbc',
-    'Moderate Tension':           '#4a8fff',
-    'Low Tension / Stable':            '#6d6d6d',
+    'Open Warfare': '#ed3f3f',
+    'High Strategic Tension': '#edb33f',
+    'Significant Tension': '#3fedbc',
+    'Moderate Tension': '#4a8fff',
+    'Low Tension / Stable': '#6d6d6d',
   };
   return map[niveau] ?? '#6d6d6d';
 }
 
 export default function TensionIndex({ areaName, onLocate, onDataLoaded }) {
-  const [data, setData] = React.useState(null);
+  const [tensionData, setTensionData] = React.useState(null);
+  const [summaries, setSummaries] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState(false);
   const fillRef = useRef(null);
 
+  // Fetch tension index (inchangé)
   useEffect(() => {
     if (!areaName) return;
     setLoading(true);
     setError(false);
-    setData(null);
+    setTensionData(null);
+    setSummaries([]);
 
-    fetch(`${process.env.REACT_APP_API_URL}/api/twitter_conflicts/tension_index?area=${encodeURIComponent(areaName)}`)
-      .then(r => r.json())
-      .then(d => {
-        setData(d);
+    const tensionUrl = `${process.env.REACT_APP_API_URL}/api/twitter_conflicts/tension_index?area=${encodeURIComponent(areaName)}`;
+    const summaryUrl = `${process.env.REACT_APP_API_URL}/api/twitter_conflicts/daily_summaries?country=${encodeURIComponent(areaName)}`;
+
+    Promise.all([
+      fetch(tensionUrl).then(r => r.json()),
+      fetch(summaryUrl).then(r => r.json()),
+    ])
+      .then(([tension, summary]) => {
+        setTensionData(tension);
+        setSummaries(summary.summaries ?? []);
         setLoading(false);
-        onDataLoaded?.(d); // ← ajoute ça
+        onDataLoaded?.(tension);
       })
       .catch(() => { setError(true); setLoading(false); });
   }, [areaName]);
 
-  // Animation de la barre
+  // Animation barre
   useEffect(() => {
-    if (!data || !fillRef.current) return;
-    const pct = Math.min(100, data.tension_score);
+    if (!tensionData || !fillRef.current) return;
+    const pct = Math.min(100, tensionData.tension_score);
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         if (fillRef.current) fillRef.current.style.width = pct + '%';
       });
     });
-  }, [data]);
+  }, [tensionData]);
 
   if (loading) return <div className="t-loading"></div>;
-  if (error || !data) return <div className="t-error"></div>;
+  if (error || !tensionData) return <div className="t-error"></div>;
 
-  const score = data.tension_score;
-  const color = getTensionColor(data.tension_level);
-  const events = (data.evenements || []).filter(ev => ev.SUMMARY_TEXT?.trim() || ev.text?.trim());
-  const maxContrib = Math.max(...events.map(e => parseFloat(e.score_contribution_normalized)), 0) || 1;
+  const score = tensionData.tension_score;
+  const color = getTensionColor(tensionData.tension_level);
   const ticks = Array(20).fill(0);
+
   return (
     <div
       className="tension-index-container"
-      style={{ '--event-dot-color': color }}    // ← on passe la couleur ici
+      style={{ '--event-dot-color': color }}
     >
-      {/* Partie haute fixe : jauge + score */}
+      {/* Header : jauge + score (inchangé) */}
       <div className="t-header">
         <div className="t-region-label">Conflict zone · Tension index</div>
         <div className="t-gauge-row">
@@ -66,7 +74,7 @@ export default function TensionIndex({ areaName, onLocate, onDataLoaded }) {
             <div className="t-score-max">/ 100</div>
           </div>
           <div className="t-gauge-bar-wrap">
-            <div className="t-niveau" style={{ color }}>{data.tension_level}</div>
+            <div className="t-niveau" style={{ color }}>{tensionData.tension_level}</div>
             <div className="t-bar-bg">
               <div
                 ref={fillRef}
@@ -81,67 +89,39 @@ export default function TensionIndex({ areaName, onLocate, onDataLoaded }) {
         </div>
       </div>
 
-      {/* Partie basse : scrollable */}
+      {/* Daily summaries */}
       <div className="t-events-section">
         <div className="t-events-header">
-          <span className="t-events-label">Recent events</span>
-          <span className="t-events-count">{events.length} entries</span>
+          <span className="t-events-label">Daily summaries</span>
+          <span className="t-events-count">{summaries.length} entries</span>
         </div>
 
-        <ul className="t-timeline">
-          {events.map((ev, i) => {
-            const contrib = parseFloat(ev.score_contribution_normalized);
-            const scoreClass = contrib < 0.5 ? 'low' : '';
+        {summaries.length === 0 ? (
+          <div className="t-empty">No summaries available.</div>
+        ) : (
+          <ul className="t-timeline">
+            {summaries.map((s, i) => {
+              const date = s.date
+                ? new Date(s.date).toLocaleDateString('en-CA')  // en-CA produit nativement YYYY/MM/DD
+                : '—';
 
-            const lat = parseFloat(ev.latitude);
-            const lng = parseFloat(ev.longitude);
-            const isValidCoord = !isNaN(lat) && !isNaN(lng);
-
-            return (
-              <li
-                key={i}
-                className="t-event"
-                style={{ animationDelay: `${i * 60}ms` }}
-                onClick={(e) => {
-
-                  if (isValidCoord && onLocate) {
-                    onLocate({
-                      geometry: { coordinates: [lng, lat] },
-                      properties: ev
-                    });
-                  } else {
-                    console.warn("Clic ignoré → raisons :",
-                      !isValidCoord ? "coordonnées invalides" : "",
-                      !onLocate ? "onLocate non fourni" : ""
-                    );
-                  }
-                }}
-              >
-                <div className="t-event-meta">
-                  {/* Ligne 1 : date + score */}
-                  <div className="t-event-line t-event-line--header">
-                    <span className="t-event-date">{ev.date}</span>
-                    <span className={`t-event-score ${scoreClass}`}>+{contrib.toFixed(2)}</span>
+              return (
+                <li
+                  key={i}
+                  className="t-event"
+                  style={{ animationDelay: `${i * 60}ms` }}
+                >
+                  <div className="t-event-meta">
+                    <div className="t-event-line t-event-line--header">
+                      <span className="t-event-date">{date}</span>
+                    </div>
                   </div>
-
-                  {/* Ligne 2 : lieu */}
-                  <div className="t-event-line">
-                    <span className="t-event-location_name">{ev.location_name}</span>
-                  </div>
-
-                  {/* Ligne 3 : coordonnées */}
-                  <div className="t-event-line">
-                    <span className="t-event-coordinates">
-                      {ev.latitude}° {ev.longitude}°
-                    </span>
-                  </div>
-                </div>
-
-                <p className="t-event-text">"{ev.SUMMARY_TEXT || ev.text}"</p>
-              </li>
-            );
-          })}
-        </ul>
+                  <p className="t-event-text">"{s.summary}"</p>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </div>
     </div>
   );

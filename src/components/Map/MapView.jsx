@@ -241,6 +241,7 @@ export default function MapView({
                 id: 'world_areas_fill', type: 'fill', source: 'world_areas',
                 paint: { 'fill-opacity': ['case', ['boolean', ['feature-state', 'hover'], false], 0.1, 0] }
             });
+
             map.addLayer({
                 id: 'world_areas_outline', type: 'line', source: 'world_areas',
                 layout: { 'line-join': 'round', 'line-cap': 'round' },
@@ -251,14 +252,17 @@ export default function MapView({
                         'rgba(0,0,0,0)'
                     ],
                     'line-width': ['case',
-                        ['boolean', ['feature-state', 'selected'], false], 2,
-                        ['boolean', ['feature-state', 'hover'], false], 1,
+                        ['boolean', ['feature-state', 'selected'], false], 2.5,
+                        ['boolean', ['feature-state', 'hover'], false], 1.5,
                         0
+                    ],
+                    'line-dasharray': ['case',
+                        ['boolean', ['feature-state', 'selected'], false], ['literal', [1, 0]],
+                        ['boolean', ['feature-state', 'hover'], false], ['literal', [2, 2]],
+                        ['literal', [1, 0]]
                     ],
                 },
             });
-
-
 
             map.addLayer({
                 id: 'military_actions_lines',
@@ -352,7 +356,7 @@ export default function MapView({
                 source: 'shipping_lanes',
                 layout: { 'line-join': 'round', 'line-cap': 'round' },
                 paint: {
-                    'line-color': '#6e8e9d',
+                    'line-color': '#5693b0',
                     'line-width': .75,
                     'line-opacity': .5,
                     'line-dasharray': [2, 2],
@@ -364,11 +368,11 @@ export default function MapView({
                 type: 'circle',
                 source: 'chokepoints',
                 paint: {
-                    'circle-radius': 4,
-                    'circle-color': '#121212',
-                    'circle-opacity': 0,
+                    'circle-radius': 0,
+                    'circle-color': '#5693b0',
+                    'circle-opacity': 1,
                     'circle-stroke-width': 1,
-                    'circle-stroke-color': '#6e8e9d',
+                    'circle-stroke-color': '#5693b0',
                 },
             });
             map.addLayer({
