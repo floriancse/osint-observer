@@ -873,13 +873,11 @@
      display: flex;
  }
 
-
-
  .heatmap-container {
      border: 1px solid var(--border);
      background: var(--surface);
      border-radius: 4px 4px 0 0;
-     padding: 20px 24px 0
+     padding: 20px 24px 20px
  }
 
  .heatmap-header {
