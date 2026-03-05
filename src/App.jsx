@@ -17,8 +17,6 @@ export default function App() {
     const [selectedAreaName, setSelectedAreaName] = useState(null);
     const [selectedLayers, setSelectedLayers] = useState(new Set());
     const [isOptionsOpen, setIsOptionsOpen] = useState(false);
-    const [militaryActionsData, setMilitaryActionsData] = useState(null);
-    const [aggressorRangeData, setAggressorRangeData] = useState(null);
 
     const { allusernames, selectedusernames, loadusernames, toggleusername } = useUsernames();
     const { tweets, tweetCount, loadTweets, preloadAll, getRawData } = useTweets();
@@ -37,40 +35,9 @@ export default function App() {
         loadTweets(currentDays, allusernames, selectedusernames, currentSearch);
     }, [currentDays, allusernames, selectedusernames, currentSearch]); // eslint-disable-line
 
-    // Fetch military actions quand l'area ou les jours changent
-    useEffect(() => {
-        if (!selectedAreaName) {
-            setMilitaryActionsData(null);
-            setAggressorRangeData(null);
-            return;
-        }
-
-        const endDate = new Date();
-        const startDate = new Date();
-        startDate.setDate(startDate.getDate() - currentDays);
-
-        const params = new URLSearchParams({
-            aggressor: selectedAreaName,
-            start_date: startDate.toISOString(),
-            end_date: endDate.toISOString(),
-        });
-
-        fetch(`${API}/api/twitter_conflicts/military_actions.geojson?${params}`)
-            .then(res => res.json())
-            .then(setMilitaryActionsData)
-            .catch(err => console.error('Erreur military actions:', err));
-
-        fetch(`${API}/api/twitter_conflicts/aggressor_range.geojson?aggressor=${encodeURIComponent(selectedAreaName)}`)
-            .then(res => res.json())
-            .then(setAggressorRangeData)
-            .catch(err => console.error('Erreur aggressor range:', err));
-
-    }, [selectedAreaName, currentDays]);
-
     const handleAreaSelect = useCallback((name) => {
         setSelectedAreaName(name);
         if (isFeedOpen) setIsFeedOpen(false);
-        if (!name) setMilitaryActionsData(null);
     }, [isFeedOpen]);
 
     const handleDaysChange = useCallback(async (days) => {
@@ -100,13 +67,12 @@ export default function App() {
         <div style={{ width: '100vw', height: '100dvh', overflow: 'hidden', position: 'relative' }}>
             <MapView
                 tweetsData={tweets}
-                militaryActionsData={militaryActionsData}
                 selectedLayers={selectedLayers}
                 onAreaSelect={handleAreaSelect}
                 isRotating={isRotating}
                 onRotationChange={setIsRotating}
-                aggressorRangeData={aggressorRangeData}
                 registerLocateHandler={registerLocateHandler}
+                currentDays={currentDays}  // ← ajoute ici
             />
             <TopBar
                 currentDays={currentDays}
