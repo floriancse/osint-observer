@@ -88,11 +88,7 @@ export function useTweets() {
             }
         };
 
-        // Lance les deux en parallèle, sans await ici → non bloquant
         Promise.all([backgroundLoad(7), backgroundLoad(30)]).then(() => {
-            // Si l'utilisateur a déjà changé de filtre pendant le chargement,
-            // on ne re-affiche rien ici (loadTweets s'en charge à la demande)
-            console.log('Préchargement 7j et 30j terminé');
         });
     }, [fetchAndCache, filterAndSetTweets]);
 

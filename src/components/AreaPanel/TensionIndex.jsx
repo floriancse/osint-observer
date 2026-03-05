@@ -92,7 +92,7 @@ export default function TensionIndex({ areaName, onLocate, onDataLoaded }) {
       {/* Daily summaries */}
       <div className="t-events-section">
         <div className="t-events-header">
-          <span className="t-events-label">Daily summaries</span>
+          <span className="t-events-label">Daily activities</span>
           <span className="t-events-count">{summaries.length} entries</span>
         </div>
 

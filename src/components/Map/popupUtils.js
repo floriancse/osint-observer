@@ -1,18 +1,5 @@
 import { getusernameInitials } from '../../utils/helpers';
 
-function decimalToDMS(decimal, isLat) {
-  const abs = Math.abs(decimal);
-  const deg = Math.floor(abs);
-  const minFloat = (abs - deg) * 60;
-  const min = Math.floor(minFloat);
-  const sec = ((minFloat - min) * 60).toFixed(1);
-
-  const dir = isLat
-    ? (decimal >= 0 ? 'N' : 'S')
-    : (decimal >= 0 ? 'E' : 'W');
-
-  return `${deg}°${min}'${sec}"${dir}`;
-}
 
 function imagesHTML(images) {
   if (!images?.length) return '';
@@ -50,7 +37,6 @@ function imagesHTML(images) {
 }
 
 export function createPopupHTML(props, pinned, currentIndex, totalCount) {
-  console.log(props)
   const isImportant = ['4', '5'].includes(String(props.importance_score || '0').trim());
   const date = new Date(props.created_at);
   const formattedDate = date.toLocaleDateString('en-UK', { year: 'numeric', month: 'short', day: 'numeric' });
@@ -74,7 +60,7 @@ export function createPopupHTML(props, pinned, currentIndex, totalCount) {
       ${props.location_name ? `
       <div class="tweet-card-location">
         <span class="location-name">${props.location_name}</span>
-        <span class="location-coords">${decimalToDMS(props.latitude, true)} ${decimalToDMS(props.longitude, false)}</span>      </div>` : ''}
+        <span class="location-coords">${props.latitude}°, ${props.longitude}°</span>      </div>` : ''}
 
       <div class="tweet-card-actions">
         <a href="${props.url}" class="tweet-card-link" target="_blank">Voir le tweet ↗</a>
