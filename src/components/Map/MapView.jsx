@@ -234,22 +234,9 @@ export default function MapView({
                 layout: { 'line-join': 'round', 'line-cap': 'round' },
                 paint: {
                     'line-color': '#ff3b5c',
-                    'line-width': 1,
-                    'line-opacity': 0.3,
-                },
-            });
-
-            // Layer animé par-dessus avec dasharray qui défile
-            map.addLayer({
-                id: 'military_actions_animated',
-                type: 'line',
-                source: 'military_actions',
-                layout: { 'line-join': 'round', 'line-cap': 'round' },
-                paint: {
-                    'line-color': '#ff3b5c',
-                    'line-width': 2,
-                    'line-opacity': 0.9,
-                    'line-dasharray': [0, 4, 3],
+                    'line-width': 1.5,
+                    'line-opacity': 0.8,
+                    'line-dasharray': [2, 2],
                 },
             });
 
@@ -257,17 +244,17 @@ export default function MapView({
                 id: 'aggressor_range_fill',
                 type: 'fill',
                 source: 'aggressor_range',
-                paint: { 'fill-color': '#10b981', 'fill-opacity': 0.03 },
+                paint: { 'fill-color': '#ff3b5c', 'fill-opacity': 0.02 },
             });
             map.addLayer({
                 id: 'aggressor_range_outline',
                 type: 'line',
                 source: 'aggressor_range',
                 paint: {
-                    'line-color': '#10b981',
+                    'line-color': '#ff3b5c',
                     'line-width': 1.5,
                     'line-opacity': 0.6,
-                    'line-dasharray': [3, 2],
+                    'line-dasharray': [6, 2],
                 },
             });
 
@@ -318,6 +305,8 @@ export default function MapView({
                     selectedNameRef.current = name;
                     onAreaSelect(name);
 
+                    map.getSource('aggressor_range').setData({ type: 'FeatureCollection', features: [] });
+                    map.getSource('military_actions').setData({ type: 'FeatureCollection', features: [] });
                     fetchMilitaryActions(name, currentDaysRef.current);
 
                     const API = process.env.REACT_APP_API_URL;
@@ -494,38 +483,6 @@ export default function MapView({
             document.addEventListener('visibilitychange', handleVisibilityChange);
             visibilityHandlerRef.current = handleVisibilityChange;
             mapRef.current._sourcesReady = true;
-
-            const dashArraySequence = [
-                [0, 4, 3],
-                [0.5, 4, 2.5],
-                [1, 4, 2],
-                [1.5, 4, 1.5],
-                [2, 4, 1],
-                [2.5, 4, 0.5],
-                [3, 4, 0],
-                [0, 0.5, 3, 3.5],
-                [0, 1, 3, 3],
-                [0, 1.5, 3, 2.5],
-                [0, 2, 3, 2],
-                [0, 2.5, 3, 1.5],
-                [0, 3, 3, 1],
-                [0, 3.5, 3, 0.5],
-            ];
-
-            let dashStep = 0;
-
-            const animateLines = () => {
-                if (!mapRef.current) return;
-                dashStep = (dashStep + 1) % dashArraySequence.length;
-                map.setPaintProperty(
-                    'military_actions_animated',
-                    'line-dasharray',
-                    dashArraySequence[dashStep]
-                );
-                setTimeout(animateLines, 60);
-            };
-
-            animateLines();
             animatePulse();
             startRotation();
         });
