@@ -4,7 +4,6 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { createPopupHTML } from './popupUtils';
 
 const LAYER_IDS = {
-    disputed: ['disputed_areas_fill', 'disputed_areas_outline'],
     heatmap: ['tweets_points', 'tweets_viseur', 'tweets_hover_area', 'tweets_heatmap_other', 'pulse-high-importance_score'],
 };
 
@@ -151,6 +150,8 @@ export default function MapView({
             closeOnClick: false,
             offset: 15,
             className: 'custom-popup',
+            anchor: 'top',
+
         });
 
         ['mousedown', 'touchstart', 'dragstart'].forEach(evt => {
@@ -159,11 +160,11 @@ export default function MapView({
 
         map.on('load', async () => {
             const API = process.env.REACT_APP_API_URL;
-            const [disputedData, worldAreasData, shippingLanes, chokepoints] = await Promise.all([
-                fetch(`${API}/api/twitter_conflicts/disputed_areas.geojson`).then(r => r.json()),
+            const [worldAreasData, shippingLanes, chokepoints, currentFrontline] = await Promise.all([
                 fetch(`${API}/api/twitter_conflicts/world_areas.geojson`).then(r => r.json()),
                 fetch(`${API}/api/twitter_conflicts/shipping_lanes.geojson`).then(r => r.json()),
                 fetch(`${API}/api/twitter_conflicts/chokepoints.geojson`).then(r => r.json()),
+                fetch(`${API}/api/twitter_conflicts/current_frontline.geojson`).then(r => r.json()),
             ]);
             map.setProjection({ type: 'globe' });
 
@@ -182,22 +183,15 @@ export default function MapView({
             map.addImage('hatch-pattern', { width: size, height: size, data: hatchImage });
 
             // Sources
-            map.addSource('disputed_areas', { type: 'geojson', data: disputedData });
             map.addSource('world_areas', { type: 'geojson', data: worldAreasData, generateId: true });
             map.addSource('shipping_lanes', { type: 'geojson', data: shippingLanes });
             map.addSource('chokepoints', { type: 'geojson', data: chokepoints });
             map.addSource('aggressor_range', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
             map.addSource('tweets', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
             map.addSource('military_actions', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
-
-            // Layers disputed
-            map.addLayer({
-                id: 'disputed_areas_fill', type: 'fill', source: 'disputed_areas',
-                paint: { 'fill-pattern': 'hatch-pattern', 'fill-opacity': 0.5 }
-            });
-            map.addLayer({
-                id: 'disputed_areas_outline', type: 'line', source: 'disputed_areas',
-                paint: { 'line-color': '#880000', 'line-width': 1, 'line-opacity': 1 }
+            map.addSource('current_frontline', {
+                type: 'geojson',
+                data: currentFrontline
             });
 
             // Layers world areas
@@ -215,7 +209,7 @@ export default function MapView({
                         'rgba(0,0,0,0)'
                     ],
                     'line-width': ['case',
-                        ['boolean', ['feature-state', 'selected'], false], 2.5,
+                        ['boolean', ['feature-state', 'selected'], false], 2,
                         ['boolean', ['feature-state', 'hover'], false], 1.5,
                         0
                     ],
@@ -224,6 +218,18 @@ export default function MapView({
                         ['boolean', ['feature-state', 'hover'], false], ['literal', [2, 2]],
                         ['literal', [1, 0]]
                     ],
+                },
+            });
+
+            map.addLayer({
+                id: 'current_frontline_lines',
+                type: 'line',
+                source: 'current_frontline',
+                layout: { 'line-join': 'round', 'line-cap': 'round' },
+                paint: {
+                    'line-color': '#ff3b5c',
+                    'line-width': 2,
+                    'line-opacity': 1
                 },
             });
 
@@ -374,8 +380,9 @@ export default function MapView({
                 filter: ['==', ['get', 'conflict_typology'], 'MIL'],
                 paint: {
                     'circle-color': '#ff3b5c',
-                    'circle-opacity': ['interpolate', ['linear'], ['zoom'], 1, 0.4, 3, 0.5, 7, 0.6, 15, 1],
-                    'circle-radius': ['interpolate', ['linear'], ['coalesce', ['to-number', ['get', 'importance_score']], 1], 1, 1, 2, 2, 3, 3, 4, 4, 5, 10],
+                    'circle-radius': ['interpolate', ['linear'], ['coalesce', ['to-number', ['get', 'importance_score']], 1], 1, 1, 2, 2, 3, 3, 4, 4, 5, 8],
+                    'circle-opacity': 0.7
+                    ,
                 },
             });
 
@@ -396,9 +403,14 @@ export default function MapView({
                 id: 'tweets_viseur', type: 'circle', source: 'tweets',
                 filter: ['==', ['get', 'conflict_typology'], 'MIL'],
                 paint: {
-                    'circle-color': '#ff3b5c', 'circle-opacity': 0.3,
-                    'circle-radius': ['interpolate', ['linear'], ['coalesce', ['to-number', ['get', 'importance_score']], 1], 1, 2, 2, 3, 3, 5, 4, 8, 5, 15],
-                    'circle-stroke-width': 1, 'circle-stroke-color': '#ff3b5c', 'circle-stroke-opacity': 0.8,
+                    'circle-color': '#ff3b5c',
+                    'circle-opacity': 0.2
+                    ,
+                    'circle-radius': ['interpolate', ['linear'], ['coalesce', ['to-number', ['get', 'importance_score']], 1], 1, 4, 2, 5, 3, 7, 4, 9, 5, 20],
+                    'circle-stroke-width': 1,
+                    'circle-stroke-color': '#ff3b5c',
+                    'circle-stroke-opacity': 0.8
+                    ,
                 },
             });
 
@@ -417,11 +429,19 @@ export default function MapView({
                 if (!features.length) return;
 
                 const feature = features[0];
+                let props = { ...feature.properties };
+
+                // 👇 parse les images comme dans le click
+                if (typeof props.images === 'string') {
+                    try { props.images = JSON.parse(props.images); }
+                    catch { props.images = []; }
+                }
+
                 const coords = feature.geometry.coordinates.slice();
                 while (Math.abs(e.lngLat.lng - coords[0]) > 180) {
                     coords[0] += e.lngLat.lng > coords[0] ? 360 : -360;
                 }
-                const html = createPopupHTML(feature.properties, false, 0, features.length);
+                const html = createPopupHTML(props, false, 0, features.length);
                 popupRef.current.setLngLat(coords).setHTML(html).addTo(map);
             });
 
@@ -503,9 +523,20 @@ export default function MapView({
 
         const applyData = () => {
             const source = map.getSource('tweets');
-            if (source) source.setData(tweetsData);
+            if (source) {
+                const enriched = {
+                    ...tweetsData,
+                    features: tweetsData.features.map(f => ({
+                        ...f,
+                        properties: {
+                            ...f.properties,
+                            created_at_ms: new Date(f.properties.created_at).getTime(),
+                        }
+                    }))
+                };
+                source.setData(enriched);
+            }
         };
-
         if (map._sourcesReady) {
             applyData();
         } else {

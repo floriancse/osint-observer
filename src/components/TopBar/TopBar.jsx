@@ -3,7 +3,6 @@ import React, { useState, useCallback } from 'react';
 const PERIODS = [
   { label: '1 d.', days: 1 },
   { label: '7 d.', days: 7 },
-  { label: '30 d.', days: 30 },
 ];
 
 const IconSearch = () => (
@@ -33,7 +32,7 @@ export default function TopBar({
     const value = e.target.value;
     setSearchValue(value);
     clearTimeout(searchTimeout);
-    setSearchTimeout(setTimeout(() => onSearchChange(value), 300));
+    setSearchTimeout(setTimeout(() => onSearchChange(value), 140));
   }, [searchTimeout, onSearchChange]);
 
   return (

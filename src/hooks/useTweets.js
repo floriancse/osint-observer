@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { getDateRange } from '../utils/helpers';
 
-const cachedData = { 1: null, 7: null, 30: null };
+const cachedData = { 1: null, 7: null};
 
 export function useTweets() {
     const [tweets, setTweets] = useState({ type: 'FeatureCollection', features: [] });
@@ -77,7 +77,6 @@ export function useTweets() {
             cachedData[1] = { type: 'FeatureCollection', features: [] };
         }
 
-        // 2. Précharge 7j et 30j en arrière-plan, sans bloquer
         const backgroundLoad = async (days) => {
             try {
                 const data = await fetchAndCache(days);
@@ -88,7 +87,7 @@ export function useTweets() {
             }
         };
 
-        Promise.all([backgroundLoad(7), backgroundLoad(30)]).then(() => {
+        Promise.all([backgroundLoad(7)]).then(() => {
         });
     }, [fetchAndCache, filterAndSetTweets]);
 

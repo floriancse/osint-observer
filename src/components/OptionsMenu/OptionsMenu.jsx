@@ -1,8 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 
 const ALL_LAYERS = [
-  { id: 'disputed', name: 'Zone contestée' },
-  { id: 'heatmap', name: 'Événements' },
+  { id: 'heatmap', name: 'Events' },
 ];
 
 export default function OptionsMenu({

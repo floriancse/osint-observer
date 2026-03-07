@@ -36,7 +36,7 @@ function imagesHTML(images) {
     </div>`;
 }
 
-export function createPopupHTML(props, pinned, currentIndex, totalCount) {
+export function createPopupHTML(props, pinned, currentIndex, totalCount, showImages = true) {
   const isImportant = ['4', '5'].includes(String(props.importance_score || '0').trim());
   const date = new Date(props.created_at);
   const formattedDate = date.toLocaleDateString('en-UK', { year: 'numeric', month: 'short', day: 'numeric' });

@@ -1224,7 +1224,7 @@
 
  .tweet-card-text {
      color: #d1d5db;
-     font-size: 12px;
+     font-size: 11px;
      /* texte secondaire */
      line-height: 1.5;
      margin-bottom: 8px;
@@ -1307,7 +1307,7 @@
      font-family: var(--mono) !important;
      color: #e7e9ea;
      position: relative;
-     width: 400px;
+     width: 300px;
  }
 
  .tweet-card-nav {
@@ -1350,6 +1350,8 @@
      border-radius: 12px;
      overflow: hidden;
      background: #1a1a1a;
+     margin-top: 10px;
+     margin-bottom: 5px;
  }
 
  .tweet-card-images.single {
@@ -2090,4 +2092,6 @@
     font-style: italic;
     color: var(--text);
     font-size: 11px;
+    line-height: 1.5;
+    text-align: right;
  }

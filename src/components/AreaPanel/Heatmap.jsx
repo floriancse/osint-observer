@@ -9,11 +9,11 @@ function hexToRgba(hex, alpha) {
 
 function getTensionColor(niveau) {
   const map = {
-    'Open Warfare':             '#ed3f3f',
-    'High Strategic Tension':  '#edb33f',
-    'Significant Tension':            '#3fedbc',
-    'Moderate Tension':           '#4a8fff',
-    'Low Tension / Stable':            '#6d6d6d',
+    'Open Warfare': '#ed3f3f',
+    'High Strategic Tension': '#edb33f',
+    'Significant Tension': '#3fedbc',
+    'Moderate Tension': '#4a8fff',
+    'Low Tension / Stable': '#6d6d6d',
   };
   return map[niveau] ?? '#6d6d6d';
 }
@@ -39,7 +39,7 @@ function styleStringToObj(str) {
   );
 }
 
-export default function Heatmap({ areaName, niveauTension = 'Stable / faible' }){
+export default function Heatmap({ areaName, niveauTension = 'Stable / faible' }) {
   const tensionColor = getTensionColor(niveauTension);
   const [dayData, setDayData] = useState({});
   const [loading, setLoading] = useState(true);
@@ -60,7 +60,7 @@ export default function Heatmap({ areaName, niveauTension = 'Stable / faible' })
         const year = now2.getFullYear();
         const month = now2.getMonth();
         const daysInMonth = new Date(year, month + 1, 0).getDate();
-        const getKey = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        const getKey = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
         const counts = {};
         for (let i = 1; i <= daysInMonth; i++) counts[getKey(new Date(year, month, i))] = 0;
@@ -81,7 +81,7 @@ export default function Heatmap({ areaName, niveauTension = 'Stable / faible' })
   const month = now.getMonth();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const firstDay = new Date(year, month, 1).getDay();
-  const getKey = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const getKey = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const todayKey = getKey(now);
   const monthName = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
@@ -150,6 +150,14 @@ export default function Heatmap({ areaName, niveauTension = 'Stable / faible' })
                       y: e.clientY,
                     });
                   }}
+                  onClick={() => {
+                    const [y, m, d2] = day.date.split('-');
+                    console.log({
+                      year: Number(y),
+                      month: Number(m),
+                      day: Number(d2),
+                    });
+                  }}
                   onMouseMove={e => setTooltip(t => ({ ...t, x: e.clientX, y: e.clientY }))}
                   onMouseLeave={() => setTooltip(t => ({ ...t, visible: false }))}
                 />
@@ -178,7 +186,7 @@ export default function Heatmap({ areaName, niveauTension = 'Stable / faible' })
 
       <div className="heatmap-legend">
         <span className="heatmap-legend-label">Less</span>
-        {[0,1,2,3,4].map(l => (
+        {[0, 1, 2, 3, 4].map(l => (
           <div key={l} className="heatmap-legend-box"
             style={styleStringToObj(getLevelStyle(l, tensionColor) + ';width:10px;height:10px;border-radius:2px')} />
         ))}

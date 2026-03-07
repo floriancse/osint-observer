@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { getDateRange } from '../utils/helpers';
 
-const cachedusernames = { 1: null, 7: null, 30: null };
+const cachedusernames = { 1: null, 7: null, 14: null };
 
 export function useUsernames() {
   const [allusernames, setAllusernames] = useState([]);
