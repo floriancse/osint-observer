@@ -5,45 +5,52 @@ import TweetsFeedPanel from './components/TweetsFeedPanel/TweetsFeedPanel';
 import AreaPanel from './components/AreaPanel/AreaPanel';
 import OptionsMenu from './components/OptionsMenu/OptionsMenu';
 import { useUsernames } from './hooks/useUsernames';
-import { useTweets } from './hooks/useTweets';
+import { useTweets, getTodayRange } from './hooks/useTweets';
 
-const API = process.env.REACT_APP_API_URL;
+function getTodayOverride() {
+    const now = new Date();
+    // dateKey calculé depuis la date LOCALE, pas depuis l'ISO string
+    const dateKey = [
+        now.getFullYear(),
+        String(now.getMonth() + 1).padStart(2, '0'),
+        String(now.getDate()).padStart(2, '0'),
+    ].join('-');
+    const range = getTodayRange();
+    return { dateKey, start: range.start, end: range.end };
+}
 
 export default function App() {
-    const [currentDays, setCurrentDays] = useState(1);
     const [currentSearch, setCurrentSearch] = useState('');
     const [isFeedOpen, setIsFeedOpen] = useState(false);
     const [isRotating, setIsRotating] = useState(true);
     const [selectedAreaName, setSelectedAreaName] = useState(null);
     const [selectedLayers, setSelectedLayers] = useState(new Set());
     const [isOptionsOpen, setIsOptionsOpen] = useState(false);
+    const [dateOverride, setDateOverride] = useState(getTodayOverride);
 
     const { allusernames, selectedusernames, loadusernames, toggleusername } = useUsernames();
     const { tweets, tweetCount, loadTweets, preloadAll, getRawData } = useTweets();
     const locateHandlerRef = useRef(null);
 
-    // Préchargement initial
     useEffect(() => {
         preloadAll().then(async () => {
-            const usernames = await loadusernames(1);
-            loadTweets(1, usernames, new Set(), '');
+            const usernames = await loadusernames();
+            loadTweets(usernames, new Set(), '', getTodayOverride());
         });
-    }, []);
+    }, []); // eslint-disable-line
 
-    // Rechargement quand les filtres changent
     useEffect(() => {
-        loadTweets(currentDays, allusernames, selectedusernames, currentSearch);
-    }, [currentDays, allusernames, selectedusernames, currentSearch]); // eslint-disable-line
+        loadTweets(allusernames, selectedusernames, currentSearch, dateOverride);
+    }, [allusernames, selectedusernames, currentSearch, dateOverride]); // eslint-disable-line
+
+    const handleDayClick = useCallback((range) => {
+        setDateOverride(range ?? getTodayOverride());
+    }, []);
 
     const handleAreaSelect = useCallback((name) => {
         setSelectedAreaName(name);
         if (isFeedOpen) setIsFeedOpen(false);
     }, [isFeedOpen]);
-
-    const handleDaysChange = useCallback(async (days) => {
-        setCurrentDays(days);
-        await loadusernames(days);
-    }, [loadusernames]);
 
     const handleToggleLayer = useCallback((layerId) => {
         setSelectedLayers(prev => {
@@ -72,11 +79,9 @@ export default function App() {
                 isRotating={isRotating}
                 onRotationChange={setIsRotating}
                 registerLocateHandler={registerLocateHandler}
-                currentDays={currentDays}  // ← ajoute ici
+                dateOverride={dateOverride}
             />
             <TopBar
-                currentDays={currentDays}
-                onDaysChange={handleDaysChange}
                 tweetCount={tweetCount}
                 onSearchChange={setCurrentSearch}
                 isFeedOpen={isFeedOpen}
@@ -87,18 +92,20 @@ export default function App() {
             <TweetsFeedPanel
                 isOpen={isFeedOpen}
                 onClose={() => setIsFeedOpen(false)}
-                currentDays={currentDays}
                 allusernames={allusernames}
                 selectedusernames={selectedusernames}
                 currentSearch={currentSearch}
                 selectedAreaName={selectedAreaName}
-                cachedData={getRawData(currentDays)}
+                cachedData={getRawData(dateOverride)}
                 onLocate={handleLocateTweet}
+                dateOverride={dateOverride}
             />
             <AreaPanel
                 areaName={selectedAreaName}
                 onClose={() => setSelectedAreaName(null)}
                 onLocate={handleLocateTweet}
+                selectedDate={dateOverride?.dateKey ?? null}
+                onDayClick={handleDayClick}
             />
             <OptionsMenu
                 isOpen={isOptionsOpen}

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import Heatmap from './Heatmap';
 import TensionIndex from './TensionIndex';
 
-export default function AreaPanel({ areaName, onClose, onLocate }) {
+export default function AreaPanel({ areaName, onClose, onLocate, onDayClick, selectedDate }) {
   const [niveauTension, setNiveauTension] = useState('Stable / faible');
 
   return (
@@ -15,7 +15,12 @@ export default function AreaPanel({ areaName, onClose, onLocate }) {
         <div id="summary_text-tab" className="tab-content active">
           {areaName && (
             <>
-              <Heatmap areaName={areaName} niveauTension={niveauTension} />
+              <Heatmap
+                areaName={areaName}
+                niveauTension={niveauTension}
+                onDayClick={onDayClick}
+                selectedDate={selectedDate}
+              />
               <TensionIndex
                 areaName={areaName}
                 onLocate={onLocate}

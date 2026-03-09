@@ -7,6 +7,13 @@ const LAYER_IDS = {
     heatmap: ['tweets_points', 'tweets_viseur', 'tweets_hover_area', 'tweets_heatmap_other', 'pulse-high-importance_score'],
 };
 
+function get24hRange() {
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - 1);
+    return { start: start.toISOString(), end: end.toISOString() };
+}
+
 export default function MapView({
     tweetsData,
     selectedLayers,
@@ -15,9 +22,8 @@ export default function MapView({
     isRotating,
     onRotationChange,
     registerLocateHandler,
-    currentDays,
+    dateOverride,
 }) {
-
     const mapContainer = useRef(null);
     const mapRef = useRef(null);
     const popupRef = useRef(null);
@@ -27,8 +33,9 @@ export default function MapView({
     const currentIndexRef = useRef(0);
     const animFrameRef = useRef(null);
     const visibilityHandlerRef = useRef(null);
-    const currentDaysRef = useRef(currentDays);
+    const dateOverrideRef = useRef(dateOverride);
     const selectedNameRef = useRef(null);
+    const tweetsReadyRef = useRef(false); // ← tweets affichés sur la carte ?
 
     // ── Rotation ──
     const startRotation = useCallback(() => {
@@ -51,23 +58,24 @@ export default function MapView({
         onRotationChange(false);
     }, [onRotationChange]);
 
-    // ── Fetch military actions (fonction réutilisable) ──
-    const fetchMilitaryActions = useCallback((name, days) => {
+    // ── Fetch military actions ──
+    const fetchMilitaryActions = useCallback((name, range) => {
         const map = mapRef.current;
         if (!map) return;
         const API = process.env.REACT_APP_API_URL;
-        const endDate = new Date();
-        const startDate = new Date();
-        startDate.setDate(startDate.getDate() - days);
-        const params = new URLSearchParams({
-            aggressor: name,
-            start_date: startDate.toISOString(),
-            end_date: endDate.toISOString(),
-        });
+        const { start, end } = range ?? get24hRange();
+        const params = new URLSearchParams({ aggressor: name, start_date: start, end_date: end });
         fetch(`${API}/api/twitter_conflicts/military_actions.geojson?${params}`)
             .then(r => r.json())
             .then(data => map.getSource('military_actions').setData(data))
             .catch(console.error);
+    }, []);
+
+    const clearMilitaryActions = useCallback(() => {
+        const map = mapRef.current;
+        if (!map) return;
+        const source = map.getSource('military_actions');
+        if (source) source.setData({ type: 'FeatureCollection', features: [] });
     }, []);
 
     // ── Popup ──
@@ -86,16 +94,11 @@ export default function MapView({
             catch { props.images = []; }
         }
 
-        const html = createPopupHTML(
-            props,
-            popupPinnedRef.current,
-            index,
-            currentFeaturesRef.current.length
-        );
+        const html = createPopupHTML(props, popupPinnedRef.current, index, currentFeaturesRef.current.length);
         popup.setLngLat(coords).setHTML(html).addTo(map);
     }, []);
 
-    // ── Expose les fonctions popup à window pour les onclick HTML ──
+    // ── Expose les fonctions popup à window ──
     useEffect(() => {
         window.closePopup = () => {
             popupPinnedRef.current = false;
@@ -113,13 +116,14 @@ export default function MapView({
         };
     }, [showPopupAtIndex]);
 
-    // ── Sync currentDays + refetch si un pays est sélectionné ──
+    // ── Sync dateOverride → vide les lignes et attend les nouveaux tweets ──
     useEffect(() => {
-        currentDaysRef.current = currentDays;
-        const name = selectedNameRef.current;
-        if (!name || !mapRef.current?._sourcesReady) return;
-        fetchMilitaryActions(name, currentDays);
-    }, [currentDays, fetchMilitaryActions]);
+        dateOverrideRef.current = dateOverride;
+        // On remet à false : les nouvelles lignes militaires ne seront fetchées
+        // qu'une fois les tweets du nouveau range affichés sur la carte
+        tweetsReadyRef.current = false;
+        clearMilitaryActions();
+    }, [dateOverride, clearMilitaryActions]);
 
     // ── Expose le handler "localiser un tweet" au parent ──
     useEffect(() => {
@@ -151,7 +155,6 @@ export default function MapView({
             offset: 15,
             className: 'custom-popup',
             anchor: 'top',
-
         });
 
         ['mousedown', 'touchstart', 'dragstart'].forEach(evt => {
@@ -168,7 +171,6 @@ export default function MapView({
             ]);
             map.setProjection({ type: 'globe' });
 
-            // Hatch pattern
             const size = 64;
             const hatchImage = new Uint8Array(size * size * 4);
             for (let x = 0; x < size; x++) {
@@ -182,19 +184,14 @@ export default function MapView({
             }
             map.addImage('hatch-pattern', { width: size, height: size, data: hatchImage });
 
-            // Sources
             map.addSource('world_areas', { type: 'geojson', data: worldAreasData, generateId: true });
             map.addSource('shipping_lanes', { type: 'geojson', data: shippingLanes });
             map.addSource('chokepoints', { type: 'geojson', data: chokepoints });
             map.addSource('aggressor_range', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
             map.addSource('tweets', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
             map.addSource('military_actions', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
-            map.addSource('current_frontline', {
-                type: 'geojson',
-                data: currentFrontline
-            });
+            map.addSource('current_frontline', { type: 'geojson', data: currentFrontline });
 
-            // Layers world areas
             map.addLayer({
                 id: 'world_areas_fill', type: 'fill', source: 'world_areas',
                 paint: { 'fill-opacity': ['case', ['boolean', ['feature-state', 'hover'], false], 0.1, 0] }
@@ -222,81 +219,60 @@ export default function MapView({
             });
 
             map.addLayer({
-                id: 'current_frontline_lines',
-                type: 'line',
-                source: 'current_frontline',
+                id: 'current_frontline_lines', type: 'line', source: 'current_frontline',
+                layout: { 'line-join': 'round', 'line-cap': 'round' },
+                paint: { 'line-color': '#ff3b5c', 'line-width': 2, 'line-opacity': 1 },
+            });
+
+            map.addLayer({
+                id: 'military_actions_lines', type: 'line', source: 'military_actions',
                 layout: { 'line-join': 'round', 'line-cap': 'round' },
                 paint: {
-                    'line-color': '#ff3b5c',
-                    'line-width': 2,
-                    'line-opacity': 1
+                    'line-color': '#ff3b5c', 'line-width': 1.5,
+                    'line-opacity': 0.8, 'line-dasharray': [2, 2],
                 },
             });
 
             map.addLayer({
-                id: 'military_actions_lines',
-                type: 'line',
-                source: 'military_actions',
-                layout: { 'line-join': 'round', 'line-cap': 'round' },
-                paint: {
-                    'line-color': '#ff3b5c',
-                    'line-width': 1.5,
-                    'line-opacity': 0.8,
-                    'line-dasharray': [2, 2],
-                },
-            });
-
-            map.addLayer({
-                id: 'aggressor_range_fill',
-                type: 'fill',
-                source: 'aggressor_range',
+                id: 'aggressor_range_fill', type: 'fill', source: 'aggressor_range',
                 paint: { 'fill-color': '#ff3b5c', 'fill-opacity': 0.02 },
             });
             map.addLayer({
-                id: 'aggressor_range_outline',
-                type: 'line',
-                source: 'aggressor_range',
+                id: 'aggressor_range_outline', type: 'line', source: 'aggressor_range',
                 paint: {
-                    'line-color': '#ff3b5c',
-                    'line-width': 1.5,
-                    'line-opacity': 0.6,
-                    'line-dasharray': [6, 2],
+                    'line-color': '#ff3b5c', 'line-width': 1.5,
+                    'line-opacity': 0.6, 'line-dasharray': [6, 2],
                 },
             });
 
-            // Hover world areas
             let hoveredId = null;
             let selectedId = null;
 
             map.on('mousemove', 'world_areas_fill', (e) => {
                 if (!e.features.length) return;
                 const f = e.features[0];
-                if (hoveredId !== null && hoveredId !== f.id) {
+                if (hoveredId !== null && hoveredId !== f.id)
                     map.setFeatureState({ source: 'world_areas', id: hoveredId }, { hover: false });
-                }
                 map.setFeatureState({ source: 'world_areas', id: f.id }, { hover: true });
                 hoveredId = f.id;
                 map.getCanvas().style.cursor = 'pointer';
             });
 
             map.on('mouseleave', 'world_areas_fill', () => {
-                if (hoveredId !== null) {
+                if (hoveredId !== null)
                     map.setFeatureState({ source: 'world_areas', id: hoveredId }, { hover: false });
-                }
                 hoveredId = null;
                 map.getCanvas().style.cursor = '';
             });
 
-            // Click world area
             map.on('click', 'world_areas_fill', (e) => {
                 if (!e.features?.length) return;
                 const tweets = map.queryRenderedFeatures(e.point, { layers: ['tweets_hover_area'] });
                 if (tweets?.length) return;
 
                 const feature = e.features[0];
-                if (selectedId !== null) {
+                if (selectedId !== null)
                     map.setFeatureState({ source: 'world_areas', id: selectedId }, { selected: false });
-                }
 
                 if (selectedId === feature.id) {
                     selectedId = null;
@@ -313,7 +289,11 @@ export default function MapView({
 
                     map.getSource('aggressor_range').setData({ type: 'FeatureCollection', features: [] });
                     map.getSource('military_actions').setData({ type: 'FeatureCollection', features: [] });
-                    fetchMilitaryActions(name, currentDaysRef.current);
+
+                    // ← Les lignes militaires ne sont fetchées que si les tweets sont déjà affichés
+                    if (tweetsReadyRef.current) {
+                        fetchMilitaryActions(name, dateOverrideRef.current);
+                    }
 
                     const API = process.env.REACT_APP_API_URL;
                     fetch(`${API}/api/twitter_conflicts/aggressor_range.geojson?aggressor=${encodeURIComponent(name)}`)
@@ -323,7 +303,6 @@ export default function MapView({
                 }
             });
 
-            // Click sur fond carte = déselectionne
             map.on('click', (e) => {
                 const tweets = map.queryRenderedFeatures(e.point, { layers: ['tweets_hover_area'] });
                 if (tweets?.length) return;
@@ -332,46 +311,24 @@ export default function MapView({
             });
 
             map.addLayer({
-                id: 'shipping_lanes_lines',
-                type: 'line',
-                source: 'shipping_lanes',
+                id: 'shipping_lanes_lines', type: 'line', source: 'shipping_lanes',
                 layout: { 'line-join': 'round', 'line-cap': 'round' },
-                paint: {
-                    'line-color': '#5693b0',
-                    'line-width': .75,
-                    'line-opacity': .5,
-                    'line-dasharray': [2, 2],
-                },
+                paint: { 'line-color': '#5693b0', 'line-width': .75, 'line-opacity': .5, 'line-dasharray': [2, 2] },
             });
 
             map.addLayer({
-                id: 'chokepoints',
-                type: 'circle',
-                source: 'chokepoints',
-                paint: {
-                    'circle-radius': 0,
-                    'circle-color': '#5693b0',
-                    'circle-opacity': 1,
-                    'circle-stroke-width': 1,
-                    'circle-stroke-color': '#5693b0',
-                },
+                id: 'chokepoints', type: 'circle', source: 'chokepoints',
+                paint: { 'circle-radius': 0, 'circle-color': '#5693b0', 'circle-opacity': 1, 'circle-stroke-width': 1, 'circle-stroke-color': '#5693b0' },
             });
 
             map.addLayer({
-                id: 'pulse-high-importance_score',
-                type: 'circle',
-                source: 'tweets',
-                filter: ['all', ['>=', ['coalesce', ['to-number', ['get', 'importance_score']], 0], 5]],
+                id: 'pulse-high-importance_score', type: 'circle', source: 'tweets',
+                filter: ['all', ['>=', ['coalesce', ['to-number', ['get', 'importance_score']], 0], 4]],
                 paint: {
-                    'circle-color': 'transparent',
-                    'circle-radius': 8,
-                    'circle-stroke-color': ['match', ['get', 'conflict_typology'],
-                        'MIL', '#ff3b5c',
-                        'rgba(108,172,251,1)'
-                    ],
+                    'circle-color': 'transparent', 'circle-radius': 8,
+                    'circle-stroke-color': ['match', ['get', 'conflict_typology'], 'MIL', '#ff3b5c', 'rgba(108,172,251,1)'],
                     'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 2, 1, 6, 1.5, 10, 2.5],
-                    'circle-stroke-opacity': 0.8,
-                    'circle-opacity': 0,
+                    'circle-stroke-opacity': 0.8, 'circle-opacity': 0,
                 },
             });
 
@@ -381,8 +338,7 @@ export default function MapView({
                 paint: {
                     'circle-color': '#ff3b5c',
                     'circle-radius': ['interpolate', ['linear'], ['coalesce', ['to-number', ['get', 'importance_score']], 1], 1, 1, 2, 2, 3, 3, 4, 4, 5, 8],
-                    'circle-opacity': 0.7
-                    ,
+                    'circle-opacity': 0.7,
                 },
             });
 
@@ -403,14 +359,9 @@ export default function MapView({
                 id: 'tweets_viseur', type: 'circle', source: 'tweets',
                 filter: ['==', ['get', 'conflict_typology'], 'MIL'],
                 paint: {
-                    'circle-color': '#ff3b5c',
-                    'circle-opacity': 0.2
-                    ,
+                    'circle-color': '#ff3b5c', 'circle-opacity': 0.2,
                     'circle-radius': ['interpolate', ['linear'], ['coalesce', ['to-number', ['get', 'importance_score']], 1], 1, 4, 2, 5, 3, 7, 4, 9, 5, 20],
-                    'circle-stroke-width': 1,
-                    'circle-stroke-color': '#ff3b5c',
-                    'circle-stroke-opacity': 0.8
-                    ,
+                    'circle-stroke-width': 1, 'circle-stroke-color': '#ff3b5c', 'circle-stroke-opacity': 0.8,
                 },
             });
 
@@ -419,28 +370,20 @@ export default function MapView({
                 paint: { 'circle-radius': 10, 'circle-opacity': 0 },
             });
 
-            // Popup hover
             map.on('mouseenter', 'tweets_hover_area', (e) => {
                 if (popupPinnedRef.current) return;
                 map.getCanvas().style.cursor = 'pointer';
-
                 const features = map.queryRenderedFeatures(e.point, { layers: ['tweets_hover_area'] });
                 features.sort((a, b) => Date.parse(b.properties.created_at) - Date.parse(a.properties.created_at));
                 if (!features.length) return;
-
                 const feature = features[0];
                 let props = { ...feature.properties };
-
-                // 👇 parse les images comme dans le click
                 if (typeof props.images === 'string') {
-                    try { props.images = JSON.parse(props.images); }
-                    catch { props.images = []; }
+                    try { props.images = JSON.parse(props.images); } catch { props.images = []; }
                 }
-
                 const coords = feature.geometry.coordinates.slice();
-                while (Math.abs(e.lngLat.lng - coords[0]) > 180) {
+                while (Math.abs(e.lngLat.lng - coords[0]) > 180)
                     coords[0] += e.lngLat.lng > coords[0] ? 360 : -360;
-                }
                 const html = createPopupHTML(props, false, 0, features.length);
                 popupRef.current.setLngLat(coords).setHTML(html).addTo(map);
             });
@@ -452,26 +395,19 @@ export default function MapView({
                 }
             });
 
-            // Click tweet = pin popup
             map.on('click', 'tweets_hover_area', (e) => {
                 e.preventDefault();
                 popupPinnedRef.current = true;
                 popupRef.current.remove();
                 currentFeaturesRef.current = map.queryRenderedFeatures(e.point, { layers: ['tweets_hover_area'] });
-                currentFeaturesRef.current.sort((a, b) =>
-                    Date.parse(b.properties.created_at) - Date.parse(a.properties.created_at)
-                );
+                currentFeaturesRef.current.sort((a, b) => Date.parse(b.properties.created_at) - Date.parse(a.properties.created_at));
                 if (!currentFeaturesRef.current.length) return;
                 currentIndexRef.current = 0;
                 showPopupAtIndex(0);
             });
 
-            // Animation pulse
             const animatePulse = () => {
-                if (!mapRef.current) {
-                    animFrameRef.current = null;
-                    return;
-                }
+                if (!mapRef.current) { animFrameRef.current = null; return; }
                 const now = performance.now() / 1000;
                 const zoom = map.getZoom();
                 const duration = 2.8;
@@ -485,8 +421,7 @@ export default function MapView({
                 }
                 if (zoom < 3) opacity *= 0.6;
                 const baseRadius = zoom < 3 ? 4 : zoom < 6 ? 5 : zoom < 9 ? 5 : 4;
-                const maxGrow = baseRadius * (zoom < 3 ? 8 : zoom < 6 ? 10 : zoom < 9 ? 10 : 10);
-                const radius = baseRadius + (maxGrow - baseRadius) * phase;
+                const radius = baseRadius + (baseRadius * 10 - baseRadius) * phase;
                 map.setPaintProperty('pulse-high-importance_score', 'circle-stroke-opacity', opacity);
                 map.setPaintProperty('pulse-high-importance_score', 'circle-opacity', opacity);
                 map.setPaintProperty('pulse-high-importance_score', 'circle-radius', radius);
@@ -494,11 +429,8 @@ export default function MapView({
             };
 
             const handleVisibilityChange = () => {
-                if (document.hidden) {
-                    if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
-                } else {
-                    animatePulse();
-                }
+                if (document.hidden) { if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current); }
+                else animatePulse();
             };
             document.addEventListener('visibilitychange', handleVisibilityChange);
             visibilityHandlerRef.current = handleVisibilityChange;
@@ -514,41 +446,46 @@ export default function MapView({
             map.remove();
             mapRef.current = null;
         };
-    }, []);
+    }, []); // eslint-disable-line
 
     // ── Sync tweets data ──
+    // C'est ici qu'on déclenche aussi les military actions une fois les tweets prêts
     useEffect(() => {
         const map = mapRef.current;
         if (!map || !tweetsData) return;
 
         const applyData = () => {
             const source = map.getSource('tweets');
-            if (source) {
-                const enriched = {
-                    ...tweetsData,
-                    features: tweetsData.features.map(f => ({
-                        ...f,
-                        properties: {
-                            ...f.properties,
-                            created_at_ms: new Date(f.properties.created_at).getTime(),
-                        }
-                    }))
-                };
-                source.setData(enriched);
+            if (!source) return;
+
+            source.setData({
+                ...tweetsData,
+                features: tweetsData.features.map(f => ({
+                    ...f,
+                    properties: { ...f.properties, created_at_ms: new Date(f.properties.created_at).getTime() }
+                }))
+            });
+
+            // Tweets maintenant affichés → on peut charger les lignes militaires
+            const wasReady = tweetsReadyRef.current;
+            tweetsReadyRef.current = true;
+
+            const name = selectedNameRef.current;
+            if (name) {
+                // Premier chargement ou changement de dateOverride : on fetch
+                fetchMilitaryActions(name, dateOverrideRef.current);
             }
         };
+
         if (map._sourcesReady) {
             applyData();
         } else {
             const interval = setInterval(() => {
-                if (map.getSource('tweets')) {
-                    clearInterval(interval);
-                    applyData();
-                }
+                if (map.getSource('tweets')) { clearInterval(interval); applyData(); }
             }, 50);
             return () => clearInterval(interval);
         }
-    }, [tweetsData]);
+    }, [tweetsData, fetchMilitaryActions]);
 
     // ── Sync layers visibility ──
     useEffect(() => {

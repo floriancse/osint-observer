@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 
 function hexToRgba(hex, alpha) {
   const r = parseInt(hex.slice(1, 3), 16);
@@ -39,51 +39,75 @@ function styleStringToObj(str) {
   );
 }
 
-export default function Heatmap({ areaName, niveauTension = 'Stable / faible' }) {
+function toDateKey(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+const fetchCache = {};
+
+export default function Heatmap({ areaName, niveauTension = 'Stable / faible', onDayClick, selectedDate }) {
   const tensionColor = getTensionColor(niveauTension);
+
+  const [monthOffset, setMonthOffset] = useState(0);
   const [dayData, setDayData] = useState({});
   const [loading, setLoading] = useState(true);
   const [tooltip, setTooltip] = useState({ visible: false, text: '', x: 0, y: 0 });
+
+  const today = useMemo(() => new Date(), []);
+  const todayKey = useMemo(() => toDateKey(today), [today]);
+
+  const refDate = new Date(today.getFullYear(), today.getMonth() + monthOffset, 1);
+  const year = refDate.getFullYear();
+  const month = refDate.getMonth();
+  const isCurrentMonth = monthOffset === 0;
+
+  const getKey = useCallback((d) => toDateKey(d), []);
 
   useEffect(() => {
     if (!areaName) return;
     setLoading(true);
 
-    const now = new Date();
-    const start = new Date(now.getFullYear(), now.getMonth(), 1);
-    start.setHours(0, 0, 0, 0);
+    const cacheKey = `${areaName}__${year}-${String(month + 1).padStart(2, '0')}`;
+    if (fetchCache[cacheKey]) {
+      setDayData(fetchCache[cacheKey]);
+      setLoading(false);
+      return;
+    }
 
-    fetch(`${process.env.REACT_APP_API_URL}/api/twitter_conflicts/tweets.geojson?area=${encodeURIComponent(areaName)}&start_date=${start.toISOString()}&end_date=${now.toISOString()}`)
+    const start = new Date(year, month, 1, 0, 0, 0, 0);
+    const end   = isCurrentMonth ? new Date() : new Date(year, month + 1, 0, 23, 59, 59, 999);
+
+    fetch(
+      `${process.env.REACT_APP_API_URL}/api/twitter_conflicts/tweets.geojson` +
+      `?area=${encodeURIComponent(areaName)}&start_date=${start.toISOString()}&end_date=${end.toISOString()}`
+    )
       .then(r => r.json())
       .then(data => {
-        const now2 = new Date();
-        const year = now2.getFullYear();
-        const month = now2.getMonth();
         const daysInMonth = new Date(year, month + 1, 0).getDate();
-        const getKey = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-
         const counts = {};
         for (let i = 1; i <= daysInMonth; i++) counts[getKey(new Date(year, month, i))] = 0;
         (data.features || []).forEach(f => {
           const k = getKey(new Date(f.properties.created_at));
           if (k in counts) counts[k]++;
         });
+        fetchCache[cacheKey] = counts;
         setDayData(counts);
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, [areaName]);
+  }, [areaName, year, month, isCurrentMonth, getKey]);
 
-  if (loading) return <div className="t-loading">— LOADING —</div>;
+  const handleDayClick = (dateKey) => {
+    if (!onDayClick) return;
+    if (selectedDate === dateKey) { onDayClick(null); return; }
+    const [y, m, d] = dateKey.split('-').map(Number);
+    const start = new Date(y, m - 1, d, 0, 0, 0, 0);
+    const end   = new Date(y, m - 1, d, 23, 59, 59, 999);
+    onDayClick({ dateKey, start: start.toISOString(), end: end.toISOString() });
+  };
 
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const firstDay = new Date(year, month, 1).getDay();
-  const getKey = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  const todayKey = getKey(now);
-  const monthName = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
   const values = Object.values(dayData);
   const totalEvents = values.reduce((a, b) => a + b, 0);
@@ -114,84 +138,123 @@ export default function Heatmap({ areaName, niveauTension = 'Stable / faible' })
   const DOW = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
   const capitalize = s => s.charAt(0).toUpperCase() + s.slice(1);
 
+  const monthName = refDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+  const navBtn = (disabled) => ({
+    background: 'transparent',
+    border: '1px solid rgba(136, 136, 136, 0.5)',
+    borderRadius: 4,
+    color: disabled ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.8)',
+    width: 22, height: 22,
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    cursor: disabled ? 'default' : 'pointer',
+    fontSize: 13, lineHeight: 1,
+    transition: 'all 0.15s',
+    flexShrink: 0,
+    pointerEvents: disabled ? 'none' : 'auto',
+  });
+
   return (
     <div className="heatmap-container">
+
       <div className="heatmap-header">
-        <span className="heatmap-region-label">Monthly activity</span>
-        <span className="heatmap-month">{monthName}</span>
-      </div>
-
-      <div className="heatmap-dow-row">
-        <div />
-        {DOW.map((d, i) => <div key={i} className="heatmap-dow-label">{d}</div>)}
-      </div>
-
-      <div className="heatmap-calendar">
-        {weeks.map((week, wi) => (
-          <React.Fragment key={wi}>
-            <div className="heatmap-week-label">S{wi + 1}</div>
-            {week.map((day, di) => day === null
-              ? <div key={di} className="heatmap-day empty" />
-              : (
-                <div
-                  key={di}
-                  className={`heatmap-day${day.date === todayKey ? ' today' : ''}`}
-                  style={styleStringToObj(getLevelStyle(day.level, tensionColor))}
-                  onMouseEnter={e => {
-                    const [y, m, d2] = day.date.split('-');
-                    const date = new Date(y, m - 1, d2);
-                    const weekday = capitalize(date.toLocaleDateString('en-US', { weekday: 'long' }));
-                    const mon = capitalize(date.toLocaleDateString('en-US', { month: 'long' }));
-                    setTooltip({
-                      visible: true,
-                      text: `${weekday} ${date.getDate()} ${mon}`,
-                      count: day.count,
-                      x: e.clientX,
-                      y: e.clientY,
-                    });
-                  }}
-                  onClick={() => {
-                    const [y, m, d2] = day.date.split('-');
-                    console.log({
-                      year: Number(y),
-                      month: Number(m),
-                      day: Number(d2),
-                    });
-                  }}
-                  onMouseMove={e => setTooltip(t => ({ ...t, x: e.clientX, y: e.clientY }))}
-                  onMouseLeave={() => setTooltip(t => ({ ...t, visible: false }))}
-                />
-              )
-            )}
-          </React.Fragment>
-        ))}
-      </div>
-
-      <div className="heatmap-stats">
-        <div className="heatmap-stat">
-          <div className="heatmap-stat-value">{totalEvents}</div>
-          <div className="heatmap-stat-label">Total</div>
+        {/* Gauche : label + date sélectionnée */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <span className="heatmap-region-label">Monthly activity</span>
+          {selectedDate && (
+            <span style={{
+              fontSize: 11,
+              fontFamily: "'Roboto Mono', monospace",
+              color: 'rgba(255,255,255,0.5)',
+              letterSpacing: '0.03em',
+            }}>
+              {selectedDate}
+            </span>
+          )}
         </div>
-        <div className="heatmap-stat-divider" />
-        <div className="heatmap-stat">
-          <div className="heatmap-stat-value">{maxEvents}</div>
-          <div className="heatmap-stat-label">Peak / day</div>
-        </div>
-        <div className="heatmap-stat-divider" />
-        <div className="heatmap-stat">
-          <div className="heatmap-stat-value">{avgEvents.toFixed(1)}</div>
-          <div className="heatmap-stat-label">Avg. / day</div>
+
+        {/* Droite : navigation mois */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <button style={navBtn(false)} onClick={() => setMonthOffset(o => o - 1)}>‹</button>
+          <span className="heatmap-month" style={{ minWidth: 120, textAlign: 'center' }}>
+            {monthName}
+          </span>
+          <button style={navBtn(isCurrentMonth)} onClick={() => setMonthOffset(o => Math.min(o + 1, 0))}>›</button>
         </div>
       </div>
 
-      <div className="heatmap-legend">
-        <span className="heatmap-legend-label">Less</span>
-        {[0, 1, 2, 3, 4].map(l => (
-          <div key={l} className="heatmap-legend-box"
-            style={styleStringToObj(getLevelStyle(l, tensionColor) + ';width:10px;height:10px;border-radius:2px')} />
-        ))}
-        <span className="heatmap-legend-label">More</span>
-      </div>
+      {loading ? <div className="t-loading">— LOADING —</div> : (
+        <>
+          <div className="heatmap-dow-row">
+            <div />
+            {DOW.map((d, i) => <div key={i} className="heatmap-dow-label">{d}</div>)}
+          </div>
+
+          <div className="heatmap-calendar">
+            {weeks.map((week, wi) => (
+              <React.Fragment key={wi}>
+                <div className="heatmap-week-label">S{wi + 1}</div>
+                {week.map((day, di) => day === null
+                  ? <div key={di} className="heatmap-day empty" />
+                  : (() => {
+                      const isSelected = selectedDate === day.date;
+                      const isToday = day.date === todayKey;
+                      const baseStyle = styleStringToObj(getLevelStyle(day.level, tensionColor));
+                      const selectedStyle = isSelected ? {
+                        outline: '2px solid #ffffff',
+                        outlineOffset: '2px',
+                        boxShadow: '0 0 8px rgba(255,255,255,0.5)',
+                      } : {};
+                      return (
+                        <div
+                          key={di}
+                          className={`heatmap-day${isToday ? ' today' : ''}`}
+                          style={{ ...baseStyle, ...selectedStyle, cursor: 'pointer' }}
+                          onMouseEnter={e => {
+                            const [y, m, d2] = day.date.split('-');
+                            const date = new Date(y, m - 1, d2);
+                            const weekday = capitalize(date.toLocaleDateString('en-US', { weekday: 'long' }));
+                            const mon = capitalize(date.toLocaleDateString('en-US', { month: 'long' }));
+                            setTooltip({ visible: true, text: `${weekday} ${date.getDate()} ${mon}`, count: day.count, x: e.clientX, y: e.clientY });
+                          }}
+                          onClick={() => handleDayClick(day.date)}
+                          onMouseMove={e => setTooltip(t => ({ ...t, x: e.clientX, y: e.clientY }))}
+                          onMouseLeave={() => setTooltip(t => ({ ...t, visible: false }))}
+                        />
+                      );
+                    })()
+                )}
+              </React.Fragment>
+            ))}
+          </div>
+
+          <div className="heatmap-stats">
+            <div className="heatmap-stat">
+              <div className="heatmap-stat-value">{totalEvents}</div>
+              <div className="heatmap-stat-label">Total</div>
+            </div>
+            <div className="heatmap-stat-divider" />
+            <div className="heatmap-stat">
+              <div className="heatmap-stat-value">{maxEvents}</div>
+              <div className="heatmap-stat-label">Peak / day</div>
+            </div>
+            <div className="heatmap-stat-divider" />
+            <div className="heatmap-stat">
+              <div className="heatmap-stat-value">{avgEvents.toFixed(1)}</div>
+              <div className="heatmap-stat-label">Avg. / day</div>
+            </div>
+          </div>
+
+          <div className="heatmap-legend">
+            <span className="heatmap-legend-label">Less</span>
+            {[0, 1, 2, 3, 4].map(l => (
+              <div key={l} className="heatmap-legend-box"
+                style={styleStringToObj(getLevelStyle(l, tensionColor) + ';width:10px;height:10px;border-radius:2px')} />
+            ))}
+            <span className="heatmap-legend-label">More</span>
+          </div>
+        </>
+      )}
 
       {tooltip.visible && (
         <div className="heatmap-tooltip" style={{ left: tooltip.x, top: tooltip.y - 8 }}>

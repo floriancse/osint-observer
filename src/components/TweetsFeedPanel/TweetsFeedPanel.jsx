@@ -1,17 +1,17 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import TweetItem from './TweetItem';
-import { getDateRange } from '../../utils/helpers';
+import { getTodayRange } from '../../hooks/useTweets';
 
 export default function TweetsFeedPanel({
   isOpen,
   onClose,
-  currentDays,
   allusernames,
   selectedusernames,
   currentSearch,
   selectedAreaName,
   cachedData,
   onLocate,
+  dateOverride,
 }) {
   const [features, setFeatures] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -20,17 +20,17 @@ export default function TweetsFeedPanel({
     setLoading(true);
     try {
       let data;
+      const { start, end } = dateOverride ?? getTodayRange();
 
       if (selectedAreaName) {
-        const { start, end } = getDateRange(currentDays);
         const url = `${process.env.REACT_APP_API_URL}/api/twitter_conflicts/tweets.geojson?start_date=${start}&end_date=${end}&area=${encodeURIComponent(selectedAreaName)}`;
         const response = await fetch(url);
         data = await response.json();
       } else if (cachedData) {
         data = cachedData;
       } else {
-        const { start, end } = getDateRange(currentDays);
-        const response = await fetch(`${process.env.REACT_APP_API_URL}/api/twitter_conflicts/tweets.geojson?start_date=${start}&end_date=${end}`
+        const response = await fetch(
+          `${process.env.REACT_APP_API_URL}/api/twitter_conflicts/tweets.geojson?start_date=${start}&end_date=${end}`
         );
         data = await response.json();
       }
@@ -59,9 +59,8 @@ export default function TweetsFeedPanel({
     } finally {
       setLoading(false);
     }
-  }, [currentDays, allusernames, selectedusernames, currentSearch, selectedAreaName, cachedData]);
+  }, [dateOverride, allusernames, selectedusernames, currentSearch, selectedAreaName, cachedData]);
 
-  // Recharge le feed à chaque fois qu'il s'ouvre ou que les filtres changent
   useEffect(() => {
     if (isOpen) loadFeed();
   }, [isOpen, loadFeed]);

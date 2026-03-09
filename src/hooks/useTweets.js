@@ -1,7 +1,19 @@
 import { useState, useCallback, useRef } from 'react';
-import { getDateRange } from '../utils/helpers';
 
-const cachedData = { 1: null, 7: null};
+const cachedData = {};
+
+// Même logique que getTodayOverride dans App.jsx — 00:00:00 → 23:59:59 du jour actuel
+export function getTodayRange() {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+    const end   = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+    return { start: start.toISOString(), end: end.toISOString() };
+}
+
+function makeCacheKey({ start, end }) {
+    // Clé basée sur la date complète (jour + heure) pour éviter les collisions entre jours
+    return `${start.substring(0, 10)}__${end.substring(0, 10)}`;
+}
 
 export function useTweets() {
     const [tweets, setTweets] = useState({ type: 'FeatureCollection', features: [] });
@@ -11,7 +23,6 @@ export function useTweets() {
     const filterAndSetTweets = useCallback((data, allusernames, selectedusernames, currentSearch) => {
         let features = data.features || [];
 
-        // Si pas encore de usernames chargés, on affiche tout sans filtrer
         if (allusernames.length === 0) {
             const filtered = { ...data, features };
             setTweets(filtered);
@@ -42,56 +53,44 @@ export function useTweets() {
         return filtered;
     }, []);
 
-    const fetchAndCache = useCallback(async (days) => {
-        if (cachedData[days]) return cachedData[days];
-        const { start, end } = getDateRange(days);
+    const fetchAndCache = useCallback(async (range) => {
+        const key = makeCacheKey(range);
+        if (cachedData[key]) return cachedData[key];
+        const { start, end } = range;
         const response = await fetch(
             `${process.env.REACT_APP_API_URL}/api/twitter_conflicts/tweets.geojson?start_date=${start}&end_date=${end}`
         );
         const data = await response.json();
-        cachedData[days] = data;
+        cachedData[key] = data;
         return data;
     }, []);
 
-    const loadTweets = useCallback(async (days, allusernames, selectedusernames, currentSearch) => {
-        // Sauvegarde les derniers paramètres de filtre pour les préchargements
+    // dateOverride optionnel — si null, utilise le range du jour
+    const loadTweets = useCallback(async (allusernames, selectedusernames, currentSearch, dateOverride = null) => {
         lastFilterParams.current = { allusernames, selectedusernames, currentSearch };
         try {
-            const data = await fetchAndCache(days);
+            const range = dateOverride ?? getTodayRange();
+            const data = await fetchAndCache(range);
             return filterAndSetTweets(data, allusernames, selectedusernames, currentSearch);
         } catch (err) {
             console.error('Erreur chargement tweets:', err);
         }
     }, [fetchAndCache, filterAndSetTweets]);
 
+    // Précharge le range du jour — même clé que getTodayOverride dans App
     const preloadAll = useCallback(async () => {
-        // 1. Charge et affiche le 1j immédiatement
         try {
-            const data1j = await fetchAndCache(1);
-            // Extrait les usernames depuis les données 1j pour useUsernames
-            cachedData['usernames_1'] = data1j.usernames || [];
-            // Affiche les tweets 1j sans attendre le reste
-            filterAndSetTweets(data1j, [], new Set(), '');
+            const data = await fetchAndCache(getTodayRange());
+            filterAndSetTweets(data, [], new Set(), '');
         } catch (err) {
-            console.error('Erreur chargement 1j:', err);
-            cachedData[1] = { type: 'FeatureCollection', features: [] };
+            console.error('Erreur préchargement:', err);
         }
-
-        const backgroundLoad = async (days) => {
-            try {
-                const data = await fetchAndCache(days);
-                cachedData[`usernames_${days}`] = data.usernames || [];
-            } catch (err) {
-                console.error(`Erreur préchargement ${days}j:`, err);
-                cachedData[days] = { type: 'FeatureCollection', features: [] };
-            }
-        };
-
-        Promise.all([backgroundLoad(7)]).then(() => {
-        });
     }, [fetchAndCache, filterAndSetTweets]);
 
-    const getRawData = useCallback((days) => cachedData[days], []);
+    const getRawData = useCallback((dateOverride = null) => {
+        const range = dateOverride ?? getTodayRange();
+        return cachedData[makeCacheKey(range)] ?? null;
+    }, []);
 
     return { tweets, tweetCount, loadTweets, preloadAll, getRawData };
 }
