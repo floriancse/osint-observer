@@ -36,6 +36,7 @@ export default function MapView({
     const dateOverrideRef = useRef(dateOverride);
     const selectedNameRef = useRef(null);
     const tweetsReadyRef = useRef(false); // ← tweets affichés sur la carte ?
+    const militaryAbortRef = useRef(null);
 
     // ── Rotation ──
     const startRotation = useCallback(() => {
@@ -65,10 +66,27 @@ export default function MapView({
         const API = process.env.REACT_APP_API_URL;
         const { start, end } = range ?? get24hRange();
         const params = new URLSearchParams({ aggressor: name, start_date: start, end_date: end });
-        fetch(`${API}/api/twitter_conflicts/military_actions.geojson?${params}`)
+
+        // Annule le fetch précédent
+        if (militaryAbortRef.current) militaryAbortRef.current.abort();
+        militaryAbortRef.current = new AbortController();
+
+        fetch(`${API}/api/twitter_conflicts/military_actions.geojson?${params}`, {
+            signal: militaryAbortRef.current.signal
+        })
             .then(r => r.json())
-            .then(data => map.getSource('military_actions').setData(data))
-            .catch(console.error);
+            .then(data => {
+                const source = map.getSource('military_actions');
+                source.setData({ type: 'FeatureCollection', features: [] });
+                setTimeout(() => {
+                    source.setData(data);
+                    setTimeout(() => {
+                        const features = map.queryRenderedFeatures({ layers: ['military_actions_lines'] });
+                        console.log('rendered military_actions_lines', features.length);
+                    }, 1000);
+                }, 0);
+            })
+            .catch(err => { if (err.name !== 'AbortError') console.error(err); });
     }, []);
 
     const clearMilitaryActions = useCallback(() => {
@@ -116,16 +134,17 @@ export default function MapView({
         };
     }, [showPopupAtIndex]);
 
-    // ── Sync dateOverride → vide les lignes et attend les nouveaux tweets ──
     useEffect(() => {
         dateOverrideRef.current = dateOverride;
-        // On remet à false : les nouvelles lignes militaires ne seront fetchées
-        // qu'une fois les tweets du nouveau range affichés sur la carte
         tweetsReadyRef.current = false;
         clearMilitaryActions();
+        const name = selectedNameRef.current;
+        if (name) {
+            console.log('fetchMilitaryActions from dateOverride effect', { name, range: dateOverrideRef.current });
+            fetchMilitaryActions(name, dateOverride);
+        }
     }, [dateOverride, clearMilitaryActions]);
 
-    // ── Expose le handler "localiser un tweet" au parent ──
     useEffect(() => {
         if (!registerLocateHandler) return;
         registerLocateHandler((feature) => {
@@ -160,7 +179,10 @@ export default function MapView({
         ['mousedown', 'touchstart', 'dragstart'].forEach(evt => {
             map.on(evt, stopRotation);
         });
-
+map.on('click', (e) => {
+    const features = map.queryRenderedFeatures(e.point);
+    console.log('clicked features', features.map(f => f.layer.id));
+});
         map.on('load', async () => {
             const API = process.env.REACT_APP_API_URL;
             const [worldAreasData, shippingLanes, chokepoints, currentFrontline] = await Promise.all([
@@ -235,13 +257,13 @@ export default function MapView({
 
             map.addLayer({
                 id: 'aggressor_range_fill', type: 'fill', source: 'aggressor_range',
-                paint: { 'fill-color': '#ff3b5c', 'fill-opacity': 0.02 },
+                paint: { 'fill-color': '#ff3b5c', 'fill-opacity': 0.1 },
             });
             map.addLayer({
                 id: 'aggressor_range_outline', type: 'line', source: 'aggressor_range',
                 paint: {
                     'line-color': '#ff3b5c', 'line-width': 1.5,
-                    'line-opacity': 0.6, 'line-dasharray': [6, 2],
+                    'line-opacity':1
                 },
             });
 
@@ -471,10 +493,7 @@ export default function MapView({
             tweetsReadyRef.current = true;
 
             const name = selectedNameRef.current;
-            if (name) {
-                // Premier chargement ou changement de dateOverride : on fetch
-                fetchMilitaryActions(name, dateOverrideRef.current);
-            }
+
         };
 
         if (map._sourcesReady) {
@@ -485,7 +504,7 @@ export default function MapView({
             }, 50);
             return () => clearInterval(interval);
         }
-    }, [tweetsData, fetchMilitaryActions]);
+    }, [tweetsData]);
 
     // ── Sync layers visibility ──
     useEffect(() => {

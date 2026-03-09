@@ -44,6 +44,7 @@ export default function App() {
     }, [allusernames, selectedusernames, currentSearch, dateOverride]); // eslint-disable-line
 
     const handleDayClick = useCallback((range) => {
+        console.log('handleDayClick', range);
         setDateOverride(range ?? getTodayOverride());
     }, []);
 
