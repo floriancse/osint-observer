@@ -89,6 +89,8 @@ export default function App() {
                 onFeedToggle={() => setIsFeedOpen(v => !v)}
                 isRotating={isRotating}
                 onRotationToggle={() => setIsRotating(v => !v)}
+                selectedDate={dateOverride?.dateKey ?? null}
+                onDayClick={handleDayClick}
             />
             <TweetsFeedPanel
                 isOpen={isFeedOpen}
@@ -105,8 +107,6 @@ export default function App() {
                 areaName={selectedAreaName}
                 onClose={() => setSelectedAreaName(null)}
                 onLocate={handleLocateTweet}
-                selectedDate={dateOverride?.dateKey ?? null}
-                onDayClick={handleDayClick}
             />
             <OptionsMenu
                 isOpen={isOptionsOpen}

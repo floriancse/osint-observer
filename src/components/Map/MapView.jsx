@@ -257,7 +257,7 @@ map.on('click', (e) => {
 
             map.addLayer({
                 id: 'aggressor_range_fill', type: 'fill', source: 'aggressor_range',
-                paint: { 'fill-color': '#ff3b5c', 'fill-opacity': 0.1 },
+                paint: { 'fill-color': '#ff3b5c', 'fill-opacity': 0.05 },
             });
             map.addLayer({
                 id: 'aggressor_range_outline', type: 'line', source: 'aggressor_range',
