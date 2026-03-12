@@ -5,6 +5,7 @@ import TweetsFeedPanel from './components/TweetsFeedPanel/TweetsFeedPanel';
 import AreaPanel from './components/AreaPanel/AreaPanel';
 import { useUsernames } from './hooks/useUsernames';
 import { useTweets, getTodayRange } from './hooks/useTweets';
+import DailySummaries from './components/AreaPanel/DailySummaries';
 
 function getTodayOverride() {
     const now = new Date();

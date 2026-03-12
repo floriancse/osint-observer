@@ -4,7 +4,7 @@ import TensionIndex from './TensionIndex';
 import DailySummaries from './DailySummaries';
 
 export default function AreaPanel({ areaName, onClose, onLocate, onDayClick, selectedDate }) {
-  const [niveauTension, setNiveauTension] = useState('Stable / faible');
+  const [niveauTension, setNiveauTension] = useState(null);
 
   return (
     <div className={`area-panel${areaName ? ' visible' : ''}`}>
@@ -27,7 +27,7 @@ export default function AreaPanel({ areaName, onClose, onLocate, onDayClick, sel
                 onDayClick={onDayClick}
                 selectedDate={selectedDate}
               />
-              <DailySummaries areaName={areaName} />
+              <DailySummaries areaName={areaName} tensionLevel={niveauTension} />
             </>
           ) : (
             <div className="empty-state"></div>

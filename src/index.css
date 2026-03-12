@@ -877,7 +877,8 @@
      border: 1px solid var(--border);
      background: var(--surface);
      border-radius: 4px 4px 0 0;
-     padding: 20px 24px 20px
+     padding: 20px 24px 20px;
+     margin-bottom: 8px;
  }
 
  .heatmap-header {
@@ -1782,6 +1783,7 @@
      padding: 20px 24px 0;
      position: relative;
      overflow: hidden;
+     margin-bottom: 8px;
  }
 
  .t-header::before {
@@ -1904,9 +1906,7 @@
  .t-events-header {
      padding: 12px 24px;
      background: var(--surface);
-     border-left: 1px solid var(--border);
-     border-right: 1px solid var(--border);
-     border-bottom: 1px solid var(--border);
+     border: 1px solid var(--border);
      display: flex;
      justify-content: space-between;
      align-items: center;
@@ -1931,6 +1931,7 @@
      position: relative;
      padding: 0;
      list-style: none;
+     margin-top:10px;
  }
 
  .t-timeline::before {
@@ -1985,6 +1986,14 @@
  .t-event:hover>.t-event-text {
      color: var(--text)
  }
+
+ .t-event.active::before {
+  background: var(--event-dot-color);
+}
+
+.t-event.active .t-event-date {
+  color: var(--event-dot-color);
+}
 
  .t-event::after {
      content: '';
