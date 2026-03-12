@@ -2292,3 +2292,243 @@
     border-color: rgba(255, 255, 255, 0.25);
     color: var(--text-bright);
 }
+
+.feed-sort-toggle {
+    display: flex;
+    gap: 4px;
+    padding: 8px;
+    border-bottom: 1px solid #2f3336;
+    background: var(--surface);
+    flex-shrink: 0;
+}
+
+.feed-sort-btn {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    color: var(--dim);
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 3px 10px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.feed-sort-btn:hover {
+    border-color: rgba(255, 255, 255, 0.15);
+    color: var(--text);
+}
+
+.feed-sort-btn.active {
+    border-color: rgba(255, 255, 255, 0.2);
+    color: var(--text-bright);
+    background: rgba(255, 255, 255, 0.06);
+}
+
+/* ── Armed Groups Button ── */
+.armed-groups-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 12px;
+    height: 37px;
+    background-color: var(--surface);
+    border: 1.5px solid transparent;
+    border-radius: 8px;
+    color: #e7e9ea;
+    font-size: 14px;
+    font-family: 'Roboto Mono', monospace;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    box-sizing: border-box;
+}
+
+.armed-groups-btn:hover,
+.armed-groups-btn.open {
+    border-color: #6b6b6b;
+}
+
+.armed-groups-btn.has-active {
+    border-color: rgba(224, 92, 92, 0.5);
+    color: #e05c5c;
+}
+
+.armed-groups-badge {
+    min-width: 16px;
+    height: 16px;
+    border-radius: 8px;
+    background: #e05c5c;
+    color: white;
+    font-size: 9px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+    line-height: 1;
+}
+
+/* ── Armed Groups Dropdown ── */
+.armed-groups-dropdown {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    z-index: 1100;
+    background: var(--surface);
+    border: 1px solid #2f3336;
+    border-radius: 10px;
+    min-width: 280px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+    overflow: hidden;
+}
+
+.armed-groups-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.armed-groups-title {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    color: var(--dim);
+    text-transform: uppercase;
+}
+
+.armed-groups-count {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 10px;
+    color: var(--dim);
+}
+
+.armed-groups-list {
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.armed-group-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all 0.15s ease;
+}
+
+.armed-group-item:hover {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.07);
+}
+
+.armed-group-item.active {
+    border-color: color-mix(in srgb, var(--group-color) 30%, transparent);
+    background: color-mix(in srgb, var(--group-color) 8%, transparent);
+}
+
+.armed-group-indicator {
+    width: 3px;
+    height: 32px;
+    border-radius: 2px;
+    background: var(--group-color, #555);
+    flex-shrink: 0;
+    opacity: 0.35;
+    transition: opacity 0.15s, box-shadow 0.15s;
+}
+
+.armed-group-item.active .armed-group-indicator {
+    opacity: 1;
+    box-shadow: 0 0 6px var(--group-color);
+}
+
+.armed-group-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.armed-group-name {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    color: #c8cdd8;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 2px;
+    transition: color 0.15s;
+}
+
+.armed-group-item.active .armed-group-name {
+    color: #eef0f5;
+}
+
+.armed-group-flag {
+    font-size: 13px;
+    line-height: 1;
+}
+
+.armed-group-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.armed-group-aka {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 10px;
+    color: var(--dim);
+    font-style: italic;
+}
+
+.armed-group-region {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 9px;
+    color: #555e75;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.armed-group-check {
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--group-color);
+    flex-shrink: 0;
+}
+
+.armed-groups-footer {
+    display: flex;
+    gap: 6px;
+    padding: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.armed-groups-action {
+    flex: 1;
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 4px;
+    color: var(--dim);
+    font-family: 'Roboto Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 5px 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.armed-groups-action:hover {
+    border-color: rgba(255, 255, 255, 0.2);
+    color: #c8cdd8;
+    background: rgba(255, 255, 255, 0.04);
+}

@@ -13,36 +13,26 @@ function getTensionColor(niveau) {
 
 export default function TensionIndex({ areaName, onLocate, onDataLoaded }) {
   const [tensionData, setTensionData] = React.useState(null);
-  const [summaries, setSummaries] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState(false);
   const fillRef = useRef(null);
 
-  // Fetch tension index (inchangé)
   useEffect(() => {
     if (!areaName) return;
     setLoading(true);
     setError(false);
     setTensionData(null);
-    setSummaries([]);
 
-    const tensionUrl = `${process.env.REACT_APP_API_URL}/api/twitter_conflicts/tension_index?area=${encodeURIComponent(areaName)}`;
-    const summaryUrl = `${process.env.REACT_APP_API_URL}/api/twitter_conflicts/daily_summaries?country=${encodeURIComponent(areaName)}`;
-
-    Promise.all([
-      fetch(tensionUrl).then(r => r.json()),
-      fetch(summaryUrl).then(r => r.json()),
-    ])
-      .then(([tension, summary]) => {
-        setTensionData(tension);
-        setSummaries(summary.summaries ?? []);
+    fetch(`${process.env.REACT_APP_API_URL}/api/twitter_conflicts/tension_index?area=${encodeURIComponent(areaName)}`)
+      .then(r => r.json())
+      .then(data => {
+        setTensionData(data);
         setLoading(false);
-        onDataLoaded?.(tension);
+        onDataLoaded?.(data);
       })
       .catch(() => { setError(true); setLoading(false); });
   }, [areaName]);
 
-  // Animation barre
   useEffect(() => {
     if (!tensionData || !fillRef.current) return;
     const pct = Math.min(100, tensionData.tension_score);
@@ -61,11 +51,7 @@ export default function TensionIndex({ areaName, onLocate, onDataLoaded }) {
   const ticks = Array(20).fill(0);
 
   return (
-    <div
-      className="tension-index-container"
-      style={{ '--event-dot-color': color }}
-    >
-      {/* Header : jauge + score (inchangé) */}
+    <div className="tension-index-container" style={{ '--event-dot-color': color }}>
       <div className="t-header">
         <div className="t-region-label">Conflict zone · Tension index</div>
         <div className="t-gauge-row">
@@ -87,41 +73,6 @@ export default function TensionIndex({ areaName, onLocate, onDataLoaded }) {
             </div>
           </div>
         </div>
-      </div>
-
-      {/* Daily summaries */}
-      <div className="t-events-section">
-        <div className="t-events-header">
-          <span className="t-events-label">Daily activities</span>
-          <span className="t-events-count">{summaries.length} entries</span>
-        </div>
-
-        {summaries.length === 0 ? (
-          <div className="t-empty">No summaries available.</div>
-        ) : (
-          <ul className="t-timeline">
-            {summaries.map((s, i) => {
-              const date = s.date
-                ? new Date(s.date).toLocaleDateString('en-CA')  // en-CA produit nativement YYYY/MM/DD
-                : '—';
-
-              return (
-                <li
-                  key={i}
-                  className="t-event"
-                  style={{ animationDelay: `${i * 60}ms` }}
-                >
-                  <div className="t-event-meta">
-                    <div className="t-event-line t-event-line--header">
-                      <span className="t-event-date">{date}</span>
-                    </div>
-                  </div>
-                  <p className="t-event-text">"{s.summary}"</p>
-                </li>
-              );
-            })}
-          </ul>
-        )}
       </div>
     </div>
   );

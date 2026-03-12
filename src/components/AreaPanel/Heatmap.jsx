@@ -161,16 +161,7 @@ export default function Heatmap({ areaName, niveauTension = 'Stable / faible', o
         {/* Gauche : label + date sélectionnée */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           <span className="heatmap-region-label">Monthly activity</span>
-          {selectedDate && (
-            <span style={{
-              fontSize: 11,
-              fontFamily: "'Roboto Mono', monospace",
-              color: 'rgba(255,255,255,0.5)',
-              letterSpacing: '0.03em',
-            }}>
-              {selectedDate}
-            </span>
-          )}
+          
         </div>
 
         {/* Droite : navigation mois */}

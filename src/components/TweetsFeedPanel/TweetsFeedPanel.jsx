@@ -15,6 +15,7 @@ export default function TweetsFeedPanel({
 }) {
   const [features, setFeatures] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [sortBy, setSortBy] = useState('date'); // ← ici, pas dans le useCallback
 
   const loadFeed = useCallback(async () => {
     setLoading(true);
@@ -48,9 +49,13 @@ export default function TweetsFeedPanel({
         return usernameMatch && searchMatch;
       });
 
-      filtered.sort((a, b) =>
-        new Date(b.properties.created_at) - new Date(a.properties.created_at)
-      );
+      filtered.sort((a, b) => {
+        if (sortBy === 'score') {
+          return (b.properties.importance_score ?? 0) - (a.properties.importance_score ?? 0)
+            || new Date(b.properties.created_at) - new Date(a.properties.created_at);
+        }
+        return new Date(b.properties.created_at) - new Date(a.properties.created_at);
+      });
 
       setFeatures(filtered);
     } catch (err) {
@@ -59,7 +64,7 @@ export default function TweetsFeedPanel({
     } finally {
       setLoading(false);
     }
-  }, [dateOverride, allusernames, selectedusernames, currentSearch, selectedAreaName, cachedData]);
+  }, [dateOverride, allusernames, selectedusernames, currentSearch, selectedAreaName, cachedData, sortBy]);
 
   useEffect(() => {
     if (isOpen) loadFeed();
@@ -75,10 +80,23 @@ export default function TweetsFeedPanel({
         <button className="close-btn" onClick={onClose}>×</button>
       </div>
 
+      <div className="feed-sort-toggle">
+        <button
+          className={`feed-sort-btn${sortBy === 'date' ? ' active' : ''}`}
+          onClick={() => setSortBy('date')}
+        >
+          Date
+        </button>
+        <button
+          className={`feed-sort-btn${sortBy === 'score' ? ' active' : ''}`}
+          onClick={() => setSortBy('score')}
+        >
+          Importance
+        </button>
+      </div>
+
       <div className="tweets-feed-content">
-        {loading && (
-          <div className="feed-loading">Loading tweets...</div>
-        )}
+        {loading && <div className="feed-loading">Loading tweets...</div>}
         {!loading && features.length === 0 && (
           <div className="feed-empty">No tweets found for this period</div>
         )}

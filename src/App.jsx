@@ -3,7 +3,6 @@ import MapView from './components/Map/MapView';
 import TopBar from './components/TopBar/TopBar';
 import TweetsFeedPanel from './components/TweetsFeedPanel/TweetsFeedPanel';
 import AreaPanel from './components/AreaPanel/AreaPanel';
-import OptionsMenu from './components/OptionsMenu/OptionsMenu';
 import { useUsernames } from './hooks/useUsernames';
 import { useTweets, getTodayRange } from './hooks/useTweets';
 
@@ -107,16 +106,10 @@ export default function App() {
                 areaName={selectedAreaName}
                 onClose={() => setSelectedAreaName(null)}
                 onLocate={handleLocateTweet}
+                onDayClick={handleDayClick}
+                selectedDate={dateOverride?.dateKey ?? null}
             />
-            <OptionsMenu
-                isOpen={isOptionsOpen}
-                onClose={() => setIsOptionsOpen(v => !v)}
-                allusernames={allusernames}
-                selectedusernames={selectedusernames}
-                onToggleusername={toggleusername}
-                selectedLayers={selectedLayers}
-                onToggleLayer={handleToggleLayer}
-            />
+
         </div>
     );
 }
