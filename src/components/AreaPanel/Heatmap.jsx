@@ -45,7 +45,7 @@ function toDateKey(d) {
 
 const fetchCache = {};
 
-export default function Heatmap({ areaName, niveauTension = 'Stable / faible', onDayClick, selectedDate }) {
+export default function Heatmap({ areaName, niveauTension = 'Stable / faible', onDayClick, selectedDate, onLoaded }) {
   const tensionColor = getTensionColor(niveauTension);
 
   const [monthOffset, setMonthOffset] = useState(0);
@@ -71,11 +71,12 @@ export default function Heatmap({ areaName, niveauTension = 'Stable / faible', o
     if (fetchCache[cacheKey]) {
       setDayData(fetchCache[cacheKey]);
       setLoading(false);
+      onLoaded?.();
       return;
     }
 
     const start = new Date(year, month, 1, 0, 0, 0, 0);
-    const end   = isCurrentMonth ? new Date() : new Date(year, month + 1, 0, 23, 59, 59, 999);
+    const end = isCurrentMonth ? new Date() : new Date(year, month + 1, 0, 23, 59, 59, 999);
 
     fetch(
       `${process.env.REACT_APP_API_URL}/api/twitter_conflicts/tweets.geojson` +
@@ -93,6 +94,8 @@ export default function Heatmap({ areaName, niveauTension = 'Stable / faible', o
         fetchCache[cacheKey] = counts;
         setDayData(counts);
         setLoading(false);
+        onLoaded?.()
+
       })
       .catch(() => setLoading(false));
   }, [areaName, year, month, isCurrentMonth, getKey]);
@@ -102,7 +105,7 @@ export default function Heatmap({ areaName, niveauTension = 'Stable / faible', o
     if (selectedDate === dateKey) { onDayClick(null); return; }
     const [y, m, d] = dateKey.split('-').map(Number);
     const start = new Date(y, m - 1, d, 0, 0, 0, 0);
-    const end   = new Date(y, m - 1, d, 23, 59, 59, 999);
+    const end = new Date(y, m - 1, d, 23, 59, 59, 999);
     onDayClick({ dateKey, start: start.toISOString(), end: end.toISOString() });
   };
 
@@ -161,7 +164,7 @@ export default function Heatmap({ areaName, niveauTension = 'Stable / faible', o
         {/* Gauche : label + date sélectionnée */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           <span className="heatmap-region-label">Monthly activity</span>
-          
+
         </div>
 
         {/* Droite : navigation mois */}
@@ -188,32 +191,32 @@ export default function Heatmap({ areaName, niveauTension = 'Stable / faible', o
                 {week.map((day, di) => day === null
                   ? <div key={di} className="heatmap-day empty" />
                   : (() => {
-                      const isSelected = selectedDate === day.date;
-                      const isToday = day.date === todayKey;
-                      const baseStyle = styleStringToObj(getLevelStyle(day.level, tensionColor));
-                      const selectedStyle = isSelected ? {
-                        outline: '2px solid #ffffff',
-                        outlineOffset: '2px',
-                        boxShadow: '0 0 8px rgba(255,255,255,0.5)',
-                      } : {};
-                      return (
-                        <div
-                          key={di}
-                          className={`heatmap-day${isToday ? ' today' : ''}`}
-                          style={{ ...baseStyle, ...selectedStyle, cursor: 'pointer' }}
-                          onMouseEnter={e => {
-                            const [y, m, d2] = day.date.split('-');
-                            const date = new Date(y, m - 1, d2);
-                            const weekday = capitalize(date.toLocaleDateString('en-US', { weekday: 'long' }));
-                            const mon = capitalize(date.toLocaleDateString('en-US', { month: 'long' }));
-                            setTooltip({ visible: true, text: `${weekday} ${date.getDate()} ${mon}`, count: day.count, x: e.clientX, y: e.clientY });
-                          }}
-                          onClick={() => handleDayClick(day.date)}
-                          onMouseMove={e => setTooltip(t => ({ ...t, x: e.clientX, y: e.clientY }))}
-                          onMouseLeave={() => setTooltip(t => ({ ...t, visible: false }))}
-                        />
-                      );
-                    })()
+                    const isSelected = selectedDate === day.date;
+                    const isToday = day.date === todayKey;
+                    const baseStyle = styleStringToObj(getLevelStyle(day.level, tensionColor));
+                    const selectedStyle = isSelected ? {
+                      outline: '2px solid #ffffff',
+                      outlineOffset: '2px',
+                      boxShadow: '0 0 8px rgba(255,255,255,0.5)',
+                    } : {};
+                    return (
+                      <div
+                        key={di}
+                        className={`heatmap-day${isToday ? ' today' : ''}`}
+                        style={{ ...baseStyle, ...selectedStyle, cursor: 'pointer' }}
+                        onMouseEnter={e => {
+                          const [y, m, d2] = day.date.split('-');
+                          const date = new Date(y, m - 1, d2);
+                          const weekday = capitalize(date.toLocaleDateString('en-US', { weekday: 'long' }));
+                          const mon = capitalize(date.toLocaleDateString('en-US', { month: 'long' }));
+                          setTooltip({ visible: true, text: `${weekday} ${date.getDate()} ${mon}`, count: day.count, x: e.clientX, y: e.clientY });
+                        }}
+                        onClick={() => handleDayClick(day.date)}
+                        onMouseMove={e => setTooltip(t => ({ ...t, x: e.clientX, y: e.clientY }))}
+                        onMouseLeave={() => setTooltip(t => ({ ...t, visible: false }))}
+                      />
+                    );
+                  })()
                 )}
               </React.Fragment>
             ))}

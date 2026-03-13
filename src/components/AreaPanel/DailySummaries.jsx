@@ -11,7 +11,7 @@ function getTensionColor(niveau) {
     return map[niveau] ?? '#6d6d6d';
 }
 
-export default function DailySummaries({ areaName, tensionLevel }) {
+export default function DailySummaries({ areaName, tensionLevel, onLoaded }) {
     const [summaries, setSummaries] = useState([]);
     const [loading, setLoading] = useState(true);
 
@@ -26,10 +26,11 @@ export default function DailySummaries({ areaName, tensionLevel }) {
             .then(r => r.json())
             .then(data => { setSummaries(data.summaries ?? []); setLoading(false); })
             .catch(() => setLoading(false));
+        onLoaded?.()
+
     }, [areaName]);
 
     if (loading) return <div className="t-loading"></div>;
-
     return (
         <div className="t-events-section" style={{ '--event-dot-color': color }}>
             <div className="t-events-header">

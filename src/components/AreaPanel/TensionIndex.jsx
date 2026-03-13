@@ -11,7 +11,7 @@ function getTensionColor(niveau) {
   return map[niveau] ?? '#6d6d6d';
 }
 
-export default function TensionIndex({ areaName, onLocate, onDataLoaded }) {
+export default function TensionIndex({ areaName, onLocate, onDataLoaded, onLoaded }) {
   const [tensionData, setTensionData] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState(false);
@@ -29,6 +29,7 @@ export default function TensionIndex({ areaName, onLocate, onDataLoaded }) {
         setTensionData(data);
         setLoading(false);
         onDataLoaded?.(data);
+        onLoaded?.();  
       })
       .catch(() => { setError(true); setLoading(false); });
   }, [areaName]);

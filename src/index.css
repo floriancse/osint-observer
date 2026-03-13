@@ -876,7 +876,7 @@
  .heatmap-container {
      border: 1px solid var(--border);
      background: var(--surface);
-     border-radius: 4px 4px 0 0;
+     border-radius: 4px;
      padding: 20px 24px 20px;
      margin-bottom: 8px;
  }
@@ -1779,8 +1779,8 @@
  .t-header {
      border: 1px solid var(--border);
      background: var(--surface);
-     border-radius: 4px 4px 0 0;
-     padding: 20px 24px 0;
+     border-radius: 4px;
+     padding: 20px;
      position: relative;
      overflow: hidden;
      margin-bottom: 8px;
@@ -1904,6 +1904,7 @@
 
  /* ── EVENTS LIST ── */
  .t-events-header {
+    border-radius: 4px;
      padding: 12px 24px;
      background: var(--surface);
      border: 1px solid var(--border);

@@ -82,7 +82,6 @@ export default function MapView({
                     source.setData(data);
                     setTimeout(() => {
                         const features = map.queryRenderedFeatures({ layers: ['military_actions_lines'] });
-                        console.log('rendered military_actions_lines', features.length);
                     }, 1000);
                 }, 0);
             })
@@ -140,7 +139,6 @@ export default function MapView({
         clearMilitaryActions();
         const name = selectedNameRef.current;
         if (name) {
-            console.log('fetchMilitaryActions from dateOverride effect', { name, range: dateOverrideRef.current });
             fetchMilitaryActions(name, dateOverride);
         }
     }, [dateOverride, clearMilitaryActions]);
@@ -181,7 +179,6 @@ export default function MapView({
         });
 map.on('click', (e) => {
     const features = map.queryRenderedFeatures(e.point);
-    console.log('clicked features', features.map(f => f.layer.id));
 });
         map.on('load', async () => {
             const API = process.env.REACT_APP_API_URL;
