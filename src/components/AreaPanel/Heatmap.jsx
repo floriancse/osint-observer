@@ -7,15 +7,15 @@ function hexToRgba(hex, alpha) {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
-function getTensionColor(niveau) {
-  const map = {
-    'Open Warfare': '#ed3f3f',
-    'High Strategic Tension': '#edb33f',
-    'Significant Tension': '#3fedbc',
-    'Moderate Tension': '#4a8fff',
-    'Low Tension / Stable': '#6d6d6d',
-  };
-  return map[niveau] ?? '#6d6d6d';
+function getThreatColor(niveau) {
+    const map = {
+        'Open warfare': '#ed3f3f',
+        'Active conflict': '#edb33f',
+        'High threat': '#3fedbc',
+        'Moderate threat': '#4a8fff',
+        'Calm': '#6d6d6d',
+    };
+    return map[niveau] ?? '#6d6d6d';
 }
 
 function getLevelStyle(level, color) {
@@ -45,8 +45,8 @@ function toDateKey(d) {
 
 const fetchCache = {};
 
-export default function Heatmap({ areaName, niveauTension = 'Stable / faible', onDayClick, selectedDate, onLoaded }) {
-  const tensionColor = getTensionColor(niveauTension);
+export default function Heatmap({ areaName, niveauThreat = 'Calm', onDayClick, selectedDate, onLoaded }) {
+  const threatColor = getThreatColor(niveauThreat);
 
   const [monthOffset, setMonthOffset] = useState(0);
   const [dayData, setDayData] = useState({});
@@ -193,7 +193,7 @@ export default function Heatmap({ areaName, niveauTension = 'Stable / faible', o
                   : (() => {
                     const isSelected = selectedDate === day.date;
                     const isToday = day.date === todayKey;
-                    const baseStyle = styleStringToObj(getLevelStyle(day.level, tensionColor));
+                    const baseStyle = styleStringToObj(getLevelStyle(day.level, threatColor));
                     const selectedStyle = isSelected ? {
                       outline: '2px solid #ffffff',
                       outlineOffset: '2px',
@@ -243,7 +243,7 @@ export default function Heatmap({ areaName, niveauTension = 'Stable / faible', o
             <span className="heatmap-legend-label">Less</span>
             {[0, 1, 2, 3, 4].map(l => (
               <div key={l} className="heatmap-legend-box"
-                style={styleStringToObj(getLevelStyle(l, tensionColor) + ';width:10px;height:10px;border-radius:2px')} />
+                style={styleStringToObj(getLevelStyle(l, threatColor) + ';width:10px;height:10px;border-radius:2px')} />
             ))}
             <span className="heatmap-legend-label">More</span>
           </div>
@@ -253,7 +253,7 @@ export default function Heatmap({ areaName, niveauTension = 'Stable / faible', o
       {tooltip.visible && (
         <div className="heatmap-tooltip" style={{ left: tooltip.x, top: tooltip.y - 8 }}>
           {tooltip.text}{'\n'}
-          <span className="tt-count" style={{ color: tensionColor }}>
+          <span className="tt-count" style={{ color: threatColor }}>
             {tooltip.count} event{tooltip.count > 1 ? 's' : ''}
           </span>
         </div>

@@ -3,29 +3,30 @@ import { Chart, registerables } from 'chart.js';
 
 Chart.register(...registerables);
 
-function getTensionColor(niveau) {
+function getThreatColor(niveau) {
     const map = {
-        'Open Warfare': '#ed3f3f',
-        'High Strategic Tension': '#edb33f',
-        'Significant Tension': '#3fedbc',
-        'Moderate Tension': '#4a8fff',
-        'Low Tension / Stable': '#6d6d6d',
+        'Open warfare': '#ed3f3f',
+        'Active conflict': '#edb33f',
+        'High threat': '#3fedbc',
+        'Moderate threat': '#4a8fff',
+        'Calm': '#6d6d6d',
     };
     return map[niveau] ?? '#6d6d6d';
 }
 
-export default function TensionHistory({ areaName, niveauTension, onLoaded }) {
+export default function ThreatHistory({ areaName, niveauThreat, onLoaded }) {
 
-    const color = getTensionColor(niveauTension);
+    const color = getThreatColor(niveauThreat);
     const canvasRef = useRef(null);
     const chartRef = useRef(null);
     const [error, setError] = useState(false);
 
     useEffect(() => {
         if (!areaName) return;
-
+        
+        setError(false);
         fetch(
-            `${process.env.REACT_APP_API_URL}/api/twitter_conflicts/tension_history` +
+            `${process.env.REACT_APP_API_URL}/api/twitter_conflicts/country_threat_history` +
             `?country=${encodeURIComponent(areaName)}`
         )
             .then(r => r.json())
@@ -35,7 +36,7 @@ export default function TensionHistory({ areaName, niveauTension, onLoaded }) {
                 const labels = history.map(h =>
                     new Date(h.snapshot_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })
                 );
-                const scores = history.map(h => h.tension_score);
+                const scores = history.map(h => h.threat_score);
 
                 if (chartRef.current) chartRef.current.destroy();
 
@@ -90,7 +91,7 @@ export default function TensionHistory({ areaName, niveauTension, onLoaded }) {
             .catch(() => setError(true));
 
         return () => { if (chartRef.current) chartRef.current.destroy(); };
-    }, [areaName, niveauTension]);
+    }, [areaName, niveauThreat]);
 
     if (error) return null;
 
@@ -110,7 +111,7 @@ export default function TensionHistory({ areaName, niveauTension, onLoaded }) {
                 color: '#7a839f',
                 margin: '0 0 14px 0',
             }}>
-                Tension history
+                Threat level history
             </p>
             {/* Le wrapper avec height explicite est critique pour Chart.js */}
             <div style={{ position: 'relative', width: '100%', height: 120 }}>

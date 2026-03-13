@@ -1,18 +1,18 @@
 import React, { useEffect, useRef } from 'react';
 
-function getTensionColor(niveau) {
-  const map = {
-    'Open Warfare': '#ed3f3f',
-    'High Strategic Tension': '#edb33f',
-    'Significant Tension': '#3fedbc',
-    'Moderate Tension': '#4a8fff',
-    'Low Tension / Stable': '#6d6d6d',
-  };
-  return map[niveau] ?? '#6d6d6d';
+function getThreatColor(niveau) {
+    const map = {
+        'Open warfare': '#ed3f3f',
+        'Active conflict': '#edb33f',
+        'High threat': '#3fedbc',
+        'Moderate threat': '#4a8fff',
+        'Calm': '#6d6d6d',
+    };
+    return map[niveau] ?? '#6d6d6d';
 }
 
-export default function TensionIndex({ areaName, onLocate, onDataLoaded, onLoaded }) {
-  const [tensionData, setTensionData] = React.useState(null);
+export default function ThreatIndex({ areaName, onLocate, onDataLoaded, onLoaded }) {
+  const [threatData, setThreatData] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState(false);
   const fillRef = useRef(null);
@@ -21,12 +21,12 @@ export default function TensionIndex({ areaName, onLocate, onDataLoaded, onLoade
     if (!areaName) return;
     setLoading(true);
     setError(false);
-    setTensionData(null);
+    setThreatData(null);
 
-    fetch(`${process.env.REACT_APP_API_URL}/api/twitter_conflicts/tension_index?area=${encodeURIComponent(areaName)}`)
+    fetch(`${process.env.REACT_APP_API_URL}/api/twitter_conflicts/threat_index?area=${encodeURIComponent(areaName)}`)
       .then(r => r.json())
       .then(data => {
-        setTensionData(data);
+        setThreatData(data);
         setLoading(false);
         onDataLoaded?.(data);
         onLoaded?.();  
@@ -35,33 +35,33 @@ export default function TensionIndex({ areaName, onLocate, onDataLoaded, onLoade
   }, [areaName]);
 
   useEffect(() => {
-    if (!tensionData || !fillRef.current) return;
-    const pct = Math.min(100, tensionData.tension_score);
+    if (!threatData || !fillRef.current) return;
+    const pct = Math.min(100, threatData.threat_score);
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         if (fillRef.current) fillRef.current.style.width = pct + '%';
       });
     });
-  }, [tensionData]);
+  }, [threatData]);
 
   if (loading) return <div className="t-loading"></div>;
-  if (error || !tensionData) return <div className="t-error"></div>;
+  if (error || !threatData) return <div className="t-error"></div>;
 
-  const score = tensionData.tension_score;
-  const color = getTensionColor(tensionData.tension_level);
+  const score = threatData.threat_score;
+  const color = getThreatColor(threatData. threat_level);
   const ticks = Array(20).fill(0);
 
   return (
-    <div className="tension-index-container" style={{ '--event-dot-color': color }}>
+    <div className="threat-index-container" style={{ '--event-dot-color': color }}>
       <div className="t-header">
-        <div className="t-region-label">Conflict zone · Tension index</div>
+        <div className="t-region-label">Conflict zone · Threat index</div>
         <div className="t-gauge-row">
           <div className="t-score-block">
             <div className="t-score-value" style={{ color }}>{score.toFixed(0)}</div>
             <div className="t-score-max">/ 100</div>
           </div>
           <div className="t-gauge-bar-wrap">
-            <div className="t-niveau" style={{ color }}>{tensionData.tension_level}</div>
+            <div className="t-niveau" style={{ color }}>{threatData. threat_level}</div>
             <div className="t-bar-bg">
               <div
                 ref={fillRef}

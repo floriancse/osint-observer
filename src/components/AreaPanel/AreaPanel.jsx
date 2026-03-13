@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import Heatmap from './Heatmap';
-import TensionIndex from './TensionIndex';
+import ThreatIndex from './ThreatIndex';
 import DailySummaries from './DailySummaries';
-import TensionHistory from './TensionHistory';
+import ThreatHistory from './ThreatHistory';
 import PanelSkeleton from './PanelSkeleton';
 
 export default function AreaPanel({ areaName, onClose, onLocate, onDayClick, selectedDate }) {
-  const [niveauTension, setNiveauTension] = useState(null);
+  const [niveauThreat, setNiveauThreat] = useState('Calm');
   const [indexLoaded, setIndexLoaded] = useState(false);
 
   useEffect(() => {
     setIndexLoaded(false);
-    setNiveauTension(null);
+    setNiveauThreat('Calm');
   }, [areaName]);
 
   return (
@@ -26,20 +26,20 @@ export default function AreaPanel({ areaName, onClose, onLocate, onDayClick, sel
             <>
               {!indexLoaded && <PanelSkeleton />}
               <div style={{ display: indexLoaded ? 'contents' : 'none' }}>
-                <TensionIndex
+                <ThreatIndex
                   areaName={areaName}
                   onLocate={onLocate}
-                  onDataLoaded={(d) => setNiveauTension(d.tension_level ?? 'Low Tension / Stable')}
+                  onDataLoaded={(d) => setNiveauThreat(d.threat_level ?? 'Calm')} // ← corrigé
                   onLoaded={() => setIndexLoaded(true)}
                 />
-                <TensionHistory areaName={areaName} niveauTension={niveauTension} />
+                <ThreatHistory areaName={areaName} niveauThreat={niveauThreat} />
                 <Heatmap
                   areaName={areaName}
-                  niveauTension={niveauTension}
+                  niveauThreat={niveauThreat}           // ← corrigé
                   onDayClick={onDayClick}
                   selectedDate={selectedDate}
                 />
-                <DailySummaries areaName={areaName} tensionLevel={niveauTension} />
+                <DailySummaries areaName={areaName} threatLevel={niveauThreat} />
               </div>
             </>
           ) : (

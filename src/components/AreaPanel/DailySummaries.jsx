@@ -1,21 +1,21 @@
 import React, { useEffect, useState } from 'react';
 
-function getTensionColor(niveau) {
+function getThreatColor(niveau) {
     const map = {
-        'Open Warfare': '#ed3f3f',
-        'High Strategic Tension': '#edb33f',
-        'Significant Tension': '#3fedbc',
-        'Moderate Tension': '#4a8fff',
-        'Low Tension / Stable': '#6d6d6d',
+        'Open warfare': '#ed3f3f',
+        'Active conflict': '#edb33f',
+        'High threat': '#3fedbc',
+        'Moderate threat': '#4a8fff',
+        'Calm': '#6d6d6d',
     };
     return map[niveau] ?? '#6d6d6d';
 }
 
-export default function DailySummaries({ areaName, tensionLevel, onLoaded }) {
+export default function DailySummaries({ areaName, threatLevel, onLoaded }) {
     const [summaries, setSummaries] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    const color = getTensionColor(tensionLevel);
+    const color = getThreatColor(threatLevel);
 
     useEffect(() => {
         if (!areaName) return;
@@ -34,7 +34,7 @@ export default function DailySummaries({ areaName, tensionLevel, onLoaded }) {
     return (
         <div className="t-events-section" style={{ '--event-dot-color': color }}>
             <div className="t-events-header">
-                <span className="t-events-label">Daily activities</span>
+                <span className="t-events-label">Daily summaries</span>
                 <span className="t-events-count">{summaries.length} entries</span>
             </div>
 
