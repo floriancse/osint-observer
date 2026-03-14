@@ -33,7 +33,8 @@ const IconCrosshair = () => (
         <circle cx="12" cy="12" r="3" />
     </svg>
 );
-const ARMED_GROUPS = [
+
+export const ARMED_GROUPS = [
     {
         id: 'africa_corps',
         name: 'Africa Corps',
@@ -83,6 +84,7 @@ const ARMED_GROUPS = [
         flag: 'YE',
     },
 ];
+
 function toDateKey(d) {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
@@ -212,9 +214,6 @@ function ArmedGroupsMenu({ activeGroups, onToggle, onClose }) {
                     );
                 })}
             </div>
-
-
-
         </div>
     );
 }
@@ -251,21 +250,29 @@ export default function TopBar({
     return (
         <div className="top-bar">
             <div className="left-controls">
-                <div
-                    className={`banner-label${isFeedOpen ? ' active' : ''}`}
-                    id="tweets-feed-toggle"
-                    onClick={onFeedToggle}
-                >
-                    <i className="fa-brands fa-x-twitter"></i>
-                    OSINT
+
+                {/* 1. Armed Groups */}
+                <div style={{ position: 'relative' }} ref={groupsRef}>
+                    <button
+                        className={`armed-groups-btn${groupsOpen ? ' open' : ''}${hasActiveGroups ? ' has-active' : ''}`}
+                        onClick={() => setGroupsOpen(v => !v)}
+                        title="Filter by armed group"
+                    >
+                        <IconCrosshair />
+                        <span>Groups</span>
+
+                    </button>
+
+                    {groupsOpen && (
+                        <ArmedGroupsMenu
+                            activeGroups={activeGroups}
+                            onToggle={(id) => onGroupToggle && onGroupToggle(id)}
+                            onClose={() => setGroupsOpen(false)}
+                        />
+                    )}
                 </div>
 
-                <div id="tweet-count">
-                    <i className="fas fa-eye eye-icon"></i>
-                    {' '}{tweetCount} event{tweetCount > 1 ? 's' : ''}
-                </div>
-
-                {/* Calendrier */}
+                {/* 2. Calendrier */}
                 <div className="topbar-cal-wrapper" ref={calRef}>
                     <button
                         className={`topbar-cal-btn${calOpen ? ' open' : ''}${isFiltered ? ' filtered' : ''}`}
@@ -288,28 +295,22 @@ export default function TopBar({
                     )}
                 </div>
 
-                {/* Armed Groups */}
-                <div style={{ position: 'relative' }} ref={groupsRef}>
-                    <button
-                        className={`armed-groups-btn${groupsOpen ? ' open' : ''}${hasActiveGroups ? ' has-active' : ''}`}
-                        onClick={() => setGroupsOpen(v => !v)}
-                        title="Filter by armed group"
-                    >
-                        <IconCrosshair />
-                        <span>Groups</span>
-                        {hasActiveGroups && (
-                            <span className="armed-groups-badge">{activeGroups.length}</span>
-                        )}
-                    </button>
-
-                    {groupsOpen && (
-                        <ArmedGroupsMenu
-                            activeGroups={activeGroups}
-                            onToggle={(id) => onGroupToggle && onGroupToggle(id)}
-                            onClose={() => setGroupsOpen(false)}
-                        />
-                    )}
+                {/* 3. OSINT Feed */}
+                <div
+                    className={`banner-label${isFeedOpen ? ' active' : ''}`}
+                    id="tweets-feed-toggle"
+                    onClick={onFeedToggle}
+                >
+                    <i className="fa-brands fa-x-twitter"></i>
+                    OSINT
                 </div>
+
+                {/* 4. Events */}
+                <div id="tweet-count">
+                    <i className="fas fa-eye eye-icon"></i>
+                    {' '}{tweetCount} event{tweetCount > 1 ? 's' : ''}
+                </div>
+
             </div>
 
             <div className="right-controls">

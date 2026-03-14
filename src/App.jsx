@@ -20,6 +20,7 @@ function getTodayOverride() {
 }
 
 export default function App() {
+    const [activeGroups, setActiveGroups] = useState([]);
     const [currentSearch, setCurrentSearch] = useState('');
     const [isFeedOpen, setIsFeedOpen] = useState(false);
     const [isRotating, setIsRotating] = useState(true);
@@ -71,6 +72,14 @@ export default function App() {
         locateHandlerRef.current = fn;
     }, []);
 
+    const handleGroupToggle = useCallback((groupId) => {
+        setActiveGroups(prev =>
+            prev.includes(groupId)
+                ? prev.filter(id => id !== groupId)
+                : [...prev, groupId]
+        );
+    }, []);
+
     return (
         <div style={{ width: '100vw', height: '100dvh', overflow: 'hidden', position: 'relative' }}>
             <MapView
@@ -81,6 +90,7 @@ export default function App() {
                 onRotationChange={setIsRotating}
                 registerLocateHandler={registerLocateHandler}
                 dateOverride={dateOverride}
+                activeGroups={activeGroups}
             />
             <TopBar
                 tweetCount={tweetCount}
@@ -91,6 +101,8 @@ export default function App() {
                 onRotationToggle={() => setIsRotating(v => !v)}
                 selectedDate={dateOverride?.dateKey ?? null}
                 onDayClick={handleDayClick}
+                activeGroups={activeGroups}
+                onGroupToggle={handleGroupToggle}
             />
             <TweetsFeedPanel
                 isOpen={isFeedOpen}

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useCallback } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { createPopupHTML } from './popupUtils';
+import { ARMED_GROUPS } from '../TopBar/TopBar';
 
 const LAYER_IDS = {
     heatmap: ['tweets_points', 'tweets_viseur', 'tweets_hover_area', 'tweets_heatmap_other', 'pulse-high-importance_score'],
@@ -23,6 +24,7 @@ export default function MapView({
     onRotationChange,
     registerLocateHandler,
     dateOverride,
+    activeGroups = [],
 }) {
     const mapContainer = useRef(null);
     const mapRef = useRef(null);
@@ -153,7 +155,45 @@ export default function MapView({
             map.flyTo({ center: coords, zoom: Math.max(map.getZoom(), 5), duration: 1000 });
         });
     }, [registerLocateHandler, stopRotation, showPopupAtIndex]);
+    useEffect(() => {
+        const map = mapRef.current;
+        if (!map?._sourcesReady) return;
 
+        const API = process.env.REACT_APP_API_URL;
+
+        if (activeGroups.length === 0) {
+            map.getSource('armed_groups_hull')
+                .setData({ type: 'FeatureCollection', features: [] });
+            return;
+        }
+
+        // Fetch tous les hulls actifs en parallèle
+        Promise.all(
+            activeGroups.map(groupId =>
+                fetch(`${API}/api/twitter_conflicts/convexhull.geojson?group=${groupId}`)
+                    .then(r => r.json())
+                    .then(data => {
+                        // Injecter la couleur du groupe dans les properties
+                        const group = ARMED_GROUPS.find(g => g.id === groupId);
+                        return (data.features ?? []).map(f => ({
+                            ...f,
+                            properties: {
+                                ...f.properties,
+                                color: group?.color ?? '#ffffff',
+                                groupId,
+                            }
+                        }));
+                    })
+                    .catch(() => [])
+            )
+        ).then(results => {
+            map.getSource('armed_groups_hull').setData({
+                type: 'FeatureCollection',
+                features: results.flat(),
+            });
+        });
+
+    }, [activeGroups]);
     // ── Init carte ──
     useEffect(() => {
         const map = new maplibregl.Map({
@@ -177,9 +217,9 @@ export default function MapView({
         ['mousedown', 'touchstart', 'dragstart'].forEach(evt => {
             map.on(evt, stopRotation);
         });
-map.on('click', (e) => {
-    const features = map.queryRenderedFeatures(e.point);
-});
+        map.on('click', (e) => {
+            const features = map.queryRenderedFeatures(e.point);
+        });
         map.on('load', async () => {
             const API = process.env.REACT_APP_API_URL;
             const [worldAreasData, shippingLanes, chokepoints, currentFrontline] = await Promise.all([
@@ -202,7 +242,6 @@ map.on('click', (e) => {
                 }
             }
             map.addImage('hatch-pattern', { width: size, height: size, data: hatchImage });
-
             map.addSource('world_areas', { type: 'geojson', data: worldAreasData, generateId: true });
             map.addSource('shipping_lanes', { type: 'geojson', data: shippingLanes });
             map.addSource('chokepoints', { type: 'geojson', data: chokepoints });
@@ -210,6 +249,10 @@ map.on('click', (e) => {
             map.addSource('tweets', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
             map.addSource('military_actions', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
             map.addSource('current_frontline', { type: 'geojson', data: currentFrontline });
+            map.addSource('armed_groups_hull', {
+                type: 'geojson',
+                data: { type: 'FeatureCollection', features: [] }
+            });
 
             map.addLayer({
                 id: 'world_areas_fill', type: 'fill', source: 'world_areas',
@@ -260,7 +303,7 @@ map.on('click', (e) => {
                 id: 'aggressor_range_outline', type: 'line', source: 'aggressor_range',
                 paint: {
                     'line-color': '#ff3b5c', 'line-width': 1.5,
-                    'line-opacity':1
+                    'line-opacity': 1
                 },
             });
 
@@ -337,26 +380,24 @@ map.on('click', (e) => {
 
             map.addLayer({
                 id: 'chokepoints', type: 'circle', source: 'chokepoints',
-                paint: { 'circle-radius': 0, 'circle-color': '#5693b0', 'circle-opacity': 1, 'circle-stroke-width': 1, 'circle-stroke-color': '#5693b0' },
+                paint: { 'circle-radius': 4, 'circle-color': '#5693b0', 'circle-opacity': 1, 'circle-stroke-width': 1, 'circle-stroke-color': '#5693b0' },
             });
-
             map.addLayer({
                 id: 'pulse-high-importance_score', type: 'circle', source: 'tweets',
                 filter: ['all', ['>=', ['coalesce', ['to-number', ['get', 'importance_score']], 0], 4]],
                 paint: {
-                    'circle-color': 'transparent', 'circle-radius': 8,
-                    'circle-stroke-color': ['match', ['get', 'conflict_typology'], 'MIL', '#ff3b5c', 'rgba(108,172,251,1)'],
-                    'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 2, 1, 6, 1.5, 10, 2.5],
-                    'circle-stroke-opacity': 0.8, 'circle-opacity': 0,
+                    'circle-color': ['match', ['get', 'conflict_typology'], 'MIL', '#ff3b5c', 'rgba(108,172,251,1)'],
+                    'circle-radius': 8,
+                    'circle-opacity': 0,
+                    'circle-stroke-width': 0,
                 },
             });
-
             map.addLayer({
                 id: 'tweets_points', type: 'circle', source: 'tweets',
                 filter: ['==', ['get', 'conflict_typology'], 'MIL'],
                 paint: {
                     'circle-color': '#ff3b5c',
-                    'circle-radius': ['interpolate', ['linear'], ['coalesce', ['to-number', ['get', 'importance_score']], 1], 1, 1, 2, 2, 3, 3, 4, 4, 5, 8],
+                    'circle-radius': ['interpolate', ['linear'], ['coalesce', ['to-number', ['get', 'importance_score']], 1], 1, 2, 2, 3, 3, 4, 4, 5, 5, 10],
                     'circle-opacity': 0.7,
                 },
             });
@@ -379,8 +420,8 @@ map.on('click', (e) => {
                 filter: ['==', ['get', 'conflict_typology'], 'MIL'],
                 paint: {
                     'circle-color': '#ff3b5c', 'circle-opacity': 0.2,
-                    'circle-radius': ['interpolate', ['linear'], ['coalesce', ['to-number', ['get', 'importance_score']], 1], 1, 4, 2, 5, 3, 7, 4, 9, 5, 20],
-                    'circle-stroke-width': 1, 'circle-stroke-color': '#ff3b5c', 'circle-stroke-opacity': 0.8,
+                    'circle-radius': ['interpolate', ['linear'], ['coalesce', ['to-number', ['get', 'importance_score']], 1], 1, 2, 2, 3, 3, 4, 4, 6, 5, 10],
+                    'circle-stroke-width': 1, 'circle-stroke-color': '#ff3b5c', 'circle-stroke-opacity': 0,
                 },
             });
 
@@ -388,7 +429,26 @@ map.on('click', (e) => {
                 id: 'tweets_hover_area', type: 'circle', source: 'tweets',
                 paint: { 'circle-radius': 10, 'circle-opacity': 0 },
             });
-
+            map.addLayer({
+                id: 'armed_groups_hull_fill',
+                type: 'fill',
+                source: 'armed_groups_hull',
+                paint: {
+                    'fill-color': ['get', 'color'],
+                    'fill-opacity': 0.06,
+                },
+            });
+            map.addLayer({
+                id: 'armed_groups_hull_outline',
+                type: 'line',
+                source: 'armed_groups_hull',
+                paint: {
+                    'line-color': ['get', 'color'],
+                    'line-width': 1.5,
+                    'line-opacity': 0.8,
+                    'line-dasharray': [3, 2],
+                },
+            });
             map.on('mouseenter', 'tweets_hover_area', (e) => {
                 if (popupPinnedRef.current) return;
                 map.getCanvas().style.cursor = 'pointer';
@@ -440,9 +500,9 @@ map.on('click', (e) => {
                 }
                 if (zoom < 3) opacity *= 0.6;
                 const baseRadius = zoom < 3 ? 4 : zoom < 6 ? 5 : zoom < 9 ? 5 : 4;
-                const radius = baseRadius + (baseRadius * 10 - baseRadius) * phase;
-                map.setPaintProperty('pulse-high-importance_score', 'circle-stroke-opacity', opacity);
-                map.setPaintProperty('pulse-high-importance_score', 'circle-opacity', opacity);
+                const radius = baseRadius + (baseRadius * 3) * phase;
+                map.setPaintProperty('pulse-high-importance_score', 'circle-stroke-opacity', 0);
+                map.setPaintProperty('pulse-high-importance_score', 'circle-opacity', opacity * 0.5);
                 map.setPaintProperty('pulse-high-importance_score', 'circle-radius', radius);
                 animFrameRef.current = requestAnimationFrame(animatePulse);
             };
