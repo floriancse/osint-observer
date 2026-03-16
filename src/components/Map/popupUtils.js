@@ -57,9 +57,9 @@ export function createPopupHTML(props, pinned, currentIndex, totalCount, showIma
       
       <div class="tweet-card-text">${props.text}</div>
       ${imagesHTML(images)}
-      ${props.location_name ? `
+      ${props.nominatim_query ? `
       <div class="tweet-card-location">
-        <span class="location-name">${props.location_name}</span>
+        <span class="location-name">${props.nominatim_query}</span>
         <span class="location-coords">${props.latitude}°, ${props.longitude}°</span>      </div>` : ''}
 
       <div class="tweet-card-actions">

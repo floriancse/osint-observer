@@ -70,64 +70,51 @@
      pointer-events: none;
      border-radius: 12px;
  }
+/* ── Period selector buttons ── */
+/* Remplace l'ancien bloc .time-btn + .time-group */
 
- .time-btn {
-     background: var(--surface);
-     border: 1.5px solid transparent;
-     color: #e7e9ea;
-     cursor: pointer;
-     font-size: 14px;
-     /* texte corps UI */
-     font-weight: 500;
-     padding: 8px 12px;
-     border-radius: 0;
-     white-space: nowrap;
-     transition:
-         border-color 0.15s ease,
-         background-color 0.15s ease,
-         z-index 0s;
-     position: relative;
-     font-family: 'Roboto Mono', monospace;
- }
+.time-group {
+    display: flex;
+    align-items: center;
+    height: 37px;
+    background-color: var(--surface);
+    border: 1.5px solid transparent;
+    border-radius: 8px;
+    overflow: hidden;
+    padding: 3px;
+    gap: 2px;
+}
 
- /* Coins arrondis seulement sur les extrémités */
- .time-btn:first-child {
-     border-top-left-radius: 20px;
-     border-bottom-left-radius: 20px;
- }
+.time-btn {
+    background: transparent;
+    border: none;
+    color: var(--dim);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    font-family: 'Roboto Mono', monospace;
+    padding: 0 11px;
+    height: 100%;
+    border-radius: 5px;
+    white-space: nowrap;
+    transition: background-color 0.15s ease, color 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    line-height: 1;
+    letter-spacing: 0.04em;
+}
 
- .time-btn:last-child {
-     border-top-right-radius: 20px;
-     border-bottom-right-radius: 20px;
- }
+.time-btn:hover {
+    color: #e7e9ea;
+    background-color: rgba(255, 255, 255, 0.06);
+}
 
- /* Légère superposition pour éviter le double bord visible */
- .time-btn+.time-btn {
-     margin-left: -1px;
- }
-
- .time-btn:hover {
-     border-color: #6b6b6b;
-     z-index: 1;
- }
-
- .time-btn.active {
-     border-color: #6b6b6b;
-     background-color: rgba(84, 84, 84, 1);
-     color: #fff;
-     z-index: 2;
- }
-
- /* Conteneur */
- .time-selector {
-     position: absolute;
-     top: 20px;
-     left: 20px;
-     z-index: 1000;
-     display: flex;
-     align-items: center;
-     gap: 10px;
- }
+.time-btn.active {
+    background-color: rgba(255, 255, 255, 0.09);
+    color: #eef0f5;
+}
 
  #tweet-count {
      gap: 8px
@@ -2041,13 +2028,13 @@
      background: rgba(255, 214, 0, 0.08);
  }
 
- .t-event-location_name {
+ .t-event-nominatim_query {
      color: var(--text);
      font-weight: 700;
      font-size: 12px;
  }
 
- .t-event-location_name,
+ .t-event-nominatim_query,
  .t-event-coordinates {
      /* déjà ok, mais tu peux ajouter si besoin */
      display: block;
@@ -2105,235 +2092,6 @@
     line-height: 1.5;
     text-align: right;
  }
-
- /* ── Calendrier TopBar ── */
-.topbar-cal-wrapper {
-    position: relative;
-}
-
-.topbar-cal-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 0 12px;
-    height: 37px;
-    background-color: var(--surface);
-    border: 1.5px solid transparent;
-    border-radius: 8px;
-    color: #e7e9ea;
-    font-size: 14px;
-    font-family: var(--mono);
-    cursor: pointer;
-    transition: all 0.2s ease;
-    white-space: nowrap;
-    box-sizing: border-box;
-}
-
-.topbar-cal-btn:hover,
-.topbar-cal-btn.open {
-    border-color: #6b6b6b;
-}
-
-.topbar-cal-btn.filtered {
-    border-color: rgba(255, 45, 45, 0.5);
-    color: var(--red);
-}
-
-.topbar-cal-btn-label {
-    letter-spacing: 0.03em;
-}
-
-.topbar-cal-dot {
-    width: 5px;
-    height: 5px;
-    border-radius: 50%;
-    background: var(--red);
-    flex-shrink: 0;
-}
-
-.topbar-calendar-dropdown {
-    position: absolute;
-    top: calc(100% + 8px);
-    left: 0;        /* ← calé à gauche */
-    right: auto;
-    z-index: 1000;
-    background: var(--surface);
-    border: 1px solid #2f3336;
-    border-radius: 8px;
-    padding: 12px;
-    min-width: 220px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
-}
-
-.topbar-cal-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 10px;
-}
-
-.topbar-cal-month {
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--text);
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-}
-
-.topbar-cal-nav {
-    background: transparent;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 4px;
-    color: rgba(255, 255, 255, 0.5);
-    width: 22px;
-    height: 22px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    font-size: 14px;
-    line-height: 1;
-    transition: all 0.15s;
-    padding: 0;
-}
-
-.topbar-cal-nav:hover:not(:disabled) {
-    border-color: rgba(255, 255, 255, 0.3);
-    color: #e7e9ea;
-}
-
-.topbar-cal-nav:disabled {
-    opacity: 0.2;
-    cursor: default;
-}
-
-.topbar-cal-grid {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 2px;
-}
-
-.topbar-cal-dow {
-    text-align: center;
-    font-family: var(--mono);
-    font-size: 9px;
-    color: var(--dim);
-    padding-bottom: 4px;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-}
-
-.topbar-cal-day {
-    aspect-ratio: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--text);
-    border-radius: 3px;
-    cursor: pointer;
-    transition: all 0.12s;
-    border: 1px solid transparent;
-}
-
-.topbar-cal-day:hover:not(.empty):not(.future) {
-    background: rgba(255, 255, 255, 0.07);
-    color: var(--text-bright);
-}
-
-.topbar-cal-day.today {
-    border-color: rgba(255, 255, 255, 0.2);
-    color: var(--text-bright);
-}
-
-.topbar-cal-day.selected {
-    background: var(--red);
-    border-color: var(--red);
-    color: white;
-    font-weight: 600;
-    box-shadow: 0 0 8px rgba(255, 45, 45, 0.4);
-}
-
-.topbar-cal-day.future {
-    color: var(--dim);
-    opacity: 0.4;
-    cursor: default;
-}
-
-.topbar-cal-day.empty {
-    cursor: default;
-}
-
-.topbar-cal-footer {
-    margin-top: 10px;
-    padding-top: 8px;
-    border-top: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-}
-
-.topbar-cal-selected-label {
-    font-family: var(--mono);
-    font-size: 10px;
-    color: var(--dim);
-}
-
-.topbar-cal-selected-label strong {
-    color: var(--text);
-}
-
-.topbar-cal-clear {
-    background: transparent;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 4px;
-    color: var(--dim);
-    font-family: var(--mono);
-    font-size: 10px;
-    padding: 3px 8px;
-    cursor: pointer;
-    transition: all 0.15s;
-    white-space: nowrap;
-}
-
-.topbar-cal-clear:hover {
-    border-color: rgba(255, 255, 255, 0.25);
-    color: var(--text-bright);
-}
-
-.feed-sort-toggle {
-    display: flex;
-    gap: 4px;
-    padding: 8px;
-    border-bottom: 1px solid #2f3336;
-    background: var(--surface);
-    flex-shrink: 0;
-}
-
-.feed-sort-btn {
-    background: transparent;
-    border: 1px solid transparent;
-    border-radius: 4px;
-    color: var(--dim);
-    font-family: var(--mono);
-    font-size: 11px;
-    padding: 3px 10px;
-    cursor: pointer;
-    transition: all 0.15s;
-}
-
-.feed-sort-btn:hover {
-    border-color: rgba(255, 255, 255, 0.15);
-    color: var(--text);
-}
-
-.feed-sort-btn.active {
-    border-color: rgba(255, 255, 255, 0.2);
-    color: var(--text-bright);
-    background: rgba(255, 255, 255, 0.06);
-}
 
 /* ── Armed Groups Button ── */
 .armed-groups-btn {
@@ -2541,4 +2299,45 @@
     border-color: rgba(255, 255, 255, 0.2);
     color: #c8cdd8;
     background: rgba(255, 255, 255, 0.04);
+}
+
+.feed-sort-toggle {
+    display: flex;
+    align-items: center;
+    height: 36px;
+    background: var(--surface);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    padding: 4px 12px;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.feed-sort-btn {
+    background: transparent;
+    border: none;
+    color: var(--dim);
+    cursor: pointer;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border-radius: 4px;
+    height: 26px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.15s ease, color 0.15s ease;
+    white-space: nowrap;
+}
+
+.feed-sort-btn:hover {
+    color: var(--text-bright);
+    background-color: rgba(255, 255, 255, 0.06);
+}
+
+.feed-sort-btn.active {
+    background-color: rgba(255, 255, 255, 0.09);
+    color: var(--text-bright);
 }

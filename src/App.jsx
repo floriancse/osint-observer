@@ -1,23 +1,14 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import MapView from './components/Map/MapView';
-import TopBar from './components/TopBar/TopBar';
+import TopBar, { TIME_PERIODS, buildPeriodOverride } from './components/TopBar/TopBar';
 import TweetsFeedPanel from './components/TweetsFeedPanel/TweetsFeedPanel';
 import AreaPanel from './components/AreaPanel/AreaPanel';
 import { useUsernames } from './hooks/useUsernames';
-import { useTweets, getTodayRange } from './hooks/useTweets';
+import { useTweets } from './hooks/useTweets';
 import DailySummaries from './components/AreaPanel/DailySummaries';
 
-function getTodayOverride() {
-    const now = new Date();
-    // dateKey calculé depuis la date LOCALE, pas depuis l'ISO string
-    const dateKey = [
-        now.getFullYear(),
-        String(now.getMonth() + 1).padStart(2, '0'),
-        String(now.getDate()).padStart(2, '0'),
-    ].join('-');
-    const range = getTodayRange();
-    return { dateKey, start: range.start, end: range.end };
-}
+// Default period: last 24h
+const DEFAULT_PERIOD = TIME_PERIODS.find(p => p.id === '24h');
 
 export default function App() {
     const [activeGroups, setActiveGroups] = useState([]);
@@ -26,17 +17,25 @@ export default function App() {
     const [isRotating, setIsRotating] = useState(true);
     const [selectedAreaName, setSelectedAreaName] = useState(null);
     const [selectedLayers, setSelectedLayers] = useState(new Set());
-    const [isOptionsOpen, setIsOptionsOpen] = useState(false);
-    const [dateOverride, setDateOverride] = useState(getTodayOverride);
+    const [activePeriod, setActivePeriod] = useState(DEFAULT_PERIOD);
+    const [dateOverride, setDateOverride] = useState(() => buildPeriodOverride(DEFAULT_PERIOD));
 
     const { allusernames, selectedusernames, loadusernames, toggleusername } = useUsernames();
     const { tweets, tweetCount, loadTweets, preloadAll, getRawData } = useTweets();
     const locateHandlerRef = useRef(null);
 
+    // Refresh dateOverride every minute so the window stays current
+    useEffect(() => {
+        const id = setInterval(() => {
+            setDateOverride(buildPeriodOverride(activePeriod));
+        }, 60_000);
+        return () => clearInterval(id);
+    }, [activePeriod]);
+
     useEffect(() => {
         preloadAll().then(async () => {
             const usernames = await loadusernames();
-            loadTweets(usernames, new Set(), '', getTodayOverride());
+            loadTweets(usernames, new Set(), '', buildPeriodOverride(DEFAULT_PERIOD));
         });
     }, []); // eslint-disable-line
 
@@ -44,9 +43,9 @@ export default function App() {
         loadTweets(allusernames, selectedusernames, currentSearch, dateOverride);
     }, [allusernames, selectedusernames, currentSearch, dateOverride]); // eslint-disable-line
 
-    const handleDayClick = useCallback((range) => {
-        console.log('handleDayClick', range);
-        setDateOverride(range ?? getTodayOverride());
+    const handlePeriodChange = useCallback((period) => {
+        setActivePeriod(period);
+        setDateOverride(buildPeriodOverride(period));
     }, []);
 
     const handleAreaSelect = useCallback((name) => {
@@ -99,8 +98,8 @@ export default function App() {
                 onFeedToggle={() => setIsFeedOpen(v => !v)}
                 isRotating={isRotating}
                 onRotationToggle={() => setIsRotating(v => !v)}
-                selectedDate={dateOverride?.dateKey ?? null}
-                onDayClick={handleDayClick}
+                activePeriodId={activePeriod.id}
+                onPeriodChange={handlePeriodChange}
                 activeGroups={activeGroups}
                 onGroupToggle={handleGroupToggle}
             />
@@ -119,10 +118,8 @@ export default function App() {
                 areaName={selectedAreaName}
                 onClose={() => setSelectedAreaName(null)}
                 onLocate={handleLocateTweet}
-                onDayClick={handleDayClick}
                 selectedDate={dateOverride?.dateKey ?? null}
             />
-
         </div>
     );
 }

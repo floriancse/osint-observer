@@ -2,17 +2,15 @@ import { useState, useCallback, useRef } from 'react';
 
 const cachedData = {};
 
-// Même logique que getTodayOverride dans App.jsx — 00:00:00 → 23:59:59 du jour actuel
 export function getTodayRange() {
     const now = new Date();
     const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-    const end   = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+    const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
     return { start: start.toISOString(), end: end.toISOString() };
 }
 
 function makeCacheKey({ start, end }) {
-    // Clé basée sur la date complète (jour + heure) pour éviter les collisions entre jours
-    return `${start.substring(0, 10)}__${end.substring(0, 10)}`;
+    return `${start.substring(0, 16)}__${end.substring(0, 16)}`;
 }
 
 export function useTweets() {
@@ -65,8 +63,7 @@ export function useTweets() {
         return data;
     }, []);
 
-    // dateOverride optionnel — si null, utilise le range du jour
-    const loadTweets = useCallback(async (allusernames, selectedusernames, currentSearch, dateOverride = null) => {
+    const loadTweets = useCallback(async (allusernames, selectedusernames, currentSearch, dateOverride) => {
         lastFilterParams.current = { allusernames, selectedusernames, currentSearch };
         try {
             const range = dateOverride ?? getTodayRange();
@@ -77,15 +74,26 @@ export function useTweets() {
         }
     }, [fetchAndCache, filterAndSetTweets]);
 
-    // Précharge le range du jour — même clé que getTodayOverride dans App
     const preloadAll = useCallback(async () => {
         try {
-            const data = await fetchAndCache(getTodayRange());
-            filterAndSetTweets(data, [], new Set(), '');
+            const periodsToPreload = [
+                { hours: 72 },  // 3j
+                { hours: 168 },  // 7j
+            ];
+            await Promise.all(
+                periodsToPreload.map(period => {
+                    const now = new Date();
+                    const start = new Date(now.getTime() - period.hours * 60 * 60 * 1000);
+                    return fetchAndCache({
+                        start: start.toISOString(),
+                        end: now.toISOString(),
+                    });
+                })
+            );
         } catch (err) {
             console.error('Erreur préchargement:', err);
         }
-    }, [fetchAndCache, filterAndSetTweets]);
+    }, [fetchAndCache]);
 
     const getRawData = useCallback((dateOverride = null) => {
         const range = dateOverride ?? getTodayRange();

@@ -258,6 +258,7 @@ export default function MapView({
                 id: 'world_areas_fill', type: 'fill', source: 'world_areas',
                 paint: { 'fill-opacity': ['case', ['boolean', ['feature-state', 'hover'], false], 0.1, 0] }
             });
+            
             map.addLayer({
                 id: 'world_areas_outline', type: 'line', source: 'world_areas',
                 layout: { 'line-join': 'round', 'line-cap': 'round' },
@@ -291,7 +292,7 @@ export default function MapView({
                 layout: { 'line-join': 'round', 'line-cap': 'round' },
                 paint: {
                     'line-color': '#ff3b5c', 'line-width': 1.5,
-                    'line-opacity': 0.8, 'line-dasharray': [2, 2],
+                    'line-opacity': 0.5, 'line-dasharray': [2, 2],
                 },
             });
 
@@ -302,8 +303,10 @@ export default function MapView({
             map.addLayer({
                 id: 'aggressor_range_outline', type: 'line', source: 'aggressor_range',
                 paint: {
-                    'line-color': '#ff3b5c', 'line-width': 1.5,
-                    'line-opacity': 1
+                    'line-color': '#ff3b5c',
+                    'line-width': 1.5,
+                    'line-opacity': 1,
+                    'line-dasharray': [2, 1]
                 },
             });
 
@@ -380,7 +383,7 @@ export default function MapView({
 
             map.addLayer({
                 id: 'chokepoints', type: 'circle', source: 'chokepoints',
-                paint: { 'circle-radius': 4, 'circle-color': '#5693b0', 'circle-opacity': 1, 'circle-stroke-width': 1, 'circle-stroke-color': '#5693b0' },
+                paint: { 'circle-radius': 3, 'circle-color': '#5693b0', 'circle-opacity': 0, 'circle-stroke-width': 1, 'circle-stroke-color': '#5693b0' },
             });
             map.addLayer({
                 id: 'pulse-high-importance_score', type: 'circle', source: 'tweets',
