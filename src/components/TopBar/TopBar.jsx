@@ -64,21 +64,13 @@ export const ARMED_GROUPS = [
         color: '#4a8f4a',
         flag: 'LB',
     },
-    {
-        id: 'houthis',
-        name: 'Houthis',
-        aka: 'Ansar Allah',
-        region: 'Yemen / Red Sea',
-        color: '#b8473d',
-        flag: 'YE',
-    },
 ];
 
 export const TIME_PERIODS = [
-    { id: '12h',  label: '12h',  hours: 12  },
     { id: '24h',  label: '24h',  hours: 24  },
-    { id: '3d',   label: '3j',   hours: 72  },
-    { id: '7d',   label: '7j',   hours: 168 },
+    { id: '3d',  label: '3d',  hours: 72  },
+    { id: '7d',   label: '7d',   hours: 168  },
+    { id: '14d',   label: '14d',   hours: 336 },
 ];
 
 /**
@@ -111,7 +103,7 @@ function ArmedGroupsMenu({ activeGroups, onToggle, onClose }) {
                 <span className="armed-groups-title">ARMED GROUPS</span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <span className="armed-groups-count">{activeGroups.length}/{ARMED_GROUPS.length} active</span>
-                    <button className="topbar-cal-nav" onClick={onClose}>✕</button>
+                    <button className="close-btn" onClick={onClose}>✕</button>
                 </div>
             </div>
             <div className="armed-groups-list">
@@ -177,8 +169,8 @@ export default function TopBar({
         <div className="top-bar">
             <div className="left-controls">
 
-                {/* 1. Armed Groups */}
-{/*                 <div style={{ position: 'relative' }} ref={groupsRef}>
+                {/* 1. Armed Groups
+                <div style={{ position: 'relative' }} ref={groupsRef}>
                     <button
                         className={`armed-groups-btn${groupsOpen ? ' open' : ''}${hasActiveGroups ? ' has-active' : ''}`}
                         onClick={() => setGroupsOpen(v => !v)}

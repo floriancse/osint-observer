@@ -40,28 +40,6 @@ export default function PanelSkeleton() {
         <div className="sk" style={{ width: 120, height: 10, marginBottom: 14 }} />
         <div className="sk" style={{ width: '100%', height: 120 }} />
       </div>
-
-      {/* Heatmap */}
-      <div style={{ border: '1px solid rgba(255,255,255,0.06)', background: '#111418', borderRadius: 4, padding: '20px 24px', marginBottom: 8 }}>
-        <div className="sk" style={{ width: 100, height: 10, marginBottom: 14 }} />
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 3 }}>
-          {Array.from({ length: 35 }).map((_, i) => (
-            <div key={i} className="sk" style={{ aspectRatio: 1, borderRadius: 2 }} />
-          ))}
-        </div>
-      </div>
-
-      {/* DailySummaries */}
-      <div style={{ border: '1px solid rgba(255,255,255,0.06)', background: '#111418', borderRadius: 4, padding: '20px 24px' }}>
-        <div className="sk" style={{ width: 140, height: 10, marginBottom: 14 }} />
-        {[1, 2].map(i => (
-          <div key={i} style={{ marginBottom: 16 }}>
-            <div className="sk" style={{ width: 80, height: 9, marginBottom: 8 }} />
-            <div className="sk" style={{ width: '100%', height: 9, marginBottom: 5 }} />
-            <div className="sk" style={{ width: '80%', height: 9 }} />
-          </div>
-        ))}
-      </div>
     </div>
   );
 }

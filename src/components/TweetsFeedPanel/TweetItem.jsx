@@ -103,7 +103,7 @@ export default function TweetItem({ feature, onLocate }) {
           onClick={e => e.stopPropagation()}
         >
           <IconExternalLink />
-          Voir le tweet
+          Source
         </a>
 
         {hasGeo && onLocate && (
@@ -112,7 +112,7 @@ export default function TweetItem({ feature, onLocate }) {
             onClick={e => { e.stopPropagation(); onLocate(feature); }}
           >
             <IconMapPin />
-            Voir sur la carte
+            View on map
           </button>
         )}
       </div>

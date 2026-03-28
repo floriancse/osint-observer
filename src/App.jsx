@@ -5,7 +5,6 @@ import TweetsFeedPanel from './components/TweetsFeedPanel/TweetsFeedPanel';
 import AreaPanel from './components/AreaPanel/AreaPanel';
 import { useUsernames } from './hooks/useUsernames';
 import { useTweets } from './hooks/useTweets';
-import DailySummaries from './components/AreaPanel/DailySummaries';
 
 // Default period: last 24h
 const DEFAULT_PERIOD = TIME_PERIODS.find(p => p.id === '24h');
