@@ -5,6 +5,7 @@ import TweetsFeedPanel from './components/TweetsFeedPanel/TweetsFeedPanel';
 import AreaPanel from './components/AreaPanel/AreaPanel';
 import { useUsernames } from './hooks/useUsernames';
 import { useTweets } from './hooks/useTweets';
+import TheatersPanel from './components/TheatersPanel/TheatersPanel';
 
 // Default period: last 24h
 const DEFAULT_PERIOD = TIME_PERIODS.find(p => p.id === '24h');
@@ -18,10 +19,14 @@ export default function App() {
     const [selectedLayers, setSelectedLayers] = useState(new Set());
     const [activePeriod, setActivePeriod] = useState(DEFAULT_PERIOD);
     const [dateOverride, setDateOverride] = useState(() => buildPeriodOverride(DEFAULT_PERIOD));
-
+    const [isTheatersOpen, setIsTheatersOpen] = useState(false);
+    const [activeTheaterCount, setActiveTheaterCount] = useState(0);
+    const [activeTheaters, setActiveTheaters] = useState([]);
     const { allusernames, selectedusernames, loadusernames, toggleusername } = useUsernames();
     const { tweets, tweetCount, loadTweets, preloadAll, getRawData } = useTweets();
     const locateHandlerRef = useRef(null);
+    const [selectedArea, setSelectedArea] = useState(null);
+
 
     // Refresh dateOverride every minute so the window stays current
     useEffect(() => {
@@ -61,6 +66,20 @@ export default function App() {
         });
     }, []);
 
+    const handleTheaterToggle = useCallback((theaterId) => {
+        setActiveTheaters(prev =>
+            prev.includes(theaterId)
+                ? prev.filter(id => id !== theaterId)
+                : [...prev, theaterId]
+        );
+    }, []);
+
+    const handleTheatersToggle = () => {
+        setIsTheatersOpen(prev => !prev);
+        // TODO: Later you can open a theaters menu, sidebar, or modal here
+        console.log('Theaters of War toggled');
+    };
+
     const handleLocateTweet = useCallback((feature) => {
         if (locateHandlerRef.current) locateHandlerRef.current(feature);
         if (window.innerWidth <= 640) setIsFeedOpen(false);
@@ -78,6 +97,13 @@ export default function App() {
         );
     }, []);
 
+    const clearSelectionRef = useRef(null);
+
+    const handleClosePanel = useCallback(() => {
+        setSelectedAreaName(null);    // ← c'est celui-là qu'utilise AreaPanel
+        clearSelectionRef.current?.();
+    }, []);
+
     return (
         <div style={{ width: '100vw', height: '100dvh', overflow: 'hidden', position: 'relative' }}>
             <MapView
@@ -89,6 +115,8 @@ export default function App() {
                 registerLocateHandler={registerLocateHandler}
                 dateOverride={dateOverride}
                 activeGroups={activeGroups}
+                registerClearHandler={fn => clearSelectionRef.current = fn}
+
             />
             <TopBar
                 tweetCount={tweetCount}
@@ -101,6 +129,15 @@ export default function App() {
                 onPeriodChange={handlePeriodChange}
                 activeGroups={activeGroups}
                 onGroupToggle={handleGroupToggle}
+                isTheatersOpen={isTheatersOpen}
+                onTheatersToggle={handleTheatersToggle}
+                activeTheaterCount={activeTheaterCount}
+            />
+            <TheatersPanel
+                isOpen={isTheatersOpen}
+                onClose={() => setIsTheatersOpen(false)}
+                activeTheaters={activeTheaters}
+                onTheaterToggle={handleTheaterToggle}
             />
             <TweetsFeedPanel
                 isOpen={isFeedOpen}
@@ -115,7 +152,7 @@ export default function App() {
             />
             <AreaPanel
                 areaName={selectedAreaName}
-                onClose={() => setSelectedAreaName(null)}
+                onClose={handleClosePanel}
                 onLocate={handleLocateTweet}
                 selectedDate={dateOverride?.dateKey ?? null}
             />

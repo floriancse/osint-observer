@@ -36,16 +36,7 @@ function imagesHTML(images) {
     </div>`;
 }
 
-function importanceBadge(score) {
-  const s = parseInt(score) || 0;
-  if (s >= 4) return `<span style="font-size:9px;padding:1px 5px;border-radius:3px;background:rgba(255,45,45,0.15);color:#ff2d2d;font-weight:600;letter-spacing:0.08em;">HIGH</span>`;
-  if (s >= 2) return `<span style="font-size:9px;padding:1px 5px;border-radius:3px;background:rgba(255, 200, 0, 0.15);color:#ffd600;font-weight:600;letter-spacing:0.08em;">MED</span>`;
-  return `<span style="font-size:9px;padding:1px 5px;border-radius:3px;background:rgba(255,255,255,0.06);color:#7a839f;font-weight:600;letter-spacing:0.08em;">LOW</span>`;
-}
-
-// ── Popup cluster : détail direct avec navigation ──
 export function createPopupGridHTML(features) {
-  // Affiche directement le premier tweet avec navigation flèches
   return createPopupHTML(
     features[0].properties,
     false,
@@ -76,9 +67,11 @@ export function createPopupHTML(props, pinned, currentIndex, totalCount, showIma
               onerror="this.style.display='none';this.parentElement.textContent='${getusernameInitials(props.username)}'">
         </div>
         <div class="tweet-card-username">${props.username}</div>
-        ${importanceBadge(props.importance_score)}
+
         <div class="tweet-card-time">${formattedTime} · ${formattedDate}</div>
-        <button onclick="window.closePopup()" class="close-btn" style="display:flex">×</button>
+        <button onclick="window.closePopup()" class="close-btn" style="display:flex"><svg width="10" height="10" viewBox="0 0 14 14" fill="none">
+          <path d="M1 1l12 12M13 1L1 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+        </svg></button>
       </div>
 
       <div class="tweet-card-text">${props.text}</div>
@@ -93,18 +86,18 @@ export function createPopupHTML(props, pinned, currentIndex, totalCount, showIma
         <a href="${props.url}" class="tweet-card-link" target="_blank">Source ↗</a>
         ${showNav ? `
         <div class="tweet-card-nav">
-  <button
-    class="tweet-card-nav-btn${hasPrev ? '' : ' disabled'}"
-    onclick="${hasPrev ? `window.navigateTweet(${currentIndex - 1})` : ''}"
-    ${hasPrev ? '' : 'disabled'}
-  >‹</button>
-  <span class="tweet-card-nav-count">${currentIndex + 1}/${totalCount}</span>
-  <button
-    class="tweet-card-nav-btn${hasNext ? '' : ' disabled'}"
-    onclick="${hasNext ? `window.navigateTweet(${currentIndex + 1})` : ''}"
-    ${hasNext ? '' : 'disabled'}
-  >›</button>
-</div>` : ''}
+          <button
+            class="tweet-card-nav-btn${hasPrev ? '' : ' disabled'}"
+            onclick="${hasPrev ? `window.navigateTweet(${currentIndex - 1})` : ''}"
+            ${hasPrev ? '' : 'disabled'}
+          >‹</button>
+          <span class="tweet-card-nav-count">${currentIndex + 1}/${totalCount}</span>
+          <button
+            class="tweet-card-nav-btn${hasNext ? '' : ' disabled'}"
+            onclick="${hasNext ? `window.navigateTweet(${currentIndex + 1})` : ''}"
+            ${hasNext ? '' : 'disabled'}
+          >›</button>
+        </div>` : ''}
       </div>
     </div>`;
 }

@@ -1,3 +1,4 @@
+// ImportanceDistribution.jsx
 import React, { useState, useEffect } from 'react';
 
 const SCORE_LABELS = {
@@ -8,26 +9,38 @@ const SCORE_LABELS = {
     5: 'Critical',
 };
 
-const SCORE_COLORS = {
-    1: '#7a839f',
-    2: '#7a839f',
-    3: '#7a839f',
-    4: '#7a839f',
-    5: '#7a839f',
+const THREAT_COLORS = {
+    'Open warfare':   '#ed3f3f',
+    'Active conflict':'#edb33f',
+    'High threat':    '#3fedbc',
+    'Moderate threat':'#4a8fff',
+    'Calm':           '#6d6d6d',
 };
 
-const SCORE_TEXT_COLORS = {
-    1: '#7a839f',
-    2: '#7a839f',
-    3: '#7a839f',
-    4: '#7a839f',
-    5: '#7a839f',
-};
+// Génère 5 teintes du plus sombre au plus vif selon la couleur threat
+function buildScoreColors(hex) {
+    // Parse hex → r,g,b
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
 
-export default function ImportanceDistribution({ areaName }) {
+    // Score 1 = très atténué, score 5 = pleine couleur + glow
+    const alphas = [0.20, 0.35, 0.52, 0.72, 1.0];
+    return alphas.map(a => {
+        const rr = Math.round(r * a + 17 * (1 - a)); // blend sur #111418 ≈ rgb(17,20,24)
+        const gg = Math.round(g * a + 20 * (1 - a));
+        const bb = Math.round(b * a + 24 * (1 - a));
+        return `rgb(${rr},${gg},${bb})`;
+    });
+}
+
+export default function ImportanceDistribution({ areaName, threatLevel = 'Calm' }) {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+
+    const baseColor = THREAT_COLORS[threatLevel] ?? '#6d6d6d';
+    const scoreColors = buildScoreColors(baseColor);
 
     useEffect(() => {
         if (!areaName) return;
@@ -83,28 +96,26 @@ export default function ImportanceDistribution({ areaName }) {
                 )}
             </div>
 
-            {/* Loading */}
             {loading && (
                 <div style={{ fontFamily: 'var(--mono, monospace)', fontSize: 12, color: 'var(--dim, #7a839f)', textAlign: 'center', padding: '20px 0', letterSpacing: '0.1em' }}>
                     LOADING…
                 </div>
             )}
 
-            {/* Error */}
             {error && (
                 <div style={{ fontFamily: 'var(--mono, monospace)', fontSize: 12, color: '#ff2d2d', textAlign: 'center', padding: '20px 0' }}>
                     {error}
                 </div>
             )}
 
-            {/* Bars */}
             {data && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {data.map(({ importance_score, count }) => {
                         const pct = maxCount > 0 ? (count / maxCount) * 100 : 0;
-                        const color = SCORE_COLORS[importance_score];
-                        const textColor = SCORE_TEXT_COLORS[importance_score];
+                        // score 1→index 0, score 5→index 4
+                        const color = count > 0 ? scoreColors[importance_score - 1] : 'rgba(255,255,255,0.04)';
                         const label = SCORE_LABELS[importance_score];
+                        const isCritical = importance_score === 5 && count > 0;
 
                         return (
                             <div key={importance_score} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -113,7 +124,7 @@ export default function ImportanceDistribution({ areaName }) {
                                     fontFamily: 'var(--mono, monospace)',
                                     fontSize: 11,
                                     fontWeight: 600,
-                                    color: textColor,
+                                    color: count > 0 ? scoreColors[importance_score - 1] : '#7a839f',
                                     width: 14,
                                     flexShrink: 0,
                                     textAlign: 'right',
@@ -138,8 +149,8 @@ export default function ImportanceDistribution({ areaName }) {
                                         background: color,
                                         borderRadius: 2,
                                         transition: 'width 0.6s cubic-bezier(0.16,1,0.3,1)',
-                                        ...(importance_score === 5 && count > 0 ? {
-                                            boxShadow: '0 0 8px rgba(255,45,45,0.4)',
+                                        ...(isCritical ? {
+                                            boxShadow: `0 0 8px ${baseColor}66`,
                                         } : {}),
                                     }} />
                                     <span style={{
@@ -175,7 +186,6 @@ export default function ImportanceDistribution({ areaName }) {
                 </div>
             )}
 
-            {/* Legend */}
             {data && total === 0 && (
                 <div style={{ fontFamily: 'var(--mono, monospace)', fontSize: 11, color: 'var(--dim, #7a839f)', textAlign: 'center', marginTop: 12 }}>
                     No events in the last 14 days

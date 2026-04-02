@@ -1,99 +1,49 @@
-import { renderToStaticMarkup } from 'react-dom/server';
-import { createElement } from 'react';
-import { WEAPON_ICON_CONFIG } from '../shared/weaponIconConfig';
-
-export const WEAPON_TYPE_COLORS = {
-    'Ballistic missile': '#D94F4F', // Rouge moyen — visible sans agresser
-    'Bombing / airstrike': '#3a60c9', // Ocre brûlé
-    'Gunfire / small arms': '#D4A843', // Kaki doré
-    'Drone': '#67b89c', // Bleu-gris acier
-    'Mine': '#9B6BBF', // Mauve sobre
-    'Unidentified weapon': '#7f8a95', // Gris ardoise (+ contour #8FA3BF optionnel)
+const CHOKEPOINT_STATUS_CONFIG = {
+    'Open':    { color: '#32886b', stroke: '#10b981', symbol: '✓' },
+    'Closed':  { color: '#ed3f3f', stroke: '#f17e7e', symbol: '✕' },
+    'Unknown': { color: '#888780', stroke: '#B4B2A9', symbol: '?' },
 };
 
-/**
- * Charge toutes les icônes Phosphor dans une instance Mapbox/MapLibre.
- *
- * @param {mapboxgl.Map} map     - Instance de la carte
- * @param {string}       color   - Couleur de l'icône (défaut : '#ff3b5c')
- * @param {number}       size    - Taille du canvas en px (défaut : 48)
- *                                 Conseil : utiliser 48-64px pour un rendu net,
- *                                 puis laisser Mapbox downscaler via icon-size.
- */
+export function createChokepointSVG(status) {
+    const cfg = CHOKEPOINT_STATUS_CONFIG[status] ?? CHOKEPOINT_STATUS_CONFIG['Unknown'];
+    const size = 48;
+    const cx = size / 2;
+    const r = 16;
+    const pts = Array.from({ length: 6 }, (_, i) => {
+        const angle = (Math.PI / 180) * (60 * i - 30);
+        return `${cx + r * Math.cos(angle)},${cx + r * Math.sin(angle)}`;
+    }).join(' ');
 
-export function getWeaponTypePatternExpression(defaultPattern = 'hatch-pattern-default') {
-    const cases = [];
-    Object.keys(WEAPON_TYPE_COLORS).forEach(type => {
-        cases.push(type);
-        cases.push(`hatch-pattern-${type}`);
-    });
-    return ['match', ['get', 'weapon_type'], ...cases, defaultPattern];
+    const svg = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+        <polygon points="${pts}"
+          fill="${cfg.color}" fill-opacity="1"
+          stroke="${cfg.stroke}" stroke-width="1.5"/>
+        <text x="${cx}" y="${cx + 4.5}"
+          text-anchor="middle"
+          font-family="'Roboto Mono', monospace"
+          font-size="20"
+          font-weight="700"
+          fill="white">${cfg.symbol}</text>
+      </svg>`;
+    return svg;
 }
 
-export function getWeaponTypeLineColorExpression(defaultColor = '#ff3b5c') {
-    const cases = [];
-
-    Object.entries(WEAPON_TYPE_COLORS).forEach(([type, color]) => {
-        cases.push(type);
-        cases.push(color);
-    });
-
-    return [
-        'match',
-        ['get', 'weapon_type'],
-        ...cases,
-        defaultColor
-    ];
-}
-
-export function weaponTypeToIconId(weaponType) {
-    return `weapon-${(weaponType ?? 'unknown').replace(/[\s\/]/g, '_')}`;
-}
-
-export async function loadWeaponIconsToMap(map, size = 48) {
-    await Promise.all(
-        Object.entries(WEAPON_ICON_CONFIG).map(([weaponType, { icon: IconComponent, weight }]) => {
-            return new Promise((resolve) => {
-                const iconId = weaponTypeToIconId(weaponType);
-                if (map.hasImage(iconId)) { resolve(); return; }
-
-                // Couleur spécifique au type, fallback sur gris
-                const color = WEAPON_TYPE_COLORS[weaponType] ?? '#bdc3c7';
-
-                const svgString = renderToStaticMarkup(
-                    createElement(IconComponent, { size, color: '#ffffff', weight })  // ← icône blanche
-                );
-
-                const blob = new Blob([svgString], { type: 'image/svg+xml' });
-                const url = URL.createObjectURL(blob);
-                const img = new Image(size, size);
-
-                img.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    canvas.width = size;
-                    canvas.height = size;
-                    const ctx = canvas.getContext('2d');
-                    const cx = size / 2;
-
-                    // Fond circulaire avec la couleur du type
-                    ctx.beginPath();
-                    ctx.arc(cx, cx, cx - 2, 0, Math.PI * 2);
-                    ctx.fillStyle = color;  // ← couleur du type weapon
-                    ctx.fill();
-
-                    const pad = size * 0.15;
-                    ctx.drawImage(img, pad, pad, size - pad * 2, size - pad * 2);
-
-                    URL.revokeObjectURL(url);
-
-                    const imageData = ctx.getImageData(0, 0, size, size);
-                    map.addImage(iconId, { width: size, height: size, data: imageData.data });
-                    resolve();
-                };
-
-                img.onerror = () => { URL.revokeObjectURL(url); resolve(); };
-                img.src = url;
-            });
-        })
-    );
+export async function loadChokepointIconsToMap(map) {
+    const statuses = ['Open', 'Closed', 'Unknown'];
+    await Promise.all(statuses.map(status => new Promise((resolve, reject) => {
+        const id = `chokepoint-${status.toLowerCase()}`;
+        if (map.hasImage(id)) { resolve(); return; }
+        const svg = createChokepointSVG(status);
+        const blob = new Blob([svg], { type: 'image/svg+xml' });
+        const url = URL.createObjectURL(blob);
+        const img = new Image(48, 48);
+        img.onload = () => {
+            map.addImage(id, img, { sdf: false });
+            URL.revokeObjectURL(url);
+            resolve();
+        };
+        img.onerror = reject;
+        img.src = url;
+    })));
 }

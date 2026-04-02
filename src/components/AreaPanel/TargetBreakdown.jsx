@@ -26,7 +26,7 @@ export default function TargetBreakdown({ areaName }) {
     if (loading) return (
         <div style={styles.container}>
             <div style={styles.header}>
-                <span style={styles.label}>ACTION BREAKDOWN</span>
+                <span style={styles.label}>ATTACKS BREAKDOWN</span>
                 <span style={styles.meta}>14 days</span>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -53,7 +53,7 @@ export default function TargetBreakdown({ areaName }) {
 
             {/* Header */}
             <div style={styles.header}>
-                <span style={styles.label}>ACTION BREAKDOWN</span>
+                <span style={styles.label}>ATTACKS BREAKDOWN</span>
                 <span style={styles.meta}>14 days · {grandTotal} events · {data.targets.length} targets</span>
             </div>
 

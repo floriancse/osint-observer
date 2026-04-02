@@ -15,7 +15,7 @@ export default function TweetsFeedPanel({
 }) {
   const [features, setFeatures] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [sortBy, setSortBy] = useState('date'); // ← ici, pas dans le useCallback
+  const [sortBy, setSortBy] = useState('date');
 
   const loadFeed = useCallback(async () => {
     setLoading(true);
@@ -77,7 +77,9 @@ export default function TweetsFeedPanel({
           <h2>OSINT Feed</h2>
           <h3>Last events</h3>
         </div>
-        <button className="close-btn" onClick={onClose}>×</button>
+        <button className="close-btn" onClick={onClose}><svg width="10" height="10" viewBox="0 0 14 14" fill="none">
+          <path d="M1 1l12 12M13 1L1 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+        </svg></button>
       </div>
 
       <div className="feed-sort-toggle">

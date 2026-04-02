@@ -28,7 +28,7 @@
  body {
      height: 100dvh;
      min-height: -webkit-fill-available;
-     font-family: 'Roboto Mono', monospace
+     font-family: 'Roboto Mono', monospace;
  }
 
 
@@ -39,7 +39,6 @@
      overflow: hidden;
      display: flex;
      flex-direction: column;
-
      background-image: linear-gradient(135deg, #0f0f1a 0%, #1c1d20 50%, #1b1a2e 100%);
  }
 
@@ -150,12 +149,12 @@
  }
 
  .banner-label:hover {
-     background-color: rgba(29, 155, 240, 0.9);
+     background-color: #00183d;
      border-color: #1d9bf0;
  }
 
  .banner-label.active {
-     background-color: rgba(29, 155, 240, 1);
+     background-color: #00183d;
      border-color: #1d9bf0;
      color: white;
  }
@@ -171,6 +170,16 @@
      align-items: center;
      justify-content: center;
      box-sizing: border-box;
+ }
+
+ #war-theater:hover {
+     background-color: #3d0000;
+     border-color: #ed3f3f;
+ }
+
+ #war-theater.active {
+     background-color: #3d0000;
+     border-color: #ed3f3f;
  }
 
  .search-container {
@@ -774,7 +783,8 @@
      border: 1px solid rgb(56, 56, 56);
      border-radius: 6px;
      color: #9ca3af;
-     font-size: 18px;
+     font-size: 11px;
+     padding:5px;
      cursor: pointer;
      display: flex;
      align-items: center;
@@ -1364,7 +1374,7 @@
      font-family: var(--mono) !important;
      color: #e7e9ea;
      position: relative;
-     width: 300px;
+     width: 400px;
  }
 
  .tweet-card-nav {

@@ -1,10 +1,8 @@
 import React, { useEffect, useRef, useCallback } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { ARMED_GROUPS } from '../TopBar/TopBar';
 import { createPopupHTML, createPopupGridHTML } from './popupUtils';
-import { loadWeaponIconsToMap, weaponTypeToIconId } from './weaponIcons';
-import { WEAPON_TYPE_COLORS, getWeaponTypeLineColorExpression, getWeaponTypePatternExpression } from './weaponIcons';
+import { loadChokepointIconsToMap } from './weaponIcons';
 
 const LAYER_IDS = {
     heatmap: ['tweets_points', 'tweets_viseur', 'tweets_hover_area', 'tweets_heatmap_other', 'pulse-high-importance_score'],
@@ -17,6 +15,7 @@ function get24hRange() {
     return { start: start.toISOString(), end: end.toISOString() };
 }
 
+
 export default function MapView({
     tweetsData,
     selectedLayers,
@@ -26,6 +25,7 @@ export default function MapView({
     registerLocateHandler,
     dateOverride,
     activeGroups = [],
+    registerClearHandler, 
 }) {
     const mapContainer = useRef(null);
     const mapRef = useRef(null);
@@ -41,6 +41,9 @@ export default function MapView({
     const tweetsReadyRef = useRef(false);
     const militaryAbortRef = useRef(null);
     const hoverInfoRef = useRef(null);
+    const lastUpdateRef = useRef(null);
+    const clearSelectionRef = useRef(null);
+    const selectedIdRef = useRef(null);
 
     const startRotation = useCallback(() => {
         if (rotationRef.current) return;
@@ -135,6 +138,20 @@ export default function MapView({
         popup.setLngLat(coords).setHTML(html).addTo(map);
     }, []);
 
+    useEffect(() => {
+    if (!registerClearHandler) return;
+    registerClearHandler(() => {
+        const map = mapRef.current;
+        if (!map) return;
+        if (selectedIdRef.current !== null) {
+            map.setFeatureState({ source: 'world_areas', id: selectedIdRef.current }, { selected: false });
+            selectedIdRef.current = null;
+        }
+        selectedNameRef.current = null;
+        clearMilitaryActions();
+    });
+}, [registerClearHandler, clearMilitaryActions]);
+
     // ── Expose les fonctions popup à window ──
     useEffect(() => {
         window.closePopup = () => {
@@ -145,6 +162,7 @@ export default function MapView({
         };
         window.selectTweetFromGrid = (index) => showDetailPopup(index);
         window.backToGrid = () => showGridPopup();
+        window.navigateTweet = (index) => showDetailPopup(index);
     }, [showDetailPopup, showGridPopup]);
 
     useEffect(() => {
@@ -181,7 +199,6 @@ export default function MapView({
         });
         mapRef.current = map;
 
-
         popupRef.current = new maplibregl.Popup({
             closeButton: false,
             closeOnClick: false,
@@ -198,19 +215,38 @@ export default function MapView({
         });
         map.on('load', async () => {
             const API = process.env.REACT_APP_API_URL;
-            const [worldAreasData, shippingLanes, chokepoints, currentFrontline, seasConflicts] = await Promise.all([
+            const [worldAreasData, shippingLanes, chokepointsData, currentFrontline, seasConflicts, lastUpdate] = await Promise.all([
                 fetch(`${API}/api/twitter_conflicts/world_areas.geojson`).then(r => r.json()),
                 fetch(`${API}/api/twitter_conflicts/shipping_lanes.geojson`).then(r => r.json()),
                 fetch(`${API}/api/twitter_conflicts/chokepoints.geojson`).then(r => r.json()),
                 fetch(`${API}/api/twitter_conflicts/current_frontline.geojson`).then(r => r.json()),
                 fetch(`${API}/api/twitter_conflicts/seas_conflicts.geojson`).then(r => r.json()),
+                fetch(`${API}/api/twitter_conflicts/last_update`).then(r => r.json()),
             ]);
+
+            if (lastUpdateRef.current && lastUpdate?.last_update) {
+                const date = new Date(lastUpdate.last_update);
+                lastUpdateRef.current.textContent = `Updated ${date.toLocaleString('en-GB', {
+                    day: '2-digit',
+                    month: 'short',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                })}`;
+            }
+
             map.setProjection({ type: 'globe' });
-            await loadWeaponIconsToMap(map, 48);
+            // const style = map.getStyle();
+            // style.glyphs = 'http://localhost:3000/glyphs/{fontstack}/{range}.pbf';
+            // map.setStyle(style);
+            await loadChokepointIconsToMap(map);
 
             map.addSource('world_areas', { type: 'geojson', data: worldAreasData, promoteId: 'id' });
             map.addSource('shipping_lanes', { type: 'geojson', data: shippingLanes });
-            map.addSource('chokepoints', { type: 'geojson', data: chokepoints });
+            map.addSource('chokepoints', {
+                type: 'geojson',
+                data: chokepointsData,
+            });
             map.addSource('seas_conflicts', { type: 'geojson', data: seasConflicts });
             map.addSource('tweets', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
             map.addSource('military_actions', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
@@ -221,28 +257,74 @@ export default function MapView({
                 data: { type: 'FeatureCollection', features: [] }
             });
 
-            const size = 10;
-            const canvas = document.createElement('canvas');
-            canvas.width = size;
-            canvas.height = size;
-            const ctx = canvas.getContext('2d');
-            ctx.strokeStyle = '#ed3f3f';
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(0, size);
-            ctx.lineTo(size, 0);
-            ctx.stroke();
+            // map.addLayer({
+            //     id: 'action_range_fill',
+            //     type: 'fill',
+            //     source: 'action_range',
+            //     paint: {
+            //         'fill-color': ['match', ['get', 'weapon_type'],
+            //             'Ballistic missile', '#E24B4A',
+            //             'Drone', '#EF9F27',
+            //             'Bombing / airstrike', '#D4537E',
+            //             '#4a7fa5'
+            //         ],
+            //         'fill-opacity': ['match', ['get', 'weapon_type'],
+            //             'Ballistic missile', 0.07,
+            //             'Drone', 0.05,
+            //             'Bombing / airstrike', 0.06,
+            //             0.05
+            //         ],
+            //     },
+            // });
 
-            map.addImage('hatch-pattern', ctx.getImageData(0, 0, size, size));
+            // // ── outline layer ──────────────────────────────
+            // map.addLayer({
+            //     id: 'action_range_outline',
+            //     type: 'line',
+            //     source: 'action_range',
+            //     paint: {
+            //         'line-color': ['match', ['get', 'weapon_type'],
+            //             'Ballistic missile', '#E24B4A',
+            //             'Drone', '#EF9F27',
+            //             'Bombing / airstrike', '#D4537E',
+            //             '#4a7fa5'
+            //         ],
+            //         'line-width': ['match', ['get', 'weapon_type'],
+            //             'Ballistic missile', 2.5,
+            //             'Drone', 1.5,
+            //             'Bombing / airstrike', 1.8,
+            //             1
+            //         ],
+            //         'line-opacity': 0.4,
+            //         'line-dasharray': ['match', ['get', 'weapon_type'],
+            //             'Drone', ['literal', [4, 4]],
+            //             'Bombing / airstrike', ['literal', [6, 3]],
+            //             ['literal', []]
+            //         ],
+            //     },
+            // });
+
+            map.addLayer({
+                id: 'seas_conflicts_outline',
+                type: 'line',
+                source: 'seas_conflicts',
+                layout: { 'line-join': 'round', 'line-cap': 'round' },
+                paint: {
+                    'line-color': '#aa1c1c',
+                    'line-width': 1,
+                    'line-opacity': 1,
+                    'line-dasharray': [3, 3],
+                },
+            });
 
             map.addLayer({
                 id: 'seas_conflicts_fill',
                 type: 'fill',
                 source: 'seas_conflicts',
                 paint: {
-                    'fill-pattern': 'hatch-pattern',
-                    'fill-opacity': 0.5,
-                }
+                    'fill-color': '#ed3f3f',
+                    'fill-opacity': 0.1,
+                },
             });
 
             map.addLayer({
@@ -313,10 +395,6 @@ export default function MapView({
             });
 
             map.addLayer({
-                id: 'chokepoints', type: 'circle', source: 'chokepoints',
-                paint: { 'circle-radius': 3, 'circle-color': '#5693b0', 'circle-opacity': 0, 'circle-stroke-width': 1, 'circle-stroke-color': '#5693b0' },
-            });
-            map.addLayer({
                 id: 'pulse-high-importance_score', type: 'circle', source: 'tweets',
                 filter: ['all', ['>=', ['coalesce', ['to-number', ['get', 'importance_score']], 0], 4]],
                 paint: {
@@ -326,6 +404,7 @@ export default function MapView({
                     'circle-stroke-width': 0,
                 },
             });
+
             map.addLayer({
                 id: 'tweets_heatmap_other', type: 'heatmap', source: 'tweets',
                 filter: ['!=', ['get', 'conflict_typology'], 'MIL'],
@@ -364,7 +443,6 @@ export default function MapView({
                 },
             });
 
-
             map.addLayer({
                 id: 'tweets_points',
                 type: 'circle',
@@ -385,7 +463,7 @@ export default function MapView({
 
             map.addLayer({
                 id: 'tweets_hover_area', type: 'circle', source: 'tweets',
-                paint: { 'circle-radius': 10, 'circle-opacity': 0 },
+                paint: { 'circle-radius': 7, 'circle-opacity': 0 },
             });
 
             map.addLayer({
@@ -410,8 +488,85 @@ export default function MapView({
                 },
             });
 
+            map.addLayer({
+                id: 'chokepoints_symbol',
+                type: 'symbol',
+                source: 'chokepoints',
+                layout: {
+                    'icon-image': ['concat', 'chokepoint-', ['downcase', ['get', 'status']]],
+                    'icon-size': ['interpolate', ['linear'], ['zoom'], 2, 0.45, 6, 0.75, 10, 1],
+                    'icon-allow-overlap': true,
+                    'icon-ignore-placement': true,
+                }
+            });
+
+            map.addLayer({
+                id: 'chokepoints_hover',
+                type: 'circle',
+                source: 'chokepoints',
+                paint: { 'circle-radius': 16, 'circle-opacity': 0 },
+            });
+
             let hoveredId = null;
-            let selectedId = null;
+
+            map.on('mouseenter', 'chokepoints_hover', (e) => {
+                if (!e.features.length) return;
+                map.getCanvas().style.cursor = 'pointer';
+
+                const props = e.features[0].properties;
+                const coords = e.features[0].geometry.coordinates.slice();
+
+                const statusColors = { OPEN: '#1D9E75', CLOSED: '#ed3f3f', UNKNOWN: '#888780' };
+                const color = statusColors[props.status] ?? '#888780';
+
+                const html = `
+            <div style="
+                background: #111418;
+                border: 1px solid rgba(255,255,255,0.08);
+                border-radius: 8px;
+                padding: 10px 14px;
+                min-width: 180px;
+                font-family: 'Roboto Mono', monospace;
+            ">
+                <div style="
+                font-size: 13px;
+                font-weight: 600;
+                color: #e2e8f0;
+                margin-bottom: 8px;
+                letter-spacing: 0.02em;
+                ">${props.portname}</div>
+
+                <div style="
+                display: inline-block;
+                background: ${color};
+                color: white;
+                font-size: 10px;
+                font-weight: 700;
+                letter-spacing: 0.08em;
+                padding: 2px 8px;
+                border-radius: 4px;
+                margin-bottom: ${props.reason ? '8px' : '0'};
+                ">${(props.status ?? 'UNKNOWN').toUpperCase()}</div>
+
+                ${props.reason ? `
+                <div style="
+                    font-size: 11px;
+                    color: rgba(148,163,184,0.85);
+                    line-height: 1.5;
+                    border-top: 1px solid rgba(255,255,255,0.06);
+                    padding-top: 7px;
+                    margin-top: 2px;
+                ">${props.reason}</div>
+                ` : ''}
+            </div>`;
+
+                popupRef.current.setLngLat(coords).setHTML(html).addTo(map);
+            });
+
+            map.on('mouseleave', 'chokepoints_hover', () => {
+                map.getCanvas().style.cursor = '';
+                if (!popupPinnedRef.current) popupRef.current.remove();
+            });
 
             map.on('mousemove', 'world_areas_fill', (e) => {
                 if (!e.features.length) return;
@@ -460,16 +615,16 @@ export default function MapView({
                 // Ignore tout ce qui n'est pas un country
                 if (feature.properties?.entity_type !== 'country') return;
 
-                if (selectedId !== null)
-                    map.setFeatureState({ source: 'world_areas', id: selectedId }, { selected: false });
+                if (selectedIdRef.current !== null)
+                    map.setFeatureState({ source: 'world_areas', id: selectedIdRef.current }, { selected: false });
 
-                if (selectedId === feature.id) {
-                    selectedId = null;
+                if (selectedIdRef.current === feature.id) {
+                    selectedIdRef.current = null;
                     selectedNameRef.current = null;
                     onAreaSelect(null);
                     clearMilitaryActions();
                 } else {
-                    selectedId = feature.id;
+                    selectedIdRef.current = feature.id;
                     map.setFeatureState({ source: 'world_areas', id: feature.id }, { selected: true });
                     const name = feature.properties.name || feature.properties.SOVEREIGNT || feature.properties.NAME || 'Inconnu';
                     selectedNameRef.current = name;
@@ -491,21 +646,27 @@ export default function MapView({
             });
 
             map.on('mouseenter', 'tweets_hover_area', (e) => {
-                if (hoverInfoRef.current) hoverInfoRef.current.style.display = 'none';
+                map.getCanvas().style.cursor = 'pointer';
                 if (popupPinnedRef.current) return;
+                if (hoverInfoRef.current) hoverInfoRef.current.style.display = 'none';
+
                 map.getCanvas().style.cursor = 'pointer';
 
                 const bbox = [
                     [e.point.x - 10, e.point.y - 10],
                     [e.point.x + 10, e.point.y + 10]
                 ];
-                const features = map.queryRenderedFeatures(bbox, { layers: ['tweets_hover_area'] });
-                features.sort((a, b) => Date.parse(b.properties.created_at) - Date.parse(a.properties.created_at));
-                if (!features.length) return;
+
+                let features = map.queryRenderedFeatures(bbox, { layers: ['tweets_hover_area'] });
+
+                features.sort((a, b) => {
+                    const scoreA = Number(a.properties.importance_score) || 0;
+                    const scoreB = Number(b.properties.importance_score) || 0;
+                    if (scoreB !== scoreA) return scoreB - scoreA;
+                    return Date.parse(b.properties.created_at) - Date.parse(a.properties.created_at);
+                });
 
                 const coords = features[0].geometry.coordinates.slice();
-                while (Math.abs(e.lngLat.lng - coords[0]) > 180)
-                    coords[0] += e.lngLat.lng > coords[0] ? 360 : -360;
 
                 if (features.length === 1) {
                     let props = { ...features[0].properties };
@@ -532,13 +693,27 @@ export default function MapView({
                 popupPinnedRef.current = true;
                 popupRef.current.remove();
 
-                currentFeaturesRef.current = map.queryRenderedFeatures(e.point, { layers: ['tweets_hover_area'] });
-                currentFeaturesRef.current.sort((a, b) => Date.parse(b.properties.created_at) - Date.parse(a.properties.created_at));
-                if (!currentFeaturesRef.current.length) return;
+                // Récupère les features
+                let features = map.queryRenderedFeatures(e.point, {
+                    layers: ['tweets_hover_area']
+                });
 
+                if (!features.length) return;
+
+                features.sort((a, b) => {
+                    const scoreA = Number(a.properties.importance_score) || 0;
+                    const scoreB = Number(b.properties.importance_score) || 0;
+
+                    if (scoreB !== scoreA) {
+                        return scoreB - scoreA;
+                    }
+                    return Date.parse(b.properties.created_at) - Date.parse(a.properties.created_at);
+                });
+
+                currentFeaturesRef.current = features;
                 currentIndexRef.current = 0;
 
-                if (currentFeaturesRef.current.length === 1) {
+                if (features.length === 1) {
                     showDetailPopup(0);
                 } else {
                     showGridPopup();
@@ -562,7 +737,7 @@ export default function MapView({
                 const baseRadius = zoom < 3 ? 4 : zoom < 6 ? 5 : zoom < 9 ? 5 : 4;
                 const radius = baseRadius + (baseRadius * 4) * phase;
                 map.setPaintProperty('pulse-high-importance_score', 'circle-stroke-opacity', 0);
-                map.setPaintProperty('pulse-high-importance_score', 'circle-opacity', opacity * 0.5);
+                map.setPaintProperty('pulse-high-importance_score', 'circle-opacity', opacity * 1);
                 map.setPaintProperty('pulse-high-importance_score', 'circle-radius', radius);
                 animFrameRef.current = requestAnimationFrame(animatePulse);
             };
@@ -639,13 +814,15 @@ export default function MapView({
     return (
         <>
             <div ref={mapContainer} id="map" style={{ width: '100%', height: '100%' }} />
+
+            {/* Hover info */}
             <div
                 ref={hoverInfoRef}
                 style={{
                     display: 'none',
                     position: 'absolute',
-                    bottom: '16px',
-                    left: '16px',
+                    bottom: '8px',
+                    left: '8px',
                     background: 'rgba(10, 12, 18, 0.82)',
                     backdropFilter: 'blur(6px)',
                     border: '1px solid rgba(255,255,255,0.08)',
@@ -656,26 +833,28 @@ export default function MapView({
                     zIndex: 10,
                 }}
             >
-                <div
-                    className="hover-name"
-                    style={{
-                        color: '#e2e8f0',
-                        fontSize: '13px',
-                        fontWeight: 500,
-                        letterSpacing: '0.01em',
-                        marginBottom: '4px',
-                        whiteSpace: 'nowrap',
-                    }}
-                />
-                <div
-                    className="hover-coords"
-                    style={{
-                        color: 'rgba(148,163,184,0.8)',
-                        fontSize: '11px',
-                        fontFamily: 'monospace',
-                        letterSpacing: '0.04em',
-                    }}
-                />
+                <div className="hover-name" style={{ color: '#e2e8f0', fontSize: '13px', fontWeight: 500, letterSpacing: '0.01em', marginBottom: '4px', whiteSpace: 'nowrap' }} />
+                <div className="hover-coords" style={{ color: 'rgba(148,163,184,0.8)', fontSize: '11px', fontFamily: 'monospace', letterSpacing: '0.04em' }} />
+            </div>
+
+            {/* Last update*/}
+            <div
+                ref={lastUpdateRef}
+                style={{
+                    display: 'block',
+                    position: 'absolute',
+                    bottom: '8px',
+                    right: '8px',
+                    borderRadius: '6px',
+                    padding: '0px',
+                    pointerEvents: 'none',
+                    color: '#c8c8c8',
+                    fontSize: '11px',
+                    fontFamily: 'monospace',
+                    zIndex: 10,
+                }}
+            >
+
             </div>
         </>
     );
