@@ -1,161 +1,43 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import MapView from './components/Map/MapView';
-import TopBar, { TIME_PERIODS, buildPeriodOverride } from './components/TopBar/TopBar';
-import TweetsFeedPanel from './components/TweetsFeedPanel/TweetsFeedPanel';
-import AreaPanel from './components/AreaPanel/AreaPanel';
-import { useUsernames } from './hooks/useUsernames';
-import { useTweets } from './hooks/useTweets';
-import TheatersPanel from './components/TheatersPanel/TheatersPanel';
-
-// Default period: last 24h
-const DEFAULT_PERIOD = TIME_PERIODS.find(p => p.id === '24h');
+import MapView from "./components/Map/MapView";
+import TopBar from "./components/TopBar/TopBar";
+import SidePanel from "./components/SidePanel/SidePanel";
+import StatusBar from "./components/StatusBar/StatusBar";
+import ContentPanel from "./components/ContentPanel/ContentPanel";
+import { TimeProvider } from "./context/TimeContext";
+import { LayerProvider } from "./context/LayerContext";
+import { useState } from "react";
+import "./utils/popupUtils.css";
 
 export default function App() {
-    const [activeGroups, setActiveGroups] = useState([]);
-    const [currentSearch, setCurrentSearch] = useState('');
-    const [isFeedOpen, setIsFeedOpen] = useState(false);
-    const [isRotating, setIsRotating] = useState(true);
-    const [selectedAreaName, setSelectedAreaName] = useState(null);
-    const [selectedLayers, setSelectedLayers] = useState(new Set());
-    const [activePeriod, setActivePeriod] = useState(DEFAULT_PERIOD);
-    const [dateOverride, setDateOverride] = useState(() => buildPeriodOverride(DEFAULT_PERIOD));
-    const [isTheatersOpen, setIsTheatersOpen] = useState(false);
-    const [activeTheaterCount, setActiveTheaterCount] = useState(0);
-    const [activeTheaters, setActiveTheaters] = useState([]);
-    const { allusernames, selectedusernames, loadusernames, toggleusername } = useUsernames();
-    const { tweets, tweetCount, loadTweets, preloadAll, getRawData } = useTweets();
-    const locateHandlerRef = useRef(null);
-    const [selectedArea, setSelectedArea] = useState(null);
+  const [tweets, setTweets] = useState(null);
+  const [contentPanelOpen, setContentPanelOpen] = useState(true);
+  const [openPanel, setOpenPanel] = useState(null);
 
+  const togglePanel = (panel) => setOpenPanel((current) => (current === panel ? null : panel));
 
-    // Refresh dateOverride every minute so the window stays current
-    useEffect(() => {
-        const id = setInterval(() => {
-            setDateOverride(buildPeriodOverride(activePeriod));
-        }, 60_000);
-        return () => clearInterval(id);
-    }, [activePeriod]);
+return (
+    <TimeProvider>
+      <LayerProvider>
+        {/* Conteneur principal en Flex */}
+        <div style={{ display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden' }}>
+          
+          {/* 1. Le SidePanel (Largeur fixe) */}
+          <SidePanel tweets={tweets} />
 
-    useEffect(() => {
-        preloadAll().then(async () => {
-            const usernames = await loadusernames();
-            loadTweets(usernames, new Set(), '', buildPeriodOverride(DEFAULT_PERIOD));
-        });
-    }, []); // eslint-disable-line
+          {/* 2. La zone de droite (Carte + TopBar) */}
+          <div style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column' }}>
+            <TopBar togglePanel={togglePanel} openPanel={openPanel} />
+            
+            {/* Wrapper pour la carte */}
+            <div style={{ flex: 1, position: 'relative' }}>
+               <MapView onTweetsLoaded={setTweets} />
+            </div>
 
-    useEffect(() => {
-        loadTweets(allusernames, selectedusernames, currentSearch, dateOverride);
-    }, [allusernames, selectedusernames, currentSearch, dateOverride]); // eslint-disable-line
-
-    const handlePeriodChange = useCallback((period) => {
-        setActivePeriod(period);
-        setDateOverride(buildPeriodOverride(period));
-    }, []);
-
-    const handleAreaSelect = useCallback((name) => {
-        setSelectedAreaName(name);
-        if (isFeedOpen) setIsFeedOpen(false);
-    }, [isFeedOpen]);
-
-    const handleToggleLayer = useCallback((layerId) => {
-        setSelectedLayers(prev => {
-            const next = new Set(prev);
-            if (next.has(layerId)) next.delete(layerId);
-            else next.add(layerId);
-            return next;
-        });
-    }, []);
-
-    const handleTheaterToggle = useCallback((theaterId) => {
-        setActiveTheaters(prev =>
-            prev.includes(theaterId)
-                ? prev.filter(id => id !== theaterId)
-                : [...prev, theaterId]
-        );
-    }, []);
-
-    const handleTheatersToggle = () => {
-        setIsTheatersOpen(prev => !prev);
-        // TODO: Later you can open a theaters menu, sidebar, or modal here
-        console.log('Theaters of War toggled');
-    };
-
-    const handleLocateTweet = useCallback((feature) => {
-        if (locateHandlerRef.current) locateHandlerRef.current(feature);
-        if (window.innerWidth <= 640) setIsFeedOpen(false);
-    }, []);
-
-    const registerLocateHandler = useCallback((fn) => {
-        locateHandlerRef.current = fn;
-    }, []);
-
-    const handleGroupToggle = useCallback((groupId) => {
-        setActiveGroups(prev =>
-            prev.includes(groupId)
-                ? prev.filter(id => id !== groupId)
-                : [...prev, groupId]
-        );
-    }, []);
-
-    const clearSelectionRef = useRef(null);
-
-    const handleClosePanel = useCallback(() => {
-        setSelectedAreaName(null);    // ← c'est celui-là qu'utilise AreaPanel
-        clearSelectionRef.current?.();
-    }, []);
-
-    return (
-        <div style={{ width: '100vw', height: '100dvh', overflow: 'hidden', position: 'relative' }}>
-            <MapView
-                tweetsData={tweets}
-                selectedLayers={selectedLayers}
-                onAreaSelect={handleAreaSelect}
-                isRotating={isRotating}
-                onRotationChange={setIsRotating}
-                registerLocateHandler={registerLocateHandler}
-                dateOverride={dateOverride}
-                activeGroups={activeGroups}
-                registerClearHandler={fn => clearSelectionRef.current = fn}
-
-            />
-            <TopBar
-                tweetCount={tweetCount}
-                onSearchChange={setCurrentSearch}
-                isFeedOpen={isFeedOpen}
-                onFeedToggle={() => setIsFeedOpen(v => !v)}
-                isRotating={isRotating}
-                onRotationToggle={() => setIsRotating(v => !v)}
-                activePeriodId={activePeriod.id}
-                onPeriodChange={handlePeriodChange}
-                activeGroups={activeGroups}
-                onGroupToggle={handleGroupToggle}
-                isTheatersOpen={isTheatersOpen}
-                onTheatersToggle={handleTheatersToggle}
-                activeTheaterCount={activeTheaterCount}
-            />
-            <TheatersPanel
-                isOpen={isTheatersOpen}
-                onClose={() => setIsTheatersOpen(false)}
-                activeTheaters={activeTheaters}
-                onTheaterToggle={handleTheaterToggle}
-            />
-            <TweetsFeedPanel
-                isOpen={isFeedOpen}
-                onClose={() => setIsFeedOpen(false)}
-                allusernames={allusernames}
-                selectedusernames={selectedusernames}
-                currentSearch={currentSearch}
-                selectedAreaName={selectedAreaName}
-                cachedData={getRawData(dateOverride)}
-                onLocate={handleLocateTweet}
-                dateOverride={dateOverride}
-            />
-            <AreaPanel
-                areaName={selectedAreaName}
-                onClose={handleClosePanel}
-                onLocate={handleLocateTweet}
-                selectedDate={dateOverride?.dateKey ?? null}
-            />
+            <ContentPanel isOpen={contentPanelOpen} onToggle={() => setContentPanelOpen(v => !v)} />
+            <StatusBar />
+          </div>
         </div>
-    );
+      </LayerProvider>
+    </TimeProvider>
+  );
 }

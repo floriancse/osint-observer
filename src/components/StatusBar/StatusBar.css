@@ -1,0 +1,90 @@
+.statusbar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 32px;
+  background: #0a0f1c;
+  border-top: 1px solid #1e2d3d;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+
+.statusbar-badge {
+  flex-shrink: 0;
+  font-size: 9px;
+  font-weight: 700;
+  color: #ff3355;
+  letter-spacing: 0.15em;
+  padding: 0 12px;
+  border-right: 1px solid #1e2d3d;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  animation: blink 1.5s infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+
+.statusbar-track-wrapper {
+  flex: 1;
+  overflow: hidden;
+  height: 100%;
+  display: flex;
+  align-items: center;
+}
+
+.statusbar-track {
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  animation: scroll-left 150s linear infinite;
+}
+
+.statusbar-track:hover {
+  animation-play-state: paused;
+}
+
+@keyframes scroll-left {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.statusbar-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 4px;
+}
+
+.statusbar-username {
+  font-size: 10px;
+  font-weight: 700;
+  color: #00e5ff;
+  flex-shrink: 0;
+}
+
+.statusbar-text {
+  font-size: 11px;
+  color: #cacaca;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-style: italic;
+}
+
+.statusbar-sep {
+  color: #969696;
+  font-size: 11px;
+}
+
+.statusbar-date {
+  font-size: 10px;
+  color: #7b7b7b;
+  flex-shrink: 0;
+}

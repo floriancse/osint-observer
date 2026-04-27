@@ -1,0 +1,141 @@
+.sidepanel {
+  width: 380px;
+  height: 100vh;
+  background: #0a0f1c;
+  border-right: 1px solid #111927;
+  display: flex;
+  flex-direction: column;
+  z-index: 100;
+  border-right: 1px solid #1e2d3d
+}
+
+.sidepanel-header {
+  padding: 20px 24px 18px;
+  background: #0a0f1c;
+  border-bottom: 1px solid #111927;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.header-main-content {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.title-row {
+  display: flex;
+  justify-content: space-between; 
+  align-items: center; 
+  width: 100%;
+  margin-bottom: 4px;
+}
+
+.subtitle-column {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sidepanel-header h3 {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e2e8f0;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin: 0;
+  line-height: 1;
+}
+
+.header-subtitle {
+  font-size: 11px;
+  color: #4a6a8a;
+  letter-spacing: 0.03em;
+  margin-top: 3px;
+}
+
+.last-update-text {
+  font-size: 11px;
+  color: #4a6a8a;
+  letter-spacing: 0.03em;
+  margin-top: 3px;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.header-sep {
+  width: 1px;
+  height: 14px;
+  background: #1a2535;
+}
+
+.tweet-count {
+  font-size: 11px;
+  font-weight: 500;
+  color: #e2e8f0;
+  letter-spacing: 0.02em;
+  background: none;
+  border-radius: 0;
+  padding: 0;
+}
+
+@keyframes live-pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.3;
+  }
+}
+
+.osint-tweet-date {
+  font-family: 'Roboto Mono', monospace;
+  font-size: 10px;
+  color: #3b82f6;
+  font-weight: 700;
+}
+
+.sidepanel-content {
+  flex: 1;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #1e2d3d transparent;
+}
+
+.osint-tweet-card-wrapper {
+  margin: 5px;
+  margin-top: 3px;
+  margin-bottom: 3px;
+  background: #0a0f1c;
+  border-radius: 8px;
+  border: 1px solid #182737
+}
+
+.osint-tweet-card-wrapper:hover {
+  background: rgba(255, 255, 255, 0.03);
+
+}
+
+.tweet-card-username {
+  font-size: 13px;
+  color: #e6edf3;
+  font-weight: 600;
+}
+
+/* Message si vide */
+.no-data {
+  padding: 20px;
+  color: #62778a;
+  font-size: 13px;
+  text-align: center;
+}

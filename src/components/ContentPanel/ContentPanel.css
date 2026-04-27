@@ -1,0 +1,38 @@
+.content-panel {
+  position: fixed;
+  top: 30px;
+  right: 0;
+  bottom: 0;
+  width: 260px;
+  background: #0d1117;
+  border-left: 1px solid #1e2d3d;
+  z-index: 50;
+  transition: transform 0.2s ease;
+}
+
+.content-panel.closed {
+  transform: translateX(260px);
+}
+
+.content-panel-toggle {
+  position: absolute;
+  left: -24px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 48px;
+  background: #0d1117;
+  border: 1px solid #1e2d3d;
+  border-right: none;
+  color: #ffffff;
+  cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px 0 0 4px;
+}
+
+.content-panel-body{
+    color:white
+}
