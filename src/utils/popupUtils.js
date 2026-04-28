@@ -3,7 +3,8 @@ import { SiOpenstreetmap } from "react-icons/si";
 import { SiMistralai } from "react-icons/si";
 
 function imagesHTML(images) {
-  if (!images?.length) return '';
+  const validImages = (images || []).filter(img => img && typeof img === 'string' && img.trim() !== '');
+  if (validImages.length === 0) return '';
   const count = images.length;
 
   if (count === 1) return `

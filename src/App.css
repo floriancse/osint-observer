@@ -1,3 +1,4 @@
+/* ── Styles existants ─────────────────────────── */
 .App {
   text-align: center;
 }
@@ -29,10 +30,68 @@
 }
 
 @keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* ── Layout mobile ────────────────────────────── */
+.app-mobile {
+  position: relative; 
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: #0a0f1c;
+}
+
+.app-mobile__map {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%; 
+  display: flex;
+  flex-direction: column;
+  z-index: 1;
+}
+
+.app-mobile__sidepanel {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh; 
+  z-index: 1000;
+  border-top: 1px solid #1e2d3d;
+  background: #0a0f1c;
+  display: flex;
+  flex-direction: column;
+  transition: transform 00s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 -10px 25px rgba(0,0,0,0.5);
+}
+
+.app-mobile__sidepanel--hidden {
+  transform: translateY(calc(100vh - 40px)); 
+}
+
+.app-mobile__toggle {
+  flex-shrink: 0;
+  width: 100%;
+  height: 40px; 
+  background: #0d1520;
+  border: none;
+  border-bottom: 1px solid #1e2d3d;
+  color: #4a6a8a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.app-mobile__toggle:hover {
+  background: #111927;
+  color: #e2e8f0;
+}
+
+.app-mobile__toggle svg {
+  transition: transform 0s ease;
 }

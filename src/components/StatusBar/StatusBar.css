@@ -44,7 +44,7 @@
   display: flex;
   align-items: center;
   white-space: nowrap;
-  animation: scroll-left 150s linear infinite;
+  animation: scroll-left 350s linear infinite;
 }
 
 .statusbar-track:hover {

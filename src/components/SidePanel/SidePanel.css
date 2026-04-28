@@ -1,14 +1,78 @@
 .sidepanel {
+  position: relative;
   width: 380px;
   height: 100vh;
+  max-width: 100%;
   background: #0a0f1c;
-  border-right: 1px solid #111927;
+  border-right: 1px solid #1e2d3d;
   display: flex;
   flex-direction: column;
   z-index: 100;
-  border-right: 1px solid #1e2d3d
+
+  /* Transition de repli */
+  transition: width 0s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0s ease;
+  overflow: hidden;
+  flex-shrink: 0;
 }
 
+@media (max-width: 768px) {
+  .sidepanel {
+    width: 100%; /* Prend toute la largeur sur mobile */
+    height: 100%; /* Remplit son wrapper de 40vh */
+    border-right: none;
+    border-top: 1px solid #1e2d3d;
+  }
+  
+  .sidepanel-content {
+    min-width: unset !important; /* Annule le min-width de 380px */
+  }
+}
+
+/* État replié : largeur 0, contenu masqué */
+.sidepanel--collapsed {
+  width: 0;
+  opacity: 0;
+  border-right: none;
+}
+
+/* ── Bouton toggle ──────────────────────────────── */
+.sidepanel-toggle {
+  position: absolute;
+  right: -27px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 200;
+  width: 27px;
+  height: 52px;
+  background: #0a0f1c;
+  border: 1px solid #1e2d3d;
+  border-left: none;
+  border-radius: 0 6px 6px 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #4a6a8a;
+  padding: 0;
+  transition: color 0s, background 0s;
+}
+
+.sidepanel-toggle:hover {
+  background: #111927;
+  color: #e2e8f0;
+}
+
+/* Chevron pivote quand le panel est replié */
+.toggle-chevron {
+  transition: transform 0s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.toggle-chevron--right {
+  transform: rotate(180deg);
+}
+
+/* ── Reste du CSS (inchangé) ─────────────────────── */
 .sidepanel-header {
   padding: 20px 24px 18px;
   background: #0a0f1c;
@@ -27,8 +91,8 @@
 
 .title-row {
   display: flex;
-  justify-content: space-between; 
-  align-items: center; 
+  justify-content: space-between;
+  align-items: center;
   width: 100%;
   margin-bottom: 4px;
 }
@@ -87,15 +151,8 @@
 }
 
 @keyframes live-pulse {
-
-  0%,
-  100% {
-    opacity: 1;
-  }
-
-  50% {
-    opacity: 0.3;
-  }
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
 }
 
 .osint-tweet-date {
@@ -110,6 +167,7 @@
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: #1e2d3d transparent;
+  min-width: 380px;
 }
 
 .osint-tweet-card-wrapper {
@@ -118,12 +176,10 @@
   margin-bottom: 3px;
   background: #0a0f1c;
   border-radius: 8px;
-  border: 1px solid #182737
 }
 
 .osint-tweet-card-wrapper:hover {
   background: rgba(255, 255, 255, 0.03);
-
 }
 
 .tweet-card-username {
@@ -132,10 +188,61 @@
   font-weight: 600;
 }
 
-/* Message si vide */
 .no-data {
   padding: 20px;
   color: #62778a;
   font-size: 13px;
   text-align: center;
+}
+
+/* ... styles précédents (adaptés pour ne plus utiliser ::after) ... */
+
+.sort-controls {
+  display: flex;
+  gap: 12px;
+  padding-top: 10px;
+}
+
+.sort-btn {
+  background: transparent;
+  border: transparent;
+  color: #4a6a8a; /* Couleur neutre */
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px; /* Espace entre le texte et le SVG */
+}
+
+.sort-btn:hover {
+  color: #e2e8f0;
+}
+
+.sort-btn.active {
+  color: #e2e8f0; /* Bleu actif */
+}
+
+/* ── Style des icônes SVG ───────────────────────── */
+.sort-svg-icon {
+  width: 14px; /* Un poil plus grand que le texte pour la lisibilité */
+  height: 14px;
+  stroke-width: 2.5px; /* Épaisseur du trait augmentée */
+  transition: all 0.15s ease;
+}
+
+/* Icône "neutre" (quand la clé n'est pas sélectionnée) */
+.sort-svg-none {
+  opacity: 0.4; /* Très subtile pour ne pas distraire */
+  width: 12px; /* Un peu plus petit */
+  height: 12px;
+}
+
+/* Icône "active" (quand la clé est sélectionnée) */
+.sort-svg-active {
+  opacity: 1; /* Pleine visibilité */
 }

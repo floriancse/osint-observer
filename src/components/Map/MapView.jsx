@@ -109,7 +109,7 @@ export default function MapView({ onTweetsLoaded }) {
                     'line-color': '#be8e00',
                     'line-width': 1,
                     'line-opacity': 1,
-                     'line-dasharray': [6, 3]
+                    'line-dasharray': [6, 3]
                 }
             });
             map.addLayer({
@@ -135,10 +135,6 @@ export default function MapView({ onTweetsLoaded }) {
                 filter: ['all',
                     ['==', ['get', 'conflict_typology'], 'MIL'],
                     ['>=', ['coalesce', ['to-number', ['get', 'importance_score']], 0], 4],
-                    ['match', ['get', 'weapon_type'],
-                        ['Ballistic missile', 'Unidentified weapon', 'Bombing / airstrike', 'Drone', 'Mine'],
-                        true, false
-                    ],
                 ],
                 paint: {
                     'circle-color': ['match', ['get', 'conflict_typology'], 'MIL', '#ed3f3f', 'rgba(108,172,251,1)'],
@@ -224,66 +220,122 @@ export default function MapView({ onTweetsLoaded }) {
             });
 
             //MOUSE BEHAVIOR
-            const theaterPopup = new maplibregl.Popup({
-                closeButton: false,
-                closeOnClick: false,
-                className: 'tweet-popup'
+            let conflictPopup = new maplibregl.Popup({
+                closeButton: true,
+                closeOnClick: true,
+                maxWidth: "none",
+                className: "conflict-popup",
+                anchor: "bottom",
             });
+            const isOverConflictArea = (point) => {
+                return map.queryRenderedFeatures(point, { layers: ["conflict-areas-fill"] }).length > 0;
+            };
             let isHoveringTweet = false;
-
-            const threatPopup = new maplibregl.Popup({
-                closeButton: false,
-                closeOnClick: false,
-                className: 'tweet-popup'
-            });
-
-
-            map.on('mousemove', 'conflict-theaters-outline', (e) => {
-                if (isHoveringTweet) return;
-                map.getCanvas().style.cursor = 'pointer';
-
-                const props = e.features[0].properties;
-
-                theaterPopup
-                    .setLngLat(e.lngLat)
-                    .setHTML(`
-            <div class="theater-popup-inner">
-                <div style="font-weight: bold; font-size: 12px; color: #ccc;">
-                    ${props.theater_name}
-                </div>
-            </div>
-        `)
-                    .addTo(map);
-            });
-
-            map.on('mouseleave', 'conflict-theaters-outline', () => {
-                map.getCanvas().style.cursor = '';
-                theaterPopup.remove();
-            });
             let pinnedPopup = null;
+            let isHoveringConflictArea = false
+            let currentHoverPopup = null
 
-            map.on("mouseenter", "tweets-hover-area", (e) => {
-                if (!e.features.length) return;
+            const getConflictHTML = (props) => {
+                const baseColor = "255, 191, 0";
+                const statusColor = `rgb(${baseColor})`;
+                const statusBg = `rgba(${baseColor}, 0.15)`;
+                const statusBorder = `rgba(${baseColor}, 0.3)`;
+                const labelColor = `rgba(${baseColor}, 0.6)`;
+
+                const today = new Date().toLocaleDateString('en-GB', {
+                    day: '2-digit', month: 'short', year: 'numeric'
+                });
+
+                return `
+                    <div style="white-space: nowrap; font-family:'Roboto Mono',monospace; font-size:13px; background:#0a0f1c; border-radius:8px; border:1px solid #2a2a3e; padding:12px 14px;">                    <div style="margin-bottom:8px;">
+                        <span style="font-size:11px; color:${statusColor}; font-weight:bold; background:${statusBg}; padding:2px 8px; border-radius:4px; border:1px solid ${statusBorder}; letter-spacing:0.03em;">
+                        ${props.name}
+                        </span>
+                    </div>
+                    <div style="border-top:1px solid rgba(255,255,255,0.08); padding-top:8px; display:flex; flex-direction:column; gap:5px;">
+                        <div style="display:flex; align-items:center; gap:6px;">
+                        <span style="font-size:10px; color:${labelColor}; text-transform:uppercase; letter-spacing:0.06em; ">Activities</span>
+                        <span style="font-size:12px; color:#e0e0e0; font-weight:bold;">${props.count}</span>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:6px;">
+                        <span style="font-size:10px; color:${labelColor}; text-transform:uppercase; letter-spacing:0.06em;">Date</span>
+                        <span style="font-size:11px; color:#aaa;">${today}</span>
+                        </div>
+                    </div>
+                    </div>
+                `;
+            };
+            map.on("mousemove", "tweets-hover-area", (e) => {   
                 if (pinnedPopup) return;
-                map.getCanvas().style.cursor = 'pointer';
+
                 isHoveringTweet = true;
-                theaterPopup.remove();
+                isHoveringConflictArea = false;
+
+                if (currentHoverPopup !== 'tweet') {
+                    conflictPopup.remove();
+                    popup.remove();
+                    currentHoverPopup = 'tweet';
+                }
+
+                map.getCanvas().style.cursor = 'pointer';
+
                 const features = map.queryRenderedFeatures(e.point, { layers: ["tweets-hover-area"] })
                     .sort((a, b) => (b.properties.importance_score || 0) - (a.properties.importance_score || 0));
+
+                if (!features.length) return;
+
                 const props = features[0].properties;
                 const images = (() => { try { return JSON.parse(props.images); } catch { return []; } })();
                 const coords = features[0].geometry.coordinates.slice();
+
                 popup
                     .setLngLat(coords)
                     .setHTML(createPopupHTML({ ...props, images }, false, 0, features.length, true, false))
                     .addTo(map);
             });
 
+            map.on("mousemove", "conflict-areas-fill", (e) => {   
+                if (pinnedPopup || isHoveringTweet) return;   
+                isHoveringConflictArea = true;
+                isHoveringTweet = false;
+
+                if (currentHoverPopup !== 'conflict') {
+                    popup.remove();
+                    currentHoverPopup = 'conflict';
+                }
+
+                map.getCanvas().style.cursor = "pointer";
+
+                const props = e.features[0].properties;
+
+                conflictPopup
+                    .setLngLat([e.lngLat.lng, e.lngLat.lat])
+                    .setHTML(getConflictHTML(props))
+                    .addTo(map);
+            });
+
             map.on("mouseleave", "tweets-hover-area", () => {
                 isHoveringTweet = false;
-                if (pinnedPopup) return;
-                popup.remove();
                 map.getCanvas().style.cursor = '';
+
+                setTimeout(() => {
+                    if (!isHoveringConflictArea && !pinnedPopup) {
+                        popup.remove();
+                        if (currentHoverPopup === 'tweet') currentHoverPopup = null;
+                    }
+                }, 20);
+            });
+
+            map.on("mouseleave", "conflict-areas-fill", () => {
+                isHoveringConflictArea = false;
+                map.getCanvas().style.cursor = "";
+
+                setTimeout(() => {
+                    if (!isHoveringTweet && !pinnedPopup) {
+                        conflictPopup.remove();
+                        if (currentHoverPopup === 'conflict') currentHoverPopup = null;
+                    }
+                }, 20);
             });
 
             map.on("click", "tweets-hover-area", (e) => {
@@ -308,7 +360,7 @@ export default function MapView({ onTweetsLoaded }) {
                 pinnedPopup = new maplibregl.Popup({
                     closeButton: true,
                     closeOnClick: true,
-                    maxWidth: "360px",
+                    maxWidth: "none",
                     className: "tweet-popup",
                     anchor: "bottom",
                 })
@@ -332,13 +384,13 @@ export default function MapView({ onTweetsLoaded }) {
                 const coords = e.features[0].geometry.coordinates.slice();
 
                 const baseColor =
-                    props.status === "OPEN" ? "16, 185, 129" :  // Équivalent RGB de #10b981
-                        props.status === "CLOSED" ? "237, 63, 63" : // Équivalent RGB de #ed3f3f
+                    props.status === "OPEN" ? "16, 185, 129" :
+                        props.status === "CLOSED" ? "237, 63, 63" :
                             props.status === "RESTRICTED" ? "255, 166, 0 " :
-                                "156, 156, 156";                            // Équivalent RGB de #9c9c9c
+                                "156, 156, 156";
 
-                const statusColor = `rgb(${baseColor})`;        // Pour le texte (opaque)
-                const statusBg = `rgba(${baseColor}, 0.15)`;     // Pour le fond (15% d'opacité)
+                const statusColor = `rgb(${baseColor})`;
+                const statusBg = `rgba(${baseColor}, 0.15)`;
 
                 popup
                     .setLngLat(coords)
@@ -368,11 +420,6 @@ export default function MapView({ onTweetsLoaded }) {
                 if (!pinnedPopup) popup.remove();
             });
 
-            map.on("click", (e) => {
-                const features = map.queryRenderedFeatures(e.point);
-                const tweets = features.filter(f => f.layer.id === "tweets-hover-area");
-            });
-
             //PULSE
             const animatePulse = () => {
                 if (!mapRef.current) { animFrameRef.current = null; return; }
@@ -389,7 +436,7 @@ export default function MapView({ onTweetsLoaded }) {
                 }
                 if (zoom < 3) opacity *= 0.6;
                 const baseRadius = zoom < 3 ? 4 : zoom < 6 ? 5 : zoom < 9 ? 5 : 4;
-                const radius = baseRadius + (baseRadius * 4) * phase;
+                const radius = baseRadius + (baseRadius * 6) * phase;
                 map.setPaintProperty('pulse-high-importance_score', 'circle-stroke-opacity', 0);
                 map.setPaintProperty('pulse-high-importance_score', 'circle-opacity', opacity * 1);
                 map.setPaintProperty('pulse-high-importance_score', 'circle-radius', radius);

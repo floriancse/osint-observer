@@ -2,8 +2,8 @@
 import { FaAnchorCircleCheck, FaAnchorCircleXmark, FaAnchorCircleExclamation } from "react-icons/fa6";
 
 const COLORS = {
-    OPEN: "#18976d",
-    CLOSED: "#b61b1b",
+    OPEN: "#298a6a",
+    CLOSED: "#ed3f3f",
     UNKNOWN: "#6f6f6f",
     RESTRICTED: "#ffa600"
 };
