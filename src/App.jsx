@@ -5,7 +5,7 @@ import StatusBar from "./components/StatusBar/StatusBar";
 import ContentPanel from "./components/ContentPanel/ContentPanel";
 import { TimeProvider } from "./context/TimeContext";
 import { LayerProvider } from "./context/LayerContext";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import "./utils/popupUtils.css";
 import "./App.css";
 
@@ -15,6 +15,13 @@ export default function App() {
   const [openPanel, setOpenPanel] = useState(null);
   const [sidePanelCollapsed, setSidePanelCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const mapRef = useRef(null);
+
+  const handleTopicSelect = ({ lng, lat }) => {
+    if (mapRef.current) {
+      mapRef.current.flyTo({ center: [lng, lat], zoom: 5, duration: 1500 });
+    }
+  };
 
   const togglePanel = (panel) => setOpenPanel((current) => (current === panel ? null : panel));
 
@@ -33,9 +40,9 @@ export default function App() {
 
             {/* Carte + TopBar (zone principale) */}
             <div className="app-mobile__map">
-              <TopBar togglePanel={togglePanel} openPanel={openPanel} />
+              <TopBar togglePanel={togglePanel} openPanel={openPanel} onTopicSelect={handleTopicSelect} />
               <div style={{ flex: 1, position: 'relative' }}>
-                <MapView onTweetsLoaded={setTweets} />
+                <MapView ref={mapRef} onTweetsLoaded={setTweets} />
               </div>
               <StatusBar />
             </div>
@@ -115,9 +122,9 @@ export default function App() {
 
           {/* 2. Zone de droite (Carte + TopBar) */}
           <div style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column' }}>
-            <TopBar togglePanel={togglePanel} openPanel={openPanel} />
+            <TopBar togglePanel={togglePanel} openPanel={openPanel} onTopicSelect={handleTopicSelect} />
             <div style={{ flex: 1, position: 'relative' }}>
-              <MapView onTweetsLoaded={setTweets} />
+              <MapView ref={mapRef} onTweetsLoaded={setTweets} />
             </div>
             <ContentPanel isOpen={contentPanelOpen} onToggle={() => setContentPanelOpen(v => !v)} />
             <StatusBar />

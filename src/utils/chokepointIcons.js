@@ -3,7 +3,7 @@ import { FaAnchorCircleCheck, FaAnchorCircleXmark, FaAnchorCircleExclamation } f
 
 const COLORS = {
     OPEN: "#298a6a",
-    CLOSED: "#ed3f3f",
+    CLOSED: "#f71616",
     UNKNOWN: "#6f6f6f",
     RESTRICTED: "#ffa600"
 };
@@ -83,10 +83,10 @@ function makeIcon(status) {
     ctx.lineTo(C, C + R);
     ctx.lineTo(C - R, C);
     ctx.closePath();
-    ctx.fillStyle = "#141414";
+    ctx.fillStyle = "#292929";
     ctx.fill();
     ctx.strokeStyle = color;
-    ctx.lineWidth = 5;
+    ctx.lineWidth = 3;
     ctx.stroke();
 
     // --- Icône par dessus ---

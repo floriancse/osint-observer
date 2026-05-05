@@ -28,9 +28,8 @@ export default function StatusBar() {
                         const time = new Date(t.date).toLocaleTimeString('en-UK', { hour: '2-digit', minute: '2-digit' });
                         return (
                             <span key={i} className="statusbar-item">
-                                <span className="statusbar-text">“{t.text}”</span>
                                 <span className="statusbar-date">{time} · {date}</span>
-                                <span className="statusbar-sep">/</span>
+                                <span className="statusbar-text">“{t.text}”</span>
                             </span>
                         );
                     })}

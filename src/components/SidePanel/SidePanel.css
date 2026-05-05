@@ -42,7 +42,7 @@
   right: -27px;
   top: 50%;
   transform: translateY(-50%);
-  z-index: 200;
+  z-index: 1;
   width: 27px;
   height: 52px;
   background: #0a0f1c;

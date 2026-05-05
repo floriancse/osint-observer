@@ -9,20 +9,20 @@ function imagesHTML(images) {
 
   if (count === 1) return `
     <div class="tweet-card-images single">
-      <img src="${images[0]}" loading="lazy" onerror="this.parentElement.style.display='none'">
+      <img src="${images[0]}" onerror="this.parentElement.style.display='none'">
     </div>`;
 
   if (count === 2) return `
     <div class="tweet-card-images double">
-      ${images.map(img => `<img src="${img}" loading="lazy" onerror="this.style.display='none'">`).join('')}
+      ${images.map(img => `<img src="${img}" onerror="this.style.display='none'">`).join('')}
     </div>`;
 
   if (count === 3) return `
     <div class="tweet-card-images triple">
-      <img src="${images[0]}" class="main-img" loading="lazy" onerror="this.style.display='none'">
+      <img src="${images[0]}" class="main-img" onerror="this.style.display='none'">
       <div class="secondary-imgs">
-        <img src="${images[1]}" loading="lazy" onerror="this.style.display='none'">
-        <img src="${images[2]}" loading="lazy" onerror="this.style.display='none'">
+        <img src="${images[1]}" onerror="this.style.display='none'">
+        <img src="${images[2]}" onerror="this.style.display='none'">
       </div>
     </div>`;
 
@@ -32,7 +32,7 @@ function imagesHTML(images) {
     <div class="tweet-card-images quad">
       ${display.map((img, i) => `
         <div class="img-wrapper${i === 3 && remaining > 0 ? ' has-more' : ''}">
-          <img src="${img}" loading="lazy" onerror="this.style.display='none'">
+          <img src="${img}" onerror="this.style.display='none'">
           ${i === 3 && remaining > 0 ? `<div class="more-overlay">+${remaining}</div>` : ''}
         </div>`).join('')}
     </div>`;
@@ -134,10 +134,10 @@ export function createPopupHTML(props, pinned, currentIndex, totalCount, showIma
             <img src="${avatarSrc}" alt="${props.username}" onerror="this.style.display='none'">
       </div>
       <div class="tweet-card-username">${props.username}</div>
-        ${props.verified === 'Yes' ? `
+        ${props.verified === 'true' ? `
         <span class="tweet-card-badge verified" title="OSINT Observer verified">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M8 1.5L2 4v4c0 3.5 2.5 5.8 6 7 3.5-1.2 6-3.5 6-7V4L8 1.5z" fill="#bae6fd" stroke="#0ea5e9" stroke-width="1"/>
+            <path d="M8 1.5L2 4v4c0 3.5 2.5 5.8 6 7 3.5-1.2 6-3.5 6-7V4L8 1.5z" fill="#9cdbfd" stroke="#0094d3" stroke-width="1"/>
             <path d="M5.5 8l2 2 3-3" stroke="#0369a1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </span>` : ''}

@@ -51,6 +51,29 @@
   color: #fff;
 }
 
+/* Topics button active state (blue instead of red) */
+.topbar-btn.topics-active {
+  border-color: #3b82f6;
+  box-shadow: 0 2px 16px rgba(59, 130, 246, 0.3);
+}
+
+/* Badge count on Topics button */
+.topics-count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: #3b82f6;
+  background: rgba(59, 130, 246, 0.15);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 10px;
+  padding: 1px 6px;
+  letter-spacing: 0;
+  min-width: 18px;
+  line-height: 1.4;
+}
+
 /* ─── Menu Conflicts ─── */
 .war-menu {
   position: absolute;
@@ -340,7 +363,6 @@
   font-family: 'Roboto Mono', monospace;
 }
 
-/* Flèche vers le bouton Watchlist */
 .watchlist-panel::before {
   content: "";
   position: absolute;
@@ -370,7 +392,6 @@
   border-radius: 12px;
 }
 
-/* Header */
 .watchlist-panel-header {
   display: flex;
   align-items: center;
@@ -396,7 +417,6 @@
   text-transform: uppercase;
 }
 
-/* Scrollable content */
 .watchlist-panel-content {
   overflow-y: auto;
   max-height: calc(85vh - 46px);
@@ -404,21 +424,11 @@
   scrollbar-color: #1a2535 transparent;
 }
 
-.watchlist-panel-content::-webkit-scrollbar {
-  width: 3px;
-}
+.watchlist-panel-content::-webkit-scrollbar { width: 3px; }
+.watchlist-panel-content::-webkit-scrollbar-thumb { background: #1a2535; border-radius: 3px; }
 
-.watchlist-panel-content::-webkit-scrollbar-thumb {
-  background: #1a2535;
-  border-radius: 3px;
-}
+.watchlist-list { display: flex; flex-direction: column; }
 
-.watchlist-list {
-  display: flex;
-  flex-direction: column;
-}
-
-/* ─── NOUVEL ITEM ─── */
 .watchlist-item {
   display: flex;
   gap: 10px;
@@ -428,15 +438,9 @@
   cursor: default;
 }
 
-.watchlist-item:last-child {
-  border-bottom: none;
-}
+.watchlist-item:last-child { border-bottom: none; }
+.watchlist-item:hover { background: rgba(244, 63, 94, 0.04); }
 
-.watchlist-item:hover {
-  background: rgba(244, 63, 94, 0.04);
-}
-
-/* Barre verticale de menace */
 .threat-bar {
   width: 5px;
   height: 52px;
@@ -455,7 +459,6 @@
   transition: height 0.4s ease;
 }
 
-/* Contenu principal */
 .watchlist-item-main {
   flex: 1;
   min-width: 0;
@@ -527,12 +530,469 @@
   margin-left: auto;
 }
 
-/* Sparkline discrète */
 .watchlist-sparkline {
   width: 100%;
   height: 42px;
   display: block;
   opacity: 0.95;
   margin-top: 6px;
-  margin-bottom: 2px;   /* petit espace en bas si besoin */
+  margin-bottom: 2px;
+}
+
+/* ========================================= */
+/*          TOPICS PANEL                     */
+/* ========================================= */
+
+.topics-panel {
+  position: absolute;
+  top: calc(100% + 12px);
+  left: 0;
+  width: 450px;
+  max-height: 85vh;
+  background: #06090f;
+  border: 1px solid #3b82f6;
+  border-radius: 10px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: menuIn 0.15s ease;
+  z-index: 9999;
+}
+
+/* Flèche pointant vers le bouton Topics */
+.topics-panel::before {
+  content: "";
+  position: absolute;
+  top: -6px;
+  left: 20px;
+  width: 0; height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-bottom: 6px solid #3b82f6;
+}
+
+.topics-panel::after {
+  content: "";
+  position: absolute;
+  top: -5px;
+  left: 20px;
+  width: 0; height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-bottom: 6px solid #06090f;
+}
+
+/* Header */
+.topics-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(59, 130, 246, 0.08);
+  border-bottom: 1px solid rgba(59, 130, 246, 0.2);
+  padding: 10px 14px 8px;
+  flex-shrink: 0;
+}
+
+.topics-panel-header h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #3b82f6;
+}
+
+.topics-header-count {
+  font-size: 10px;
+  font-weight: 600;
+  color: #3b82f6;
+  background: rgba(59, 130, 246, 0.12);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  border-radius: 10px;
+  padding: 2px 8px;
+  letter-spacing: 0.03em;
+}
+
+/* Scrollable list */
+.topics-panel-content {
+  overflow-y: auto;
+  max-height: calc(85vh - 46px);
+  scrollbar-width: thin;
+  scrollbar-color: #1a2535 transparent;
+}
+
+.topics-panel-content::-webkit-scrollbar { width: 3px; }
+.topics-panel-content::-webkit-scrollbar-thumb { background: #1a2535; border-radius: 3px; }
+
+.topics-empty {
+  padding: 20px 16px;
+  color: #4a6a8a;
+  font-size: 13px;
+  margin: 0;
+}
+
+.topics-list {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ─── Topic Item ─── */
+.topics-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid #0f1625;
+  padding: 12px 14px;
+  cursor: pointer;
+  color: inherit;
+  transition: background 0.12s ease;
+}
+
+.topics-item:last-child {
+  border-bottom: none;
+}
+
+.topics-item:hover {
+  background: rgba(59, 130, 246, 0.06);
+}
+
+.topics-item--inactive {
+  opacity: 0.45;
+}
+
+.topics-item-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.topics-item-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.topics-item-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e6edf3;
+  letter-spacing: 0.02em;
+  line-height: 1.3;
+}
+
+/* Live pulse dot */
+.topics-live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #22c55e;
+  flex-shrink: 0;
+  animation: topics-live-pulse 2s ease-in-out infinite;
+}
+
+@keyframes topics-live-pulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); }
+  50%       { opacity: 0.7; box-shadow: 0 0 0 4px rgba(34, 197, 94, 0); }
+}
+
+/* Country tags */
+.topics-item-countries {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.topics-country-tag {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #64748b;
+  background: rgba(100, 116, 139, 0.1);
+  border: 1px solid rgba(100, 116, 139, 0.2);
+  border-radius: 3px;
+  padding: 1px 5px;
+  white-space: nowrap;
+}
+
+/* Chevron */
+.topics-item-chevron {
+  color: #334155;
+  flex-shrink: 0;
+  transition: color 0.12s ease, transform 0.12s ease;
+}
+
+.topics-item:hover .topics-item-chevron {
+  color: #3b82f6;
+  transform: translateX(2px);
+}
+
+/* ========================================= */
+/*     TOPICS PANEL — DETAIL VIEW            */
+/* ========================================= */
+
+/* Header detail (avec back btn) */
+.topics-panel-header--detail {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px 8px;
+}
+
+/* Bouton retour */
+.topics-back-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: 6px;
+  color: #3b82f6;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+
+.topics-back-btn:hover {
+  background: rgba(59, 130, 246, 0.18);
+  border-color: rgba(59, 130, 246, 0.45);
+  color: #93c5fd;
+}
+
+/* Titre + count à droite du bouton */
+.topics-detail-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: 1;
+  min-width: 0;
+  gap: 8px;
+}
+
+.topics-detail-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #e6edf3;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Loading dots */
+.topics-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 36px 20px;
+}
+
+.topics-loading-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #3b82f6;
+  animation: topics-dot-pulse 1.2s ease-in-out infinite;
+}
+
+.topics-loading-dot:nth-child(2) { animation-delay: 0.2s; }
+.topics-loading-dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes topics-dot-pulse {
+  0%, 80%, 100% { opacity: 0.2; transform: scale(0.8); }
+  40%            { opacity: 1;   transform: scale(1);   }
+}
+
+/* Liste de tweets */
+.topics-tweet-list {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Carte tweet */
+.topics-tweet-card {
+  padding: 12px 14px;
+  border-bottom: 1px solid #0f1625;
+  transition: background 0.12s ease;
+}
+
+.topics-tweet-card:last-child {
+  border-bottom: none;
+}
+
+.topics-tweet-card:hover {
+  background: rgba(59, 130, 246, 0.04);
+}
+
+.topics-tweet-date {
+  font-family: 'Roboto Mono', monospace;
+  font-size: 10px;
+  color: #3b82f6;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  margin-bottom: 6px;
+}
+
+.topics-tweet-summary {
+  font-size: 12px;
+  color: #c9d1d9;
+  line-height: 1.6;
+  margin: 0;
+  font-style: italic;
+}
+
+/* Message vide */
+.topics-empty {
+  padding: 24px 16px;
+  color: #4a6a8a;
+  font-size: 12px;
+  margin: 0;
+  text-align: center;
+}
+
+/* ── Topic summary block ── */
+.topics-summary-block {
+  position: relative;
+  margin: 12px 14px;
+  border-radius: 10px;
+  overflow: hidden;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-color: #0a0f1c;
+  /* Pas de border — l'image fait le cadre */
+}
+
+/* Dégradé sombre sur l'image */
+.topics-summary-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    160deg,
+    rgba(6, 9, 15, 0.88) 0%,
+    rgba(6, 9, 15, 0.72) 25%,
+    rgba(6, 9, 15, 0.45) 50%
+  );
+}
+
+/* Contenu au-dessus */
+.topics-summary-inner {
+  position: relative;
+  z-index: 1;
+  padding: 14px 14px 16px;
+}
+
+.topics-summary-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #60a5fa;
+  margin-bottom: 8px;
+}
+
+.topics-summary-text {
+  font-size: 12px;
+  color: #e2e8f0;
+  line-height: 1.65;
+  margin: 0;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
+}
+
+/* ── Events divider ── */
+.topics-events-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  margin: 4px 0 2px;
+}
+
+.topics-events-divider::before,
+.topics-events-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #0f1625;
+}
+
+.topics-events-divider span {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #334155;
+  white-space: nowrap;
+}
+/* ========================================= */
+/*     FRESHNESS DOT VARIANTS                */
+/* ========================================= */
+
+.topics-live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* < 6h : rouge vif, pulsation rapide */
+.topics-live-dot--hot {
+  background: #ef4444;
+  box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5);
+  animation: dot-pulse-hot 1.4s ease-in-out infinite;
+}
+
+@keyframes dot-pulse-hot {
+  0%   { box-shadow: 0 0 0 0   rgba(239, 68, 68, 0.5); }
+  70%  { box-shadow: 0 0 0 5px rgba(239, 68, 68, 0);   }
+  100% { box-shadow: 0 0 0 0   rgba(239, 68, 68, 0);   }
+}
+
+/* < 24h : orange, pulsation lente */
+.topics-live-dot--warm {
+  background: #f97316;
+  box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.4);
+  animation: dot-pulse-warm 2.4s ease-in-out infinite;
+}
+
+@keyframes dot-pulse-warm {
+  0%   { box-shadow: 0 0 0 0   rgba(249, 115, 22, 0.4); }
+  70%  { box-shadow: 0 0 0 5px rgba(249, 115, 22, 0);   }
+  100% { box-shadow: 0 0 0 0   rgba(249, 115, 22, 0);   }
+}
+
+/* < 3j : jaune, statique */
+.topics-live-dot--cool {
+  background: #eab308;
+}
+
+/* > 3j : gris, statique */
+.topics-live-dot--stale {
+  background: #334155;
+}
+
+/* ── Last update line ── */
+.topics-item-update {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 5px;
+  font-size: 10px;
+  font-weight: 500;
+  color: #4a6a8a;
+  letter-spacing: 0.02em;
 }

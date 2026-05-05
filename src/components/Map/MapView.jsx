@@ -1,5 +1,5 @@
 /* eslint-disable */
-import { useEffect, useRef, useState } from "react";
+import { forwardRef, useImperativeHandle, useRef, useState, useEffect } from "react";
 import "./MapView.css";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -7,14 +7,21 @@ import { useTime } from "../../context/TimeContext";
 import { createPopupHTML } from "../../utils/popupUtils";
 import { loadChokepointImages } from "../../utils/chokepointIcons";
 
-const STYLE_URL = "https://api.maptiler.com/maps/dataviz-dark/style.json?key=MIeaKd18gACAhOFV3PZu";
+const MAPTILER_API_KEY = process.env.REACT_APP_MAPTILER_API_KEY;
+const STYLE_URL = `https://api.maptiler.com/maps/dataviz-dark/style.json?key=${MAPTILER_API_KEY}`;
 const API = process.env.REACT_APP_API_URL;
 
-export default function MapView({ onTweetsLoaded }) {
+const MapView = forwardRef(function MapView({ onTweetsLoaded }, ref) {
     const { timeRange } = useTime();
     const containerRef = useRef(null);
     const timeRangeRef = useRef(timeRange);
     const mapRef = useRef(null);
+    useImperativeHandle(ref, () => ({
+        flyTo: (options) => {
+            const currentZoom = mapRef.current?.getZoom();
+            mapRef.current?.flyTo({ ...options, zoom: currentZoom });
+        },
+    }));
     const animFrameRef = useRef(null)
     const [dataTweets, setDataTweets] = useState(null);
     const onTweetsLoadedRef = useRef(onTweetsLoaded);
@@ -88,7 +95,7 @@ export default function MapView({ onTweetsLoaded }) {
                 type: 'fill',
                 source: 'conflict-theaters',
                 paint: {
-                    'fill-color': '#ed3f3f',
+                    'fill-color': '#f71616',
                     'fill-opacity': 0.2
                 }
             });
@@ -97,7 +104,7 @@ export default function MapView({ onTweetsLoaded }) {
                 type: 'fill',
                 source: 'conflict-areas',
                 paint: {
-                    'fill-color': '#ffbf00',
+                    'fill-color': '#f7a816',
                     'fill-opacity': 0.2
                 }
             });
@@ -106,7 +113,7 @@ export default function MapView({ onTweetsLoaded }) {
                 type: 'line',
                 source: 'conflict-areas',
                 paint: {
-                    'line-color': '#be8e00',
+                    'line-color': '#f7a816',
                     'line-width': 1,
                     'line-opacity': 1,
                     'line-dasharray': [6, 3]
@@ -118,7 +125,7 @@ export default function MapView({ onTweetsLoaded }) {
                 source: 'conflict-borders',
                 layout: { 'line-join': 'round', 'line-cap': 'round' },
                 paint: {
-                    'line-color': '#ed3f3f',
+                    'line-color': '#f71616',
                     'line-width': 2,
                     'line-opacity': 1,
                 }
@@ -137,7 +144,7 @@ export default function MapView({ onTweetsLoaded }) {
                     ['>=', ['coalesce', ['to-number', ['get', 'importance_score']], 0], 4],
                 ],
                 paint: {
-                    'circle-color': ['match', ['get', 'conflict_typology'], 'MIL', '#ed3f3f', 'rgba(108,172,251,1)'],
+                    'circle-color': ['match', ['get', 'conflict_typology'], 'MIL', '#f71616', 'rgb(129, 183, 249)'],
                     'circle-radius': 8,
                     'circle-opacity': 0,
                     'circle-stroke-width': 0,
@@ -150,7 +157,7 @@ export default function MapView({ onTweetsLoaded }) {
                     'heatmap-weight': ['interpolate', ['linear'], ['get', 'importance_score'], 1, 0.5, 5, 1],
                     'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 0, 1, 9, 3],
                     'heatmap-color': ['interpolate', ['linear'], ['heatmap-density'],
-                        0, 'rgba(0,0,0,0)', 0.2, 'rgba(108,172,251,1)', 1, '#b4cff1'],
+                        0, 'rgba(0,0,0,0)', 0.2, 'rgb(78, 152, 241)', 1, '#9fc5f4'],
                     'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 0, 5, 7, 13],
                     'heatmap-opacity': ['interpolate', ['linear'], ['zoom'], 7, 1, 9, 0.8],
                 },
@@ -167,7 +174,7 @@ export default function MapView({ onTweetsLoaded }) {
                         1, 1, 3, 2, 5, 5,
                     ],
                     "circle-color": "rgba(0,0,0,0)",
-                    "circle-stroke-color": "#ed3f3f",
+                    "circle-stroke-color": "#f71616",
                     "circle-stroke-width": ["interpolate", ["linear"],
                         ["coalesce", ["to-number", ["get", "importance_score"]], 1],
                         1, 3, 3, 6, 5, 12,
@@ -190,7 +197,7 @@ export default function MapView({ onTweetsLoaded }) {
                         1, 1.5, 3, 2.5, 5, 5,
                     ],
                     "circle-color": "#ffffff",
-                    "circle-stroke-color": "#ed3f3f",
+                    "circle-stroke-color": "#f71616",
                     "circle-stroke-width": 1.5,
                 },
             });
@@ -204,6 +211,7 @@ export default function MapView({ onTweetsLoaded }) {
                 id: "chokepoints",
                 type: "symbol",
                 source: "chokepoints",
+                filter: ["==", ["get", "status"], "CLOSED"],
                 layout: {
                     "icon-image": [
                         "match",
@@ -265,7 +273,7 @@ export default function MapView({ onTweetsLoaded }) {
                     </div>
                 `;
             };
-            map.on("mousemove", "tweets-hover-area", (e) => {   
+            map.on("mousemove", "tweets-hover-area", (e) => {
                 if (pinnedPopup) return;
 
                 isHoveringTweet = true;
@@ -294,8 +302,8 @@ export default function MapView({ onTweetsLoaded }) {
                     .addTo(map);
             });
 
-            map.on("mousemove", "conflict-areas-fill", (e) => {   
-                if (pinnedPopup || isHoveringTweet) return;   
+            map.on("mousemove", "conflict-areas-fill", (e) => {
+                if (pinnedPopup || isHoveringTweet) return;
                 isHoveringConflictArea = true;
                 isHoveringTweet = false;
 
@@ -489,4 +497,6 @@ export default function MapView({ onTweetsLoaded }) {
             className="map-container"
         />
     );
-}
+});
+
+export default MapView;
