@@ -9,7 +9,6 @@
   flex-direction: column;
   z-index: 100;
 
-  /* Transition de repli */
   transition: width 0s cubic-bezier(0.4, 0, 0.2, 1),
               opacity 0s ease;
   overflow: hidden;
@@ -18,18 +17,17 @@
 
 @media (max-width: 768px) {
   .sidepanel {
-    width: 100%; /* Prend toute la largeur sur mobile */
-    height: 100%; /* Remplit son wrapper de 40vh */
+    width: 100%;
+    height: 100%;
     border-right: none;
     border-top: 1px solid #1e2d3d;
   }
   
   .sidepanel-content {
-    min-width: unset !important; /* Annule le min-width de 380px */
+    min-width: unset !important;
   }
 }
 
-/* État replié : largeur 0, contenu masqué */
 .sidepanel--collapsed {
   width: 0;
   opacity: 0;
@@ -39,11 +37,11 @@
 /* ── Bouton toggle ──────────────────────────────── */
 .sidepanel-toggle {
   position: absolute;
-  right: -27px;
+  right: -16px;
   top: 50%;
   transform: translateY(-50%);
   z-index: 1;
-  width: 27px;
+  width: 16px;
   height: 52px;
   background: #0a0f1c;
   border: 1px solid #1e2d3d;
@@ -63,7 +61,6 @@
   color: #e2e8f0;
 }
 
-/* Chevron pivote quand le panel est replié */
 .toggle-chevron {
   transition: transform 0s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -72,7 +69,7 @@
   transform: rotate(180deg);
 }
 
-/* ── Reste du CSS (inchangé) ─────────────────────── */
+/* ── Header ─────────────────────────────────────── */
 .sidepanel-header {
   padding: 20px 24px 18px;
   background: #0a0f1c;
@@ -162,6 +159,7 @@
   font-weight: 700;
 }
 
+/* ── Content ─────────────────────────────────────── */
 .sidepanel-content {
   flex: 1;
   overflow-y: auto;
@@ -195,8 +193,7 @@
   text-align: center;
 }
 
-/* ... styles précédents (adaptés pour ne plus utiliser ::after) ... */
-
+/* ── Sort controls ───────────────────────────────── */
 .sort-controls {
   display: flex;
   gap: 12px;
@@ -206,7 +203,7 @@
 .sort-btn {
   background: transparent;
   border: transparent;
-  color: #4a6a8a; /* Couleur neutre */
+  color: #4a6a8a;
   border-radius: 4px;
   font-size: 10px;
   font-weight: 600;
@@ -216,7 +213,7 @@
   transition: all 0.15s ease;
   display: flex;
   align-items: center;
-  gap: 8px; /* Espace entre le texte et le SVG */
+  gap: 8px;
 }
 
 .sort-btn:hover {
@@ -224,25 +221,138 @@
 }
 
 .sort-btn.active {
-  color: #e2e8f0; /* Bleu actif */
+  color: #e2e8f0;
 }
 
-/* ── Style des icônes SVG ───────────────────────── */
 .sort-svg-icon {
-  width: 14px; /* Un poil plus grand que le texte pour la lisibilité */
+  width: 14px;
   height: 14px;
-  stroke-width: 2.5px; /* Épaisseur du trait augmentée */
+  stroke-width: 2.5px;
   transition: all 0.15s ease;
 }
 
-/* Icône "neutre" (quand la clé n'est pas sélectionnée) */
 .sort-svg-none {
-  opacity: 0.4; /* Très subtile pour ne pas distraire */
-  width: 12px; /* Un peu plus petit */
+  opacity: 0.4;
+  width: 12px;
   height: 12px;
 }
 
-/* Icône "active" (quand la clé est sélectionnée) */
 .sort-svg-active {
-  opacity: 1; /* Pleine visibilité */
+  opacity: 1;
+}
+
+/* ── Label filter custom dropdown ────────────────── */
+.label-dropdown-wrapper {
+  position: relative;
+  margin-top: 10px;
+  width: 100%;
+}
+
+/* Bouton déclencheur */
+.label-dropdown-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: #0a0f1c;
+  border: 1px solid #1e2d3d;
+  border-radius: 4px;
+  color: #4a6a8a;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+  text-align: left;
+}
+
+.label-dropdown-trigger:hover {
+  border-color: #2e4a6a;
+  color: #e2e8f0;
+}
+
+.label-dropdown-trigger--open {
+  border-color: #3b82f6;
+  color: #e2e8f0;
+  background: #0d1724;
+}
+
+.label-dropdown-trigger--active {
+  color: #e2e8f0;
+  border-color: #2e4a6a;
+}
+
+.label-dropdown-trigger-text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.label-dropdown-chevron {
+  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
+  color: #4a6a8a;
+  transition: transform 0.2s ease;
+}
+
+.label-dropdown-trigger--open .label-dropdown-chevron {
+  transform: rotate(180deg);
+}
+
+/* Menu déroulant */
+.label-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: #0a0f1c;
+  border: 1px solid #1e2d3d;
+  border-radius: 4px;
+  z-index: 200;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  animation: dropdown-in 0.12s ease;
+}
+
+@keyframes dropdown-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.label-dropdown-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid #0f1928;
+  color: #4a6a8a;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background 0.1s ease, color 0.1s ease;
+}
+
+.label-dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.label-dropdown-item:hover {
+  background: #111927;
+  color: #e2e8f0;
+}
+
+.label-dropdown-item--active {
+  color: #e2e8f0;
+  background: #111927;
+  border-left: 2px solid #3b82f6;
+  padding-left: 10px;
 }

@@ -8,7 +8,7 @@ const API = process.env.REACT_APP_API_URL;
 const getFreshness = (isoDate) => {
   if (!isoDate) return "stale";
   const diffH = (Date.now() - new Date(isoDate).getTime()) / 36e5;
-  if (diffH < 6)  return "hot";     // < 6h  → rouge vif
+  if (diffH < 6) return "hot";     // < 6h  → rouge vif
   if (diffH < 24) return "warm";    // < 24h → orange
   if (diffH < 72) return "cool";    // < 3j  → jaune
   return "stale";                   // > 3j  → gris
@@ -17,32 +17,31 @@ const getFreshness = (isoDate) => {
 const formatRelative = (isoDate) => {
   if (!isoDate) return null;
   const diffH = (Date.now() - new Date(isoDate).getTime()) / 36e5;
-  if (diffH < 1)   return `${Math.round(diffH * 60)}m ago`;
-  if (diffH < 24)  return `${Math.round(diffH)}h ago`;
+  if (diffH < 1) return `${Math.round(diffH * 60)}m ago`;
+  if (diffH < 24) return `${Math.round(diffH)}h ago`;
   const diffD = Math.round(diffH / 24);
   return `${diffD}d ago`;
 };
 
 /* ─── TopBar ─── */
-export default function TopBar({ tweets, onTopicSelect }) {
-  const [topics,      setTopics]      = useState([]);
+export default function TopBar({ tweets, onTopicSelect, openPanel, togglePanel }) {
+  const [topics, setTopics] = useState([]);
   const { selectedPeriod, changePeriod } = useTime();
-  const [openPanel, setOpenPanel] = useState(null);
 
   /* Topic drill-down */
-  const [activeTopic,  setActiveTopic]  = useState(null);
-  const [topicTweets,  setTopicTweets]  = useState([]);
+  const [activeTopic, setActiveTopic] = useState(null);
+  const [topicTweets, setTopicTweets] = useState([]);
   const [topicLoading, setTopicLoading] = useState(false);
-  const [topicError,   setTopicError]   = useState(null);
+  const [topicError, setTopicError] = useState(null);
 
-  const menuRef      = useRef(null);
-  const scrollRef    = useRef(null);  // ref sur topics-panel-content
+  const menuRef = useRef(null);
+  const scrollRef = useRef(null);  // ref sur topics-panel-content
   const scrollPosRef = useRef(0);     // position de scroll sauvegardée
 
   const timeOptions = [
-    { value: "6h",  label: "6h"  },
+    { value: "6h", label: "6h" },
     { value: "24h", label: "24h" },
-    { value: "7d",  label: "7d"  },
+    { value: "7d", label: "7d" },
     { value: "14d", label: "14d" },
   ];
 
@@ -67,18 +66,6 @@ export default function TopBar({ tweets, onTopicSelect }) {
     }
   }, [openPanel]);
 
-  /* ─── Toggle panel (sauvegarde le scroll à la fermeture) ─── */
-  const togglePanel = (panel) => {
-    setOpenPanel((current) => {
-      if (current === panel) {
-        if (scrollRef.current) {
-          scrollPosRef.current = scrollRef.current.scrollTop;
-        }
-        return null;
-      }
-      return panel;
-    });
-  };
 
   /* ─── Drill into a topic ─── */
   const handleTopicClick = async (topic) => {
@@ -189,7 +176,7 @@ export default function TopBar({ tweets, onTopicSelect }) {
                             {topic.LATEST_UPDATE && (
                               <div className="topics-item-update">
                                 <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                  <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                                  <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
                                 </svg>
                                 {formatRelative(topic.LATEST_UPDATE)}
                               </div>

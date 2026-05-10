@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import "./SidePanel.css";
 import { createPopupHTML } from "../../utils/popupUtils";
 
@@ -8,11 +8,7 @@ const API = process.env.REACT_APP_API_URL;
  * Composant interne pour l'icône de tri SVG (plus visible)
  */
 const SortIcon = ({ keyId, sortConfig }) => {
-    // Si ce n'est pas la clé de tri active : icône de double sens neutre
-    if (sortConfig.key !== keyId) {
-        return null
-    }
-    // Si tri ascendant : flèche vers le haut
+    if (sortConfig.key !== keyId) return null;
     if (sortConfig.direction === 'asc') {
         return (
             <svg className="sort-svg-icon sort-svg-active" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -20,7 +16,6 @@ const SortIcon = ({ keyId, sortConfig }) => {
             </svg>
         );
     }
-    // Si tri descendant : flèche vers le bas
     return (
         <svg className="sort-svg-icon sort-svg-active" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="m6 9 6 6 6-6" />
@@ -29,11 +24,22 @@ const SortIcon = ({ keyId, sortConfig }) => {
 };
 
 export default function SidePanel({ tweets, collapsed }) {
-    const tweetFeatures = tweets?.features || [];
+    const tweetFeatures = (tweets?.features || []).filter(f => Boolean(f.properties.label));
     const [lastUpdate, setLastUpdate] = useState(null);
-
-    // --- État pour le tri (Date / Descendant par défaut) ---
     const [sortConfig, setSortConfig] = useState({ key: 'date', direction: 'desc' });
+    const [activeLabel, setActiveLabel] = useState(null); // null = "All"
+    const [dropdownOpen, setDropdownOpen] = useState(false);
+    const dropdownRef = useRef(null);
+
+    useEffect(() => {
+        function handleClickOutside(e) {
+            if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+                setDropdownOpen(false);
+            }
+        }
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     useEffect(() => {
         async function fetchLastUpdate() {
@@ -53,20 +59,29 @@ export default function SidePanel({ tweets, collapsed }) {
         fetchLastUpdate();
     }, []);
 
-    // --- Gestion du changement de tri ---
+    // --- Extraction des labels uniques ---
+    const uniqueLabels = [...new Set(
+        tweetFeatures
+            .map(f => f.properties.label)
+            .filter(Boolean)
+    )].sort();
+
+    // --- Gestion du tri ---
     const handleSort = (key) => {
         let direction = 'desc';
-        // Si on clique sur la même clé, on inverse le sens
         if (sortConfig.key === key && sortConfig.direction === 'desc') {
             direction = 'asc';
         }
         setSortConfig({ key, direction });
     };
 
-    // --- Application du tri sur les données ---
-    const sortedTweets = [...tweetFeatures].sort((a, b) => {
-        let valA, valB;
+    // --- Filtrage par label, puis tri ---
+    const filteredTweets = activeLabel
+        ? tweetFeatures.filter(f => f.properties.label === activeLabel)
+        : tweetFeatures;
 
+    const sortedTweets = [...filteredTweets].sort((a, b) => {
+        let valA, valB;
         if (sortConfig.key === 'date') {
             valA = new Date(a.properties.created_at || a.properties.date || 0).getTime();
             valB = new Date(b.properties.created_at || b.properties.date || 0).getTime();
@@ -74,7 +89,6 @@ export default function SidePanel({ tweets, collapsed }) {
             valA = a.properties.importance_score || 0;
             valB = b.properties.importance_score || 0;
         }
-
         if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
         if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
         return 0;
@@ -86,7 +100,7 @@ export default function SidePanel({ tweets, collapsed }) {
                 <div className="header-main-content">
                     <div className="title-row">
                         <h3>OSINT Feed</h3>
-                        <span className="tweet-count">{tweetFeatures.length} events</span>
+                        <span className="tweet-count">{sortedTweets.length} / {tweetFeatures.length} events</span>
                     </div>
                     <div className="subtitle-column">
                         <span className="header-subtitle">Twitter/X stream</span>
@@ -95,6 +109,7 @@ export default function SidePanel({ tweets, collapsed }) {
                                 Last update: {lastUpdate}
                             </div>
                         )}
+
                         {/* --- Contrôles de Tri --- */}
                         <div className="sort-controls">
                             <button
@@ -112,9 +127,43 @@ export default function SidePanel({ tweets, collapsed }) {
                                 <SortIcon keyId="importance_score" sortConfig={sortConfig} />
                             </button>
                         </div>
+
+                        {/* --- Filtre par label (custom dropdown) --- */}
+                        {uniqueLabels.length > 0 && (
+                            <div className="label-dropdown-wrapper" ref={dropdownRef}>
+                                <button
+                                    className={`label-dropdown-trigger ${dropdownOpen ? 'label-dropdown-trigger--open' : ''} ${activeLabel ? 'label-dropdown-trigger--active' : ''}`}
+                                    onClick={() => setDropdownOpen(o => !o)}
+                                >
+                                    <span className="label-dropdown-trigger-text">
+                                        {activeLabel || 'All topics'}
+                                    </span>
+                                    <svg className="label-dropdown-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="m6 9 6 6 6-6" />
+                                    </svg>
+                                </button>
+                                {dropdownOpen && (
+                                    <div className="label-dropdown-menu">
+                                        <button
+                                            className={`label-dropdown-item ${activeLabel === null ? 'label-dropdown-item--active' : ''}`}
+                                            onClick={() => { setActiveLabel(null); setDropdownOpen(false); }}
+                                        >
+                                            All topics
+                                        </button>
+                                        {uniqueLabels.map(label => (
+                                            <button
+                                                key={label}
+                                                className={`label-dropdown-item ${activeLabel === label ? 'label-dropdown-item--active' : ''}`}
+                                                onClick={() => { setActiveLabel(label); setDropdownOpen(false); }}
+                                            >
+                                                {label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
-
-
                 </div>
             </div>
 
@@ -132,7 +181,7 @@ export default function SidePanel({ tweets, collapsed }) {
                         ))}
                     </div>
                 ) : (
-                    <div className="no-data"></div>
+                    <div className="no-data">No events for this label.</div>
                 )}
             </div>
         </div>

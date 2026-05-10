@@ -60,7 +60,7 @@ export default function App() {
                   fill="none" xmlns="http://www.w3.org/2000/svg"
                 >
                   {/* Chevron bas quand ouvert, haut quand fermé */}
-                  <path d="M2 5L7 10L12 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M2 5L7 10L12 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
                 <span>{sidePanelCollapsed}</span>
               </button>
@@ -98,7 +98,7 @@ export default function App() {
                 borderLeft: 'none',
                 borderRadius: '0 6px 6px 0',
                 cursor: 'pointer',
-                display: 'flex',
+                display: openPanel === "topics" ? 'none' : 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 color: '#4a6a8a',
@@ -115,14 +115,18 @@ export default function App() {
                 width="14" height="14" viewBox="0 0 14 14"
                 fill="none" xmlns="http://www.w3.org/2000/svg"
               >
-                <path d="M9 2L4 7L9 12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M9 2L4 7L9 12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </button>
           </div>
 
           {/* 2. Zone de droite (Carte + TopBar) */}
           <div style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column' }}>
-            <TopBar togglePanel={togglePanel} openPanel={openPanel} onTopicSelect={handleTopicSelect} />
+            <TopBar
+              togglePanel={togglePanel}
+              openPanel={openPanel}
+              onTopicSelect={handleTopicSelect}
+            />
             <div style={{ flex: 1, position: 'relative' }}>
               <MapView ref={mapRef} onTweetsLoaded={setTweets} />
             </div>
