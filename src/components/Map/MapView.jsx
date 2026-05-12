@@ -11,7 +11,7 @@ const MAPTILER_API_KEY = process.env.REACT_APP_MAPTILER_API_KEY;
 const STYLE_URL = `https://api.maptiler.com/maps/dataviz-dark/style.json?key=${MAPTILER_API_KEY}`;
 const API = process.env.REACT_APP_API_URL;
 
-const MapView = forwardRef(function MapView({ onTweetsLoaded }, ref) {
+const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel }, ref) {
     const { timeRange } = useTime();
     const containerRef = useRef(null);
     const timeRangeRef = useRef(timeRange);
@@ -27,7 +27,36 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded }, ref) {
     const onTweetsLoadedRef = useRef(onTweetsLoaded);
 
     useEffect(() => { onTweetsLoadedRef.current = onTweetsLoaded; }, [onTweetsLoaded]);
+useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !map.isStyleLoaded()) return;
 
+    // Filtres de base définis à la création des layers (à ne pas écraser)
+    const baseFilters = {
+        'pulse-high-importance_score': ['all',
+            ['==', ['get', 'conflict_typology'], 'MIL'],
+            ['>=', ['coalesce', ['to-number', ['get', 'importance_score']], 0], 4],
+        ],
+        'tweets_heatmap_other': ['!=', ['get', 'conflict_typology'], 'MIL'],
+        'tweets-mil-halo':      ['==', ['get', 'conflict_typology'], 'MIL'],
+        'tweets-mil':           ['==', ['get', 'conflict_typology'], 'MIL'],
+        'tweets-hover-area':    null,
+    };
+
+    Object.entries(baseFilters).forEach(([layerId, baseFilter]) => {
+        if (!map.getLayer(layerId)) return;
+
+        if (activeLabel) {
+            const labelFilter = ['==', ['get', 'label'], activeLabel];
+            const combined = baseFilter
+                ? ['all', baseFilter, labelFilter]
+                : labelFilter;
+            map.setFilter(layerId, combined);
+        } else {
+            map.setFilter(layerId, baseFilter);
+        }
+    });
+}, [activeLabel]);
     useEffect(() => {
         timeRangeRef.current = timeRange;
     }, [timeRange]);

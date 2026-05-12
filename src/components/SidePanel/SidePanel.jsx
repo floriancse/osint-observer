@@ -23,11 +23,10 @@ const SortIcon = ({ keyId, sortConfig }) => {
     );
 };
 
-export default function SidePanel({ tweets, collapsed }) {
+export default function SidePanel({ tweets, collapsed, activeLabel, onLabelChange }) {
     const tweetFeatures = (tweets?.features || []).filter(f => Boolean(f.properties.label));
     const [lastUpdate, setLastUpdate] = useState(null);
     const [sortConfig, setSortConfig] = useState({ key: 'date', direction: 'desc' });
-    const [activeLabel, setActiveLabel] = useState(null); // null = "All"
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const dropdownRef = useRef(null);
 
@@ -60,11 +59,13 @@ export default function SidePanel({ tweets, collapsed }) {
     }, []);
 
     // --- Extraction des labels uniques ---
-    const uniqueLabels = [...new Set(
-        tweetFeatures
-            .map(f => f.properties.label)
-            .filter(Boolean)
-    )].sort();
+    const labelCounts = tweetFeatures.reduce((acc, f) => {
+        const label = f.properties.label;
+        if (label) acc[label] = (acc[label] || 0) + 1;
+        return acc;
+    }, {});
+
+    const uniqueLabels = Object.keys(labelCounts).sort((a, b) => labelCounts[b] - labelCounts[a]);
 
     // --- Gestion du tri ---
     const handleSort = (key) => {
@@ -146,7 +147,7 @@ export default function SidePanel({ tweets, collapsed }) {
                                     <div className="label-dropdown-menu">
                                         <button
                                             className={`label-dropdown-item ${activeLabel === null ? 'label-dropdown-item--active' : ''}`}
-                                            onClick={() => { setActiveLabel(null); setDropdownOpen(false); }}
+                                            onClick={() => { onLabelChange(null); setDropdownOpen(false); }}
                                         >
                                             All topics
                                         </button>
@@ -154,7 +155,7 @@ export default function SidePanel({ tweets, collapsed }) {
                                             <button
                                                 key={label}
                                                 className={`label-dropdown-item ${activeLabel === label ? 'label-dropdown-item--active' : ''}`}
-                                                onClick={() => { setActiveLabel(label); setDropdownOpen(false); }}
+                                                onClick={() => { onLabelChange(label); setDropdownOpen(false); }}
                                             >
                                                 {label}
                                             </button>
