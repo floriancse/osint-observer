@@ -23,7 +23,39 @@ const SortIcon = ({ keyId, sortConfig }) => {
     );
 };
 
+/**
+ * Skeleton loader — simule des cartes tweet en cours de chargement
+ */
+const SkeletonLoader = () => (
+    <div className="skeleton-list">
+        {[...Array(5)].map((_, i) => (
+            <div key={i} className="skeleton-card" style={{ animationDelay: `${i * 0.1}s` }}>
+                <div className="skeleton-header">
+                    <div className="skeleton-avatar" />
+                    <div className="skeleton-meta">
+                        <div className="skeleton-line skeleton-line--name" />
+                        <div className="skeleton-line skeleton-line--handle" />
+                    </div>
+                    <div className="skeleton-badge" />
+                </div>
+                <div className="skeleton-body">
+                    <div className="skeleton-line skeleton-line--full" />
+                    <div className="skeleton-line skeleton-line--full" />
+                    <div className="skeleton-line skeleton-line--short" />
+                </div>
+                <div className="skeleton-footer">
+                    <div className="skeleton-line skeleton-line--date" />
+                </div>
+            </div>
+        ))}
+    </div>
+);
+
+
 export default function SidePanel({ tweets, collapsed, activeLabel, onLabelChange }) {
+    console.log('tweets prop:', tweets);  
+    const isLoading = !tweets;
+
     const tweetFeatures = (tweets?.features || []).filter(f => Boolean(f.properties.label));
     const [lastUpdate, setLastUpdate] = useState(null);
     const [sortConfig, setSortConfig] = useState({ key: 'date', direction: 'desc' });
@@ -101,7 +133,9 @@ export default function SidePanel({ tweets, collapsed, activeLabel, onLabelChang
                 <div className="header-main-content">
                     <div className="title-row">
                         <h3>OSINT Feed</h3>
-                        <span className="tweet-count">{sortedTweets.length} / {tweetFeatures.length} events</span>
+                        <span className="tweet-count">
+                            {isLoading ? '' : `${sortedTweets.length} / ${tweetFeatures.length} events`}
+                        </span>
                     </div>
                     <div className="subtitle-column">
                         <span className="header-subtitle">Twitter/X stream</span>
@@ -116,6 +150,7 @@ export default function SidePanel({ tweets, collapsed, activeLabel, onLabelChang
                             <button
                                 className={`sort-btn ${sortConfig.key === 'date' ? 'active' : ''}`}
                                 onClick={() => handleSort('date')}
+                                disabled={isLoading}
                             >
                                 Date
                                 <SortIcon keyId="date" sortConfig={sortConfig} />
@@ -123,6 +158,7 @@ export default function SidePanel({ tweets, collapsed, activeLabel, onLabelChang
                             <button
                                 className={`sort-btn ${sortConfig.key === 'importance_score' ? 'active' : ''}`}
                                 onClick={() => handleSort('importance_score')}
+                                disabled={isLoading}
                             >
                                 Importance
                                 <SortIcon keyId="importance_score" sortConfig={sortConfig} />
@@ -130,7 +166,7 @@ export default function SidePanel({ tweets, collapsed, activeLabel, onLabelChang
                         </div>
 
                         {/* --- Filtre par label (custom dropdown) --- */}
-                        {uniqueLabels.length > 0 && (
+                        {!isLoading && uniqueLabels.length > 0 && (
                             <div className="label-dropdown-wrapper" ref={dropdownRef}>
                                 <button
                                     className={`label-dropdown-trigger ${dropdownOpen ? 'label-dropdown-trigger--open' : ''} ${activeLabel ? 'label-dropdown-trigger--active' : ''}`}
@@ -169,7 +205,9 @@ export default function SidePanel({ tweets, collapsed, activeLabel, onLabelChang
             </div>
 
             <div className="sidepanel-content">
-                {sortedTweets.length > 0 ? (
+                {isLoading ? (
+                    <SkeletonLoader />
+                ) : sortedTweets.length > 0 ? (
                     <div className="osint-tweet-list">
                         {sortedTweets.map((feature, i) => (
                             <div

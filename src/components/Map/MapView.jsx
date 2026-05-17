@@ -25,6 +25,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel }, ref
     const animFrameRef = useRef(null)
     const [dataTweets, setDataTweets] = useState(null);
     const onTweetsLoadedRef = useRef(onTweetsLoaded);
+    const isFirstRender = useRef(true);
 
     useEffect(() => { onTweetsLoadedRef.current = onTweetsLoaded; }, [onTweetsLoaded]);
 useEffect(() => {
@@ -492,9 +493,13 @@ useEffect(() => {
             }
         };
     }, []);
-    useEffect(() => {
-        if (!mapRef.current) return;
-        const map = mapRef.current;
+useEffect(() => {
+    if (isFirstRender.current) {
+        isFirstRender.current = false;
+        return;
+    }
+    if (!mapRef.current) return;
+    const map = mapRef.current;
 
         const reload = async () => {
             try {

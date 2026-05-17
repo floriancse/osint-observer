@@ -84,7 +84,7 @@ export default function TopBar({ tweets, onTopicSelect, openPanel, togglePanel }
     }
 
     try {
-      const response = await fetch(`${API}/topics/${topic.TOPIC_ID}/tweets`);
+      const response = await fetch(`${API}/topics/${topic.TOPIC_ID}`);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
       const sorted = (data.tweets || []).sort(
@@ -258,7 +258,7 @@ export default function TopBar({ tweets, onTopicSelect, openPanel, togglePanel }
                       {topicTweets.map((tweet) => (
                         <div key={tweet.tweet_id} className="topics-tweet-card">
                           <div className="topics-tweet-date">{formatDate(tweet.created_at)}</div>
-                          <p className="topics-tweet-summary">"{tweet.summary_text}"</p>
+                          <p className="topics-tweet-summary">"{tweet.summary}"</p>
                         </div>
                       ))}
                     </div>
