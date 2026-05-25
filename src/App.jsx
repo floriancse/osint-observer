@@ -24,6 +24,12 @@ export default function App() {
     }
   };
 
+  const handleTweetClick = (feature) => {
+    if (mapRef.current) {
+      mapRef.current.openTweetPopup(feature);
+    }
+  };
+
   const togglePanel = (panel) => setOpenPanel((current) => (current === panel ? null : panel));
 
   useEffect(() => {
@@ -64,7 +70,7 @@ export default function App() {
                 </svg>
                 <span>{sidePanelCollapsed}</span>
               </button>
-              <SidePanel tweets={tweets} collapsed={sidePanelCollapsed} activeLabel={activeLabel} onLabelChange={setActiveLabel} />            </div>
+              <SidePanel tweets={tweets} collapsed={sidePanelCollapsed} activeLabel={activeLabel} onLabelChange={setActiveLabel} onTweetClick={handleTweetClick} />            </div>
 
           </div>
         </LayerProvider>
@@ -80,7 +86,7 @@ export default function App() {
 
           {/* 1. SidePanel + bouton toggle dans un wrapper commun */}
           <div style={{ position: 'relative', display: 'flex', flexShrink: 0 }}>
-            <SidePanel tweets={tweets} collapsed={sidePanelCollapsed} activeLabel={activeLabel} onLabelChange={setActiveLabel} />
+            <SidePanel tweets={tweets} collapsed={sidePanelCollapsed} activeLabel={activeLabel} onLabelChange={setActiveLabel} onTweetClick={handleTweetClick} />
             <button
               onClick={() => setSidePanelCollapsed(v => !v)}
               style={{

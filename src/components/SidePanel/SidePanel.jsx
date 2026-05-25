@@ -52,8 +52,7 @@ const SkeletonLoader = () => (
 );
 
 
-export default function SidePanel({ tweets, collapsed, activeLabel, onLabelChange }) {
-    console.log('tweets prop:', tweets);  
+export default function SidePanel({ tweets, collapsed, activeLabel, onLabelChange, onTweetClick }) {
     const isLoading = !tweets;
 
     const tweetFeatures = (tweets?.features || []).filter(f => Boolean(f.properties.label));
@@ -84,7 +83,6 @@ export default function SidePanel({ tweets, collapsed, activeLabel, onLabelChang
                     setLastUpdate(date);
                 }
             } catch (error) {
-                console.error("Erreur lors du fetch last_update:", error);
             }
         }
         fetchLastUpdate();
@@ -213,6 +211,8 @@ export default function SidePanel({ tweets, collapsed, activeLabel, onLabelChang
                             <div
                                 key={feature.properties.id ?? i}
                                 className="osint-tweet-card-wrapper"
+                                style={{ cursor: 'pointer' }}
+                                onClick={() => onTweetClick?.(feature)}
                                 dangerouslySetInnerHTML={{
                                     __html: createPopupHTML(feature.properties, false, 0, 1, true, true)
                                 }}

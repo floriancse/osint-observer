@@ -21,43 +21,85 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel }, ref
             const currentZoom = mapRef.current?.getZoom();
             mapRef.current?.flyTo({ ...options, zoom: currentZoom });
         },
+        openTweetPopup: (feature) => {
+            const map = mapRef.current;
+            if (!map) return;
+
+            const coords = feature.geometry?.coordinates?.slice()
+                || [feature.properties.longitude, feature.properties.latitude];
+            if (!coords || coords.length < 2) return;
+
+            const props = feature.properties;
+            const images = (() => {
+                if (Array.isArray(props.images)) return props.images;
+                try { return JSON.parse(props.images); } catch { return []; }
+            })();
+
+            // Close any existing pinned popup
+            if (pinnedPopupRef.current) {
+                pinnedPopupRef.current.remove();
+                pinnedPopupRef.current = null;
+            }
+
+            map.flyTo({ center: coords, zoom: Math.max(map.getZoom(), 5), duration: 1200, padding: { top: 400, bottom: 0, left: 0, right: 0 } });
+
+            // Open popup once the camera stops moving
+            map.once('moveend', () => {
+                if (pinnedPopupRef.current) return;
+                const newPopup = new maplibregl.Popup({
+                    closeButton: true,
+                    closeOnClick: true,
+                    maxWidth: "none",
+                    className: "tweet-popup",
+                    anchor: "bottom",
+                })
+                    .setLngLat(coords)
+                    .setHTML(createPopupHTML({ ...props, images }, true, 0, 1, true, false))
+                    .addTo(map);
+
+                pinnedPopupRef.current = newPopup;
+                newPopup.on("close", () => { pinnedPopupRef.current = null; });
+                window.navigateTweet = () => {};
+            });
+        },
     }));
     const animFrameRef = useRef(null)
     const [dataTweets, setDataTweets] = useState(null);
     const onTweetsLoadedRef = useRef(onTweetsLoaded);
     const isFirstRender = useRef(true);
+    const pinnedPopupRef = useRef(null);
 
     useEffect(() => { onTweetsLoadedRef.current = onTweetsLoaded; }, [onTweetsLoaded]);
-useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !map.isStyleLoaded()) return;
+    useEffect(() => {
+        const map = mapRef.current;
+        if (!map || !map.isStyleLoaded()) return;
 
-    // Filtres de base définis à la création des layers (à ne pas écraser)
-    const baseFilters = {
-        'pulse-high-importance_score': ['all',
-            ['==', ['get', 'conflict_typology'], 'MIL'],
-            ['>=', ['coalesce', ['to-number', ['get', 'importance_score']], 0], 4],
-        ],
-        'tweets_heatmap_other': ['!=', ['get', 'conflict_typology'], 'MIL'],
-        'tweets-mil-halo':      ['==', ['get', 'conflict_typology'], 'MIL'],
-        'tweets-mil':           ['==', ['get', 'conflict_typology'], 'MIL'],
-        'tweets-hover-area':    null,
-    };
+        // Filtres de base définis à la création des layers (à ne pas écraser)
+        const baseFilters = {
+            'pulse-high-importance_score': ['all',
+                ['==', ['get', 'conflict_typology'], 'MIL'],
+                ['>=', ['coalesce', ['to-number', ['get', 'importance_score']], 0], 4],
+            ],
+            'tweets_heatmap_other': ['!=', ['get', 'conflict_typology'], 'MIL'],
+            'tweets-mil-halo': ['==', ['get', 'conflict_typology'], 'MIL'],
+            'tweets-mil': ['==', ['get', 'conflict_typology'], 'MIL'],
+            'tweets-hover-area': null,
+        };
 
-    Object.entries(baseFilters).forEach(([layerId, baseFilter]) => {
-        if (!map.getLayer(layerId)) return;
+        Object.entries(baseFilters).forEach(([layerId, baseFilter]) => {
+            if (!map.getLayer(layerId)) return;
 
-        if (activeLabel) {
-            const labelFilter = ['==', ['get', 'label'], activeLabel];
-            const combined = baseFilter
-                ? ['all', baseFilter, labelFilter]
-                : labelFilter;
-            map.setFilter(layerId, combined);
-        } else {
-            map.setFilter(layerId, baseFilter);
-        }
-    });
-}, [activeLabel]);
+            if (activeLabel) {
+                const labelFilter = ['==', ['get', 'label'], activeLabel];
+                const combined = baseFilter
+                    ? ['all', baseFilter, labelFilter]
+                    : labelFilter;
+                map.setFilter(layerId, combined);
+            } else {
+                map.setFilter(layerId, baseFilter);
+            }
+        });
+    }, [activeLabel]);
     useEffect(() => {
         timeRangeRef.current = timeRange;
     }, [timeRange]);
@@ -65,7 +107,7 @@ useEffect(() => {
     const loadAllData = async (map) => {
         try {
             const { start, end } = timeRangeRef.current;
-            const [dataTweets, dataShipping, dataChokepoints, dataBorders, dataBordersTheaters, dataMilitaryAreas] =
+            const [dataTweets, dataShipping, dataChokepoints, dataBorders, dataBordersTheaters, dataMilitaryAreas, dataWorldAreas] =
                 await Promise.all([
                     fetch(`${API}/tweets.geojson?start_date=${start}&end_date=${end}`).then(r => r.json()),
                     fetch(`${API}/shipping_lanes.geojson`).then(r => r.json()),
@@ -73,6 +115,7 @@ useEffect(() => {
                     fetch(`${API}/conflict_borders.geojson`).then(r => r.json()),
                     fetch(`${API}/conflict_theaters.geojson`).then(r => r.json()),
                     fetch(`${API}/conflict_areas.geojson`).then(r => r.json()),
+                    fetch(`${API}/world_areas.geojson`).then(r => r.json()),
                 ]);
 
             setDataTweets(dataTweets);
@@ -84,6 +127,7 @@ useEffect(() => {
             map.addSource("conflict-borders", { type: "geojson", data: dataBorders });
             map.addSource("conflict-theaters", { type: "geojson", data: dataBordersTheaters });
             map.addSource("conflict-areas", { type: "geojson", data: dataMilitaryAreas });
+            map.addSource("world-areas", { type: "geojson", data: dataWorldAreas });
             return dataTweets
         } catch (err) {
             console.error("Erreur chargement données initiales :", err);
@@ -115,9 +159,9 @@ useEffect(() => {
             });
 
             window.closePopup = () => {
-                if (pinnedPopup) {
-                    pinnedPopup.remove();
-                    pinnedPopup = null;
+                if (pinnedPopupRef.current) {
+                    pinnedPopupRef.current.remove();
+                    setPinnedPopup(null);
                 }
             };
             map.addLayer({
@@ -256,7 +300,15 @@ useEffect(() => {
                     "icon-ignore-placement": true,
                 },
             });
-
+            map.addLayer({
+                id: 'world-areas',
+                type: 'fill',
+                source: 'world-areas',
+                paint: {
+                    'fill-color': 'transparent',
+                    'fill-opacity': 0,
+                }
+            });
             //MOUSE BEHAVIOR
             let conflictPopup = new maplibregl.Popup({
                 closeButton: true,
@@ -270,6 +322,8 @@ useEffect(() => {
             };
             let isHoveringTweet = false;
             let pinnedPopup = null;
+            // Keep ref in sync so useImperativeHandle can access it
+            const setPinnedPopup = (p) => { pinnedPopup = p; pinnedPopupRef.current = p; };
             let isHoveringConflictArea = false
             let currentHoverPopup = null
 
@@ -384,7 +438,7 @@ useEffect(() => {
 
                 if (!features.length) return;
 
-                if (pinnedPopup) { pinnedPopup.remove(); pinnedPopup = null; }
+                if (pinnedPopup) { pinnedPopup.remove(); setPinnedPopup(null); }
 
                 let currentIndex = 0;
                 const coords = features[0].geometry.coordinates.slice();
@@ -395,7 +449,7 @@ useEffect(() => {
                     return createPopupHTML({ ...props, images }, true, index, features.length, true, false);
                 };
 
-                pinnedPopup = new maplibregl.Popup({
+                const newPinnedPopup = new maplibregl.Popup({
                     closeButton: true,
                     closeOnClick: true,
                     maxWidth: "none",
@@ -406,7 +460,8 @@ useEffect(() => {
                     .setHTML(renderPopup(currentIndex))
                     .addTo(map);
 
-                pinnedPopup.on("close", () => { pinnedPopup = null; });
+                setPinnedPopup(newPinnedPopup);
+                newPinnedPopup.on("close", () => { setPinnedPopup(null); });
 
                 window.navigateTweet = (index) => {
                     currentIndex = index;
@@ -458,6 +513,22 @@ useEffect(() => {
                 if (!pinnedPopup) popup.remove();
             });
 
+            let hoveredName = null;
+
+            map.on('mousemove', 'world-areas', (e) => {
+                if (e.features.length > 0) {
+                    const name = e.features[0].properties.name;
+                    if (name !== hoveredName) {
+                        hoveredName = name;
+                        console.log(name);
+                    }
+                }
+            });
+
+            map.on('mouseleave', 'world-areas', () => {
+                hoveredName = null;
+            });
+
             //PULSE
             const animatePulse = () => {
                 if (!mapRef.current) { animFrameRef.current = null; return; }
@@ -493,13 +564,13 @@ useEffect(() => {
             }
         };
     }, []);
-useEffect(() => {
-    if (isFirstRender.current) {
-        isFirstRender.current = false;
-        return;
-    }
-    if (!mapRef.current) return;
-    const map = mapRef.current;
+    useEffect(() => {
+        if (isFirstRender.current) {
+            isFirstRender.current = false;
+            return;
+        }
+        if (!mapRef.current) return;
+        const map = mapRef.current;
 
         const reload = async () => {
             try {

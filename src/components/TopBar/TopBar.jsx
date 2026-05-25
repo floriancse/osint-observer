@@ -258,6 +258,9 @@ export default function TopBar({ tweets, onTopicSelect, openPanel, togglePanel }
                       {topicTweets.map((tweet) => (
                         <div key={tweet.tweet_id} className="topics-tweet-card">
                           <div className="topics-tweet-date">{formatDate(tweet.created_at)}</div>
+                          {tweet.summary_title && (
+                            <p className="topics-tweet-title">{tweet.summary_title}</p>
+                          )}
                           <p className="topics-tweet-summary">"{tweet.summary}"</p>
                         </div>
                       ))}
