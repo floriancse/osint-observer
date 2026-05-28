@@ -4,9 +4,6 @@ import { createPopupHTML } from "../../utils/popupUtils";
 
 const API = process.env.REACT_APP_API_URL;
 
-/**
- * Composant interne pour l'icône de tri SVG (plus visible)
- */
 const SortIcon = ({ keyId, sortConfig }) => {
     if (sortConfig.key !== keyId) return null;
     if (sortConfig.direction === 'asc') {
@@ -23,9 +20,6 @@ const SortIcon = ({ keyId, sortConfig }) => {
     );
 };
 
-/**
- * Skeleton loader — simule des cartes tweet en cours de chargement
- */
 const SkeletonLoader = () => (
     <div className="skeleton-list">
         {[...Array(5)].map((_, i) => (
@@ -51,20 +45,24 @@ const SkeletonLoader = () => (
     </div>
 );
 
-
-export default function SidePanel({ tweets, collapsed, activeLabel, onLabelChange, onTweetClick }) {
+export default function SidePanel({ tweets, collapsed, activeLabel, onLabelChange, onTweetClick, onToggle }) {
     const isLoading = !tweets;
 
     const tweetFeatures = (tweets?.features || []).filter(f => Boolean(f.properties.label));
     const [lastUpdate, setLastUpdate] = useState(null);
     const [sortConfig, setSortConfig] = useState({ key: 'date', direction: 'desc' });
     const [dropdownOpen, setDropdownOpen] = useState(false);
+    const [sortDropdownOpen, setSortDropdownOpen] = useState(false);
     const dropdownRef = useRef(null);
+    const sortDropdownRef = useRef(null);
 
     useEffect(() => {
         function handleClickOutside(e) {
             if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
                 setDropdownOpen(false);
+            }
+            if (sortDropdownRef.current && !sortDropdownRef.current.contains(e.target)) {
+                setSortDropdownOpen(false);
             }
         }
         document.addEventListener('mousedown', handleClickOutside);
@@ -82,13 +80,11 @@ export default function SidePanel({ tweets, collapsed, activeLabel, onLabelChang
                     });
                     setLastUpdate(date);
                 }
-            } catch (error) {
-            }
+            } catch (error) { }
         }
         fetchLastUpdate();
     }, []);
 
-    // --- Extraction des labels uniques ---
     const labelCounts = tweetFeatures.reduce((acc, f) => {
         const label = f.properties.label;
         if (label) acc[label] = (acc[label] || 0) + 1;
@@ -97,16 +93,15 @@ export default function SidePanel({ tweets, collapsed, activeLabel, onLabelChang
 
     const uniqueLabels = Object.keys(labelCounts).sort((a, b) => labelCounts[b] - labelCounts[a]);
 
-    // --- Gestion du tri ---
-    const handleSort = (key) => {
-        let direction = 'desc';
-        if (sortConfig.key === key && sortConfig.direction === 'desc') {
-            direction = 'asc';
-        }
-        setSortConfig({ key, direction });
-    };
+    const SORT_OPTIONS = [
+        { key: 'date', direction: 'desc', label: 'Recent' },
+        { key: 'importance_score', direction: 'desc', label: 'Relevant' },
+    ];
 
-    // --- Filtrage par label, puis tri ---
+    const activeSortOption = SORT_OPTIONS.find(
+        o => o.key === sortConfig.key && o.direction === sortConfig.direction
+    ) || SORT_OPTIONS[0];
+
     const filteredTweets = activeLabel
         ? tweetFeatures.filter(f => f.properties.label === activeLabel)
         : tweetFeatures;
@@ -131,9 +126,22 @@ export default function SidePanel({ tweets, collapsed, activeLabel, onLabelChang
                 <div className="header-main-content">
                     <div className="title-row">
                         <h3>OSINT Feed</h3>
-                        <span className="tweet-count">
-                            {isLoading ? '' : `${sortedTweets.length} / ${tweetFeatures.length} events`}
-                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <span className="tweet-count">
+                                {isLoading ? '' : `${sortedTweets.length} / ${tweetFeatures.length} events`}
+                            </span>
+                            {/* Bouton toggle — visible uniquement quand le panel est ouvert */}
+                            <button className="sidepanel-toggle" onClick={onToggle} >
+                                <svg
+                                    width="16" height="16" viewBox="0 0 16 16"
+                                    fill="none" xmlns="http://www.w3.org/2000/svg"
+                                    style={{ display: 'block', transform: 'scaleX(1)' }}
+                                >
+                                    <line x1="12" y1="2" x2="12" y2="14" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+                                    <path d="M9 8 L3 8 M6 5 L3 8 L6 11" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+                                </svg>
+                            </button>
+                        </div>
                     </div>
                     <div className="subtitle-column">
                         <span className="header-subtitle">Twitter/X stream</span>
@@ -143,61 +151,68 @@ export default function SidePanel({ tweets, collapsed, activeLabel, onLabelChang
                             </div>
                         )}
 
-                        {/* --- Contrôles de Tri --- */}
-                        <div className="sort-controls">
-                            <button
-                                className={`sort-btn ${sortConfig.key === 'date' ? 'active' : ''}`}
-                                onClick={() => handleSort('date')}
-                                disabled={isLoading}
-                            >
-                                Date
-                                <SortIcon keyId="date" sortConfig={sortConfig} />
-                            </button>
-                            <button
-                                className={`sort-btn ${sortConfig.key === 'importance_score' ? 'active' : ''}`}
-                                onClick={() => handleSort('importance_score')}
-                                disabled={isLoading}
-                            >
-                                Importance
-                                <SortIcon keyId="importance_score" sortConfig={sortConfig} />
-                            </button>
-                        </div>
-
-                        {/* --- Filtre par label (custom dropdown) --- */}
-                        {!isLoading && uniqueLabels.length > 0 && (
-                            <div className="label-dropdown-wrapper" ref={dropdownRef}>
+                        <div className="filter-controls-row">
+                            <div className="sort-dropdown-wrapper" ref={sortDropdownRef}>
                                 <button
-                                    className={`label-dropdown-trigger ${dropdownOpen ? 'label-dropdown-trigger--open' : ''} ${activeLabel ? 'label-dropdown-trigger--active' : ''}`}
-                                    onClick={() => setDropdownOpen(o => !o)}
+                                    className={`label-dropdown-trigger label-dropdown-trigger--active${sortDropdownOpen ? ' label-dropdown-trigger--open' : ''}`}
+                                    onClick={() => setSortDropdownOpen(o => !o)}
+                                    disabled={isLoading}
                                 >
-                                    <span className="label-dropdown-trigger-text">
-                                        {activeLabel || 'All topics'}
-                                    </span>
+                                    <span className="label-dropdown-trigger-text">{activeSortOption.label}</span>
                                     <svg className="label-dropdown-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                         <path d="m6 9 6 6 6-6" />
                                     </svg>
                                 </button>
-                                {dropdownOpen && (
-                                    <div className="label-dropdown-menu">
-                                        <button
-                                            className={`label-dropdown-item ${activeLabel === null ? 'label-dropdown-item--active' : ''}`}
-                                            onClick={() => { onLabelChange(null); setDropdownOpen(false); }}
-                                        >
-                                            All topics
-                                        </button>
-                                        {uniqueLabels.map(label => (
+                                {sortDropdownOpen && (
+                                    <div className="sort-dropdown-menu">
+                                        {SORT_OPTIONS.map(opt => (
                                             <button
-                                                key={label}
-                                                className={`label-dropdown-item ${activeLabel === label ? 'label-dropdown-item--active' : ''}`}
-                                                onClick={() => { onLabelChange(label); setDropdownOpen(false); }}
+                                                key={opt.key}
+                                                className={`sort-dropdown-item${sortConfig.key === opt.key ? ' active' : ''}`}
+                                                onClick={() => { setSortConfig({ key: opt.key, direction: opt.direction }); setSortDropdownOpen(false); }}
                                             >
-                                                {label}
+                                                {opt.label}
                                             </button>
                                         ))}
                                     </div>
                                 )}
                             </div>
-                        )}
+
+                            {!isLoading && uniqueLabels.length > 0 && (
+                                <div className="label-dropdown-wrapper" ref={dropdownRef}>
+                                    <button
+                                        className={`label-dropdown-trigger label-dropdown-trigger--active${dropdownOpen ? ' label-dropdown-trigger--open' : ''}`}
+                                        onClick={() => setDropdownOpen(o => !o)}
+                                    >
+                                        <span className="label-dropdown-trigger-text">
+                                            {activeLabel || 'All topics'}
+                                        </span>
+                                        <svg className="label-dropdown-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="m6 9 6 6 6-6" />
+                                        </svg>
+                                    </button>
+                                    {dropdownOpen && (
+                                        <div className="label-dropdown-menu">
+                                            <button
+                                                className={`label-dropdown-item ${activeLabel === null ? 'label-dropdown-item--active' : ''}`}
+                                                onClick={() => { onLabelChange(null); setDropdownOpen(false); }}
+                                            >
+                                                All topics
+                                            </button>
+                                            {uniqueLabels.map(label => (
+                                                <button
+                                                    key={label}
+                                                    className={`label-dropdown-item ${activeLabel === label ? 'label-dropdown-item--active' : ''}`}
+                                                    onClick={() => { onLabelChange(label); setDropdownOpen(false); }}
+                                                >
+                                                    {label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -220,7 +235,7 @@ export default function SidePanel({ tweets, collapsed, activeLabel, onLabelChang
                         ))}
                     </div>
                 ) : (
-                    <div className="no-data">No events for this label.</div>
+                    <div className="no-data"></div>
                 )}
             </div>
         </div>

@@ -41,7 +41,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel }, ref
                 pinnedPopupRef.current = null;
             }
 
-            map.flyTo({ center: coords, zoom: Math.max(map.getZoom(), 5), duration: 1200, padding: { top: 400, bottom: 0, left: 0, right: 0 } });
+            map.flyTo({ center: coords, zoom: Math.max(map.getZoom(), 5), duration: 1200, padding: { top: 200, bottom: 0, left: 0, right: 0 } });
 
             // Open popup once the camera stops moving
             map.once('moveend', () => {
@@ -62,6 +62,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel }, ref
                 window.navigateTweet = () => {};
             });
         },
+        resize: () => mapRef.current?.resize(),
     }));
     const animFrameRef = useRef(null)
     const [dataTweets, setDataTweets] = useState(null);

@@ -8,10 +8,10 @@ const API = process.env.REACT_APP_API_URL;
 const getFreshness = (isoDate) => {
   if (!isoDate) return "stale";
   const diffH = (Date.now() - new Date(isoDate).getTime()) / 36e5;
-  if (diffH < 6) return "hot";     // < 6h  → rouge vif
-  if (diffH < 24) return "warm";    // < 24h → orange
-  if (diffH < 72) return "cool";    // < 3j  → jaune
-  return "stale";                   // > 3j  → gris
+  if (diffH < 6) return "hot";
+  if (diffH < 24) return "warm";
+  if (diffH < 72) return "cool";
+  return "stale";
 };
 
 const formatRelative = (isoDate) => {
@@ -24,7 +24,7 @@ const formatRelative = (isoDate) => {
 };
 
 /* ─── TopBar ─── */
-export default function TopBar({ tweets, onTopicSelect, openPanel, togglePanel }) {
+export default function TopBar({ tweets, onTopicSelect, openPanel, togglePanel, sidePanelCollapsed }) {
   const [topics, setTopics] = useState([]);
   const { selectedPeriod, changePeriod } = useTime();
 
@@ -110,12 +110,15 @@ export default function TopBar({ tweets, onTopicSelect, openPanel, togglePanel }
   const formatDate = (iso) =>
     new Date(iso).toLocaleString("fr-FR", {
       day: "2-digit", month: "2-digit", year: "numeric",
-      hour: "2-digit", minute: "2-digit",
     });
 
   return (
     <div className="topbar">
-      <div className="topbar-left" ref={menuRef}>
+      <div
+        className="topbar-left"
+        ref={menuRef}
+        style={{ paddingLeft: sidePanelCollapsed ? 33 : 0}}
+      >
 
         {/* ─── Time period ─── */}
         <div className="time-period-group">

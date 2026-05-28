@@ -8,6 +8,7 @@ import { LayerProvider } from "./context/LayerContext";
 import { useState, useEffect, useRef } from "react";
 import "./utils/popupUtils.css";
 import "./App.css";
+import EventsChart from "./components/EventsChart/EventsChart";
 
 export default function App() {
   const [tweets, setTweets] = useState(null);
@@ -17,6 +18,7 @@ export default function App() {
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const mapRef = useRef(null);
   const [activeLabel, setActiveLabel] = useState(null);
+  const [chartOpen, setChartOpen] = useState(true);
 
   const handleTopicSelect = ({ lng, lat }) => {
     if (mapRef.current) {
@@ -42,20 +44,15 @@ export default function App() {
     return (
       <TimeProvider>
         <LayerProvider>
-          {/* Layout mobile : colonne verticale */}
           <div className="app-mobile">
-
-            {/* Carte + TopBar (zone principale) */}
             <div className="app-mobile__map">
               <TopBar togglePanel={togglePanel} openPanel={openPanel} onTopicSelect={handleTopicSelect} />
               <div style={{ flex: 1, position: 'relative' }}>
-                <MapView ref={mapRef} onTweetsLoaded={setTweets} activeLabel={activeLabel} />              </div>
+                <MapView ref={mapRef} onTweetsLoaded={setTweets} activeLabel={activeLabel} />
+              </div>
               <StatusBar />
             </div>
-
-            {/* SidePanel en bas — togglable */}
             <div className={`app-mobile__sidepanel ${sidePanelCollapsed ? 'app-mobile__sidepanel--hidden' : ''}`}>
-              {/* Handle / bouton toggle */}
               <button
                 className="app-mobile__toggle"
                 onClick={() => setSidePanelCollapsed(v => !v)}
@@ -65,75 +62,103 @@ export default function App() {
                   width="14" height="14" viewBox="0 0 14 14"
                   fill="none" xmlns="http://www.w3.org/2000/svg"
                 >
-                  {/* Chevron bas quand ouvert, haut quand fermé */}
                   <path d="M2 5L7 10L12 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
                 <span>{sidePanelCollapsed}</span>
               </button>
-              <SidePanel tweets={tweets} collapsed={sidePanelCollapsed} activeLabel={activeLabel} onLabelChange={setActiveLabel} onTweetClick={handleTweetClick} />            </div>
-
+              <SidePanel tweets={tweets} collapsed={sidePanelCollapsed} activeLabel={activeLabel} onLabelChange={setActiveLabel} onTweetClick={handleTweetClick} />
+            </div>
           </div>
         </LayerProvider>
       </TimeProvider>
     );
   }
 
-  // Layout desktop (inchangé)
+  // Layout desktop
   return (
     <TimeProvider>
       <LayerProvider>
         <div style={{ display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden' }}>
 
-          {/* 1. SidePanel + bouton toggle dans un wrapper commun */}
-          <div style={{ position: 'relative', display: 'flex', flexShrink: 0 }}>
-            <SidePanel tweets={tweets} collapsed={sidePanelCollapsed} activeLabel={activeLabel} onLabelChange={setActiveLabel} onTweetClick={handleTweetClick} />
-            <button
-              onClick={() => setSidePanelCollapsed(v => !v)}
-              style={{
-                position: 'absolute',
-                right: -27,
-                top: '50%',
-                transform: 'translateY(-50%)',
-                zIndex: 200,
-                width: 28,
-                height: 52,
-                background: '#0a0f1c',
-                border: '1px solid #1e2d3d',
-                borderLeft: 'none',
-                borderRadius: '0 6px 6px 0',
-                cursor: 'pointer',
-                display: openPanel === "topics" ? 'none' : 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#4a6a8a',
-                padding: 0,
-              }}
-              onMouseEnter={e => { e.currentTarget.style.background = '#111927'; e.currentTarget.style.color = '#e2e8f0'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = '#0a0f1c'; e.currentTarget.style.color = '#4a6a8a'; }}
-            >
-              <svg
-                style={{
-                  transition: 'transform 0s cubic-bezier(0.4,0,0.2,1)',
-                  transform: sidePanelCollapsed ? 'rotate(180deg)' : 'rotate(0deg)',
-                }}
-                width="14" height="14" viewBox="0 0 14 14"
-                fill="none" xmlns="http://www.w3.org/2000/svg"
-              >
-                <path d="M9 2L4 7L9 12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </button>
-          </div>
+          {/* 1. SidePanel — le bouton toggle est à l'intérieur quand il est ouvert */}
+          <SidePanel
+            tweets={tweets}
+            collapsed={sidePanelCollapsed}
+            activeLabel={activeLabel}
+            onLabelChange={setActiveLabel}
+            onTweetClick={handleTweetClick}
+            onToggle={() => setSidePanelCollapsed(true)}
+          />
 
-          {/* 2. Zone de droite (Carte + TopBar) */}
-          <div style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column' }}>
+          {/* 2. Zone de droite */}
+          <div style={{
+            flex: 1,
+            minWidth: 0,
+            position: 'relative',
+            display: 'flex',
+            flexDirection: 'column'
+          }}>
+
+            {/* Bouton rouvrir — visible UNIQUEMENT quand le panel est fermé */}
+            {sidePanelCollapsed && openPanel !== "topics" && (
+              <button
+                onClick={() => setSidePanelCollapsed(false)}
+                style={{
+                  position: 'absolute',
+                  left: 8,
+                  top: 16,
+                  zIndex: 200,
+                  width: 28,
+                  height: 28,
+                  border: 'transparent',
+                  background: 'transparent',
+                  borderRadius: '100%',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#e2e8f0',
+                  padding: 0,
+                  transition: 'border-color 0.15s ease, color 0.15s ease, background 0.15s ease',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.background = '#41444a';
+                  e.currentTarget.style.color = '#e2e8f0';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = 'transparent';
+                  e.currentTarget.style.color = '#e2e8f0';
+                }}
+              >
+                {/* Icône ←| (miroir de |→) pour indiquer "ouvrir vers la droite" */}
+                <svg
+                  width="16" height="16" viewBox="0 0 16 16"
+                  fill="none" xmlns="http://www.w3.org/2000/svg"
+                  style={{ display: 'block', transform: 'scaleX(-1)' }}
+                >
+                  <line x1="12" y1="2" x2="12" y2="14" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+                  <path d="M9 8 L3 8 M6 5 L3 8 L6 11" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            )}
+
             <TopBar
               togglePanel={togglePanel}
               openPanel={openPanel}
               onTopicSelect={handleTopicSelect}
+              sidePanelCollapsed={sidePanelCollapsed}
             />
             <div style={{ flex: 1, position: 'relative' }}>
-              <MapView ref={mapRef} onTweetsLoaded={setTweets} activeLabel={activeLabel} />            </div>
+              <MapView ref={mapRef} onTweetsLoaded={setTweets} activeLabel={activeLabel} />
+            </div>
             <ContentPanel isOpen={contentPanelOpen} onToggle={() => setContentPanelOpen(v => !v)} />
+            {/* <EventsChart
+              isOpen={chartOpen}
+              onToggle={() => {
+                setChartOpen(v => !v);
+                setTimeout(() => mapRef.current?.resize?.(), 250);
+              }}
+            /> */}
             <StatusBar />
           </div>
 

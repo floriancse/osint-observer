@@ -93,14 +93,14 @@
     color: #62778a;
     cursor: pointer;
     padding: 6px;
-    border-radius: 4px;
+    border-radius: 100%;
     display: flex;
     align-items: center;
 }
 
 .close-btn:hover {
     color: #f1f1f1;
-    background: #1e2d3d;
+    background: #1e2937;
 }
 
 /* Text */
@@ -355,9 +355,8 @@
     padding-right: 10px;
     border-radius: 9999px;
     text-transform: uppercase;
-    background: #111827;
-    color: #93a8c0;
-    border: 1px solid #2f4964;
+    background: #1e2937;
+    color: #e2e8f0;
 }
 
 .maplibregl-map{

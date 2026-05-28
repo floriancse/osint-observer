@@ -124,6 +124,9 @@ export function createPopupHTML(props, pinned, currentIndex, totalCount, showIma
   const showNav = totalCount > 1;
   const avatarSrc = avatarCache[props.username]
     ?? (avatarCache[props.username] = `https://unavatar.io/twitter/${props.username}`);
+  const text = props.text?.length > 500 
+  ? props.text.slice(0, 500) + '…' 
+  : props.text;
 
   return `
   <div class="tweet-card${isImportant ? ' important-tweet' : ''}">
@@ -146,7 +149,7 @@ export function createPopupHTML(props, pinned, currentIndex, totalCount, showIma
     </div>
     ${tagsHTML(props)}
 
-    <div class="tweet-card-text">${props.text}</div>
+    <div class="tweet-card-text">${props.text?.length > 500 ? props.text.slice(0, 500) + '[…]' : props.text}</div>
     ${showImages ? imagesHTML(images) : ''}
     ${props.nominatim_query || props.latitude ? `
       <div class="tweet-card-location">
