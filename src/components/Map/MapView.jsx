@@ -6,15 +6,108 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { useTime } from "../../context/TimeContext";
 import { createPopupHTML } from "../../utils/popupUtils";
 import { loadChokepointImages } from "../../utils/chokepointIcons";
+import { loadTopicImages } from "../../utils/topicIcons";
 
 const MAPTILER_API_KEY = process.env.REACT_APP_MAPTILER_API_KEY;
 const STYLE_URL = `https://api.maptiler.com/maps/dataviz-dark/style.json?key=${MAPTILER_API_KEY}`;
 const API = process.env.REACT_APP_API_URL;
 
+/* ─── Theater popup helpers ─── */
+const getTheaterFreshness = (isoDate) => {
+    if (!isoDate) return "stale";
+    const diffH = (Date.now() - new Date(isoDate).getTime()) / 36e5;
+    if (diffH < 6) return "hot";
+    if (diffH < 24) return "warm";
+    if (diffH < 72) return "cool";
+    return "stale";
+};
+
+const formatTheaterRelative = (isoDate) => {
+    if (!isoDate) return null;
+    const diffH = (Date.now() - new Date(isoDate).getTime()) / 36e5;
+    if (diffH < 1) return `${Math.round(diffH * 60)}m ago`;
+    if (diffH < 24) return `${Math.round(diffH)}h ago`;
+    return `${Math.round(diffH / 24)}d ago`;
+};
+
+const formatTheaterDate = (iso) =>
+    new Date(iso).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
+
+const getTheaterLoadingHTML = () => `
+    <div class="theater-popup-inner">
+        <div class="theater-popup-loading">
+            <span class="theater-popup-loading-dot"></span>
+            <span class="theater-popup-loading-dot"></span>
+            <span class="theater-popup-loading-dot"></span>
+        </div>
+    </div>
+`;
+
+const getTheaterErrorHTML = () => `
+    <div class="theater-popup-inner">
+        <p class="theater-popup-empty">Unable to load theater data.</p>
+    </div>
+`;
+
+const getTheaterHTML = (topic, tweets) => {
+    const freshness = getTheaterFreshness(topic.LATEST_UPDATE);
+    const relTime = formatTheaterRelative(topic.LATEST_UPDATE);
+    const countries = (topic.COUNTRIES || [])
+        .map(c => `<span class="theater-popup-tag">${c}</span>`).join('');
+    const imgLabel = (topic.LABEL || '').replace(/ /g, '%20');
+    const publicUrl = process.env.PUBLIC_URL || '';
+
+    const summaryBlock = topic.TOPIC_SUMMARY ? `
+        <div class="theater-popup-summary" style="background-image:url('${publicUrl}/img/${imgLabel}.png')">
+            <div class="theater-popup-summary-overlay"></div>
+            <div class="theater-popup-summary-inner">
+                <div class="theater-popup-summary-label">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>
+                    </svg>
+                    Situation summary
+                </div>
+                <p class="theater-popup-summary-text">${topic.TOPIC_SUMMARY}</p>
+            </div>
+        </div>
+    ` : '';
+
+    const eventsHTML = tweets.length > 0 ? `
+        <div class="theater-popup-divider"><span>Major events</span></div>
+        <div class="theater-popup-events">
+            ${tweets.map(t => `
+                <div class="theater-popup-event">
+                    <div class="theater-popup-event-date">${formatTheaterDate(t.created_at)}</div>
+                    ${t.summary_title ? `<p class="theater-popup-event-title">${t.summary_title}</p>` : ''}
+                    <p class="theater-popup-event-summary">"${t.summary}"</p>
+                </div>
+            `).join('')}
+        </div>
+    ` : `<p class="theater-popup-empty">No significant events found for this theater.</p>`;
+
+    return `
+        <div class="theater-popup-inner">
+            <div class="theater-popup-header">
+                <div class="theater-popup-header-top">
+                    <span class="theater-popup-freshness-dot theater-popup-freshness-dot--${freshness}"></span>
+                    <span class="theater-popup-title">${topic.LABEL || 'Theater'}</span>
+                    ${relTime ? `<span class="theater-popup-rel-time">${relTime}</span>` : ''}
+                </div>
+                ${countries ? `<div class="theater-popup-countries">${countries}</div>` : ''}
+            </div>
+            <div class="theater-popup-body">
+                ${summaryBlock}
+                ${eventsHTML}
+            </div>
+        </div>
+    `;
+};
+
 const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel }, ref) {
     const { timeRange } = useTime();
     const containerRef = useRef(null);
     const timeRangeRef = useRef(timeRange);
+    const activeLabelRef = useRef(activeLabel);
     const mapRef = useRef(null);
     useImperativeHandle(ref, () => ({
         flyTo: (options) => {
@@ -41,7 +134,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel }, ref
                 pinnedPopupRef.current = null;
             }
 
-            map.flyTo({ center: coords, zoom: Math.max(map.getZoom(), 5), duration: 1200, padding: { top: 200, bottom: 0, left: 0, right: 0 } });
+            map.flyTo({ center: coords, zoom: Math.max(map.getZoom(), 5), duration: 1200, padding: { top: 0, bottom: 0, left: 0, right: 0 } });
 
             // Open popup once the camera stops moving
             map.once('moveend', () => {
@@ -59,7 +152,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel }, ref
 
                 pinnedPopupRef.current = newPopup;
                 newPopup.on("close", () => { pinnedPopupRef.current = null; });
-                window.navigateTweet = () => {};
+                window.navigateTweet = () => { };
             });
         },
         resize: () => mapRef.current?.resize(),
@@ -74,6 +167,8 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel }, ref
     useEffect(() => {
         const map = mapRef.current;
         if (!map || !map.isStyleLoaded()) return;
+
+        activeLabelRef.current = activeLabel;
 
         // Filtres de base définis à la création des layers (à ne pas écraser)
         const baseFilters = {
@@ -100,6 +195,16 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel }, ref
                 map.setFilter(layerId, baseFilter);
             }
         });
+
+        // Topic areas : afficher l'outline du topic sélectionné, cacher si "All topics"
+        const topicAreaLayers = ['topics-areas-hover-fill', 'topics-areas-hover-outline'];
+        topicAreaLayers.forEach(layerId => {
+            if (!map.getLayer(layerId)) return;
+            map.setFilter(layerId, activeLabel
+                ? ['==', ['get', 'label'], activeLabel]
+                : ['==', ['get', 'topic_id'], '']   // filtre vide = tout masqué
+            );
+        });
     }, [activeLabel]);
     useEffect(() => {
         timeRangeRef.current = timeRange;
@@ -108,7 +213,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel }, ref
     const loadAllData = async (map) => {
         try {
             const { start, end } = timeRangeRef.current;
-            const [dataTweets, dataShipping, dataChokepoints, dataBorders, dataBordersTheaters, dataMilitaryAreas, dataWorldAreas] =
+            const [dataTweets, dataShipping, dataChokepoints, dataBorders, dataBordersTheaters, dataMilitaryAreas, dataWorldAreas, dataTopicsLocations, dataTopicsAreas] =
                 await Promise.all([
                     fetch(`${API}/tweets.geojson?start_date=${start}&end_date=${end}`).then(r => r.json()),
                     fetch(`${API}/shipping_lanes.geojson`).then(r => r.json()),
@@ -117,6 +222,8 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel }, ref
                     fetch(`${API}/conflict_theaters.geojson`).then(r => r.json()),
                     fetch(`${API}/conflict_areas.geojson`).then(r => r.json()),
                     fetch(`${API}/world_areas.geojson`).then(r => r.json()),
+                    fetch(`${API}/topics_location.geojson`).then(r => r.json()),
+                    fetch(`${API}/topics_areas.geojson`).then(r => r.json()),
                 ]);
 
             setDataTweets(dataTweets);
@@ -129,6 +236,8 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel }, ref
             map.addSource("conflict-theaters", { type: "geojson", data: dataBordersTheaters });
             map.addSource("conflict-areas", { type: "geojson", data: dataMilitaryAreas });
             map.addSource("world-areas", { type: "geojson", data: dataWorldAreas });
+            map.addSource("topics-locations", { type: "geojson", data: dataTopicsLocations });
+            map.addSource("topics-areas", { type: "geojson", data: dataTopicsAreas });
             return dataTweets
         } catch (err) {
             console.error("Erreur chargement données initiales :", err);
@@ -165,6 +274,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel }, ref
                     setPinnedPopup(null);
                 }
             };
+
             map.addLayer({
                 id: 'conflict-theaters-fill',
                 type: 'fill',
@@ -282,6 +392,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel }, ref
             });
 
             loadChokepointImages(map);
+            loadTopicImages(map);
             map.addLayer({
                 id: "chokepoints",
                 type: "symbol",
@@ -310,7 +421,134 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel }, ref
                     'fill-opacity': 0,
                 }
             });
+            map.addLayer({
+                id: "topics-locations-layer",
+                type: "symbol",
+                source: "topics-locations",
+                layout: {
+                    "icon-image": "topic-location",
+                    "icon-size": 0.35,
+                    "icon-allow-overlap": true,
+                    "icon-ignore-placement": true,
+                },
+            });
+            map.addLayer({
+                id: "topics-areas-hover-outline",
+                type: "line",
+                source: "topics-areas",
+                filter: ['==', ['get', 'topic_id'], ''],
+                paint: {
+                    "line-color": "#b7bdc3",
+                    "line-width": 1,
+                    "line-opacity": 1,
+                },
+            });
             //MOUSE BEHAVIOR
+            let pinnedTopicId = null;
+            const emptyTopicFilter = ['==', ['get', 'topic_id'], ''];
+
+            const clearTopicOutline = () => {
+                pinnedTopicId = null;
+                map.setFilter("topics-areas-hover-fill", emptyTopicFilter);
+                map.setFilter("topics-areas-hover-outline", emptyTopicFilter);
+            };
+
+            map.on("mouseenter", "topics-locations-layer", (e) => {
+                if (!e.features.length) return;
+                map.getCanvas().style.cursor = "pointer";
+                isHoveringTopic = true;
+
+                // Topics take priority: dismiss any active tweet / conflict hover popup
+                if (!pinnedPopup) {
+                    popup.remove();
+                    conflictPopup.remove();
+                    currentHoverPopup = null;
+                }
+                isHoveringTweet = false;
+                isHoveringConflictArea = false;
+
+                const topicId = e.features[0].properties.topic_id;
+                const filter = ['==', ['get', 'topic_id'], topicId];
+                map.setFilter("topics-areas-hover-fill", filter);
+                map.setFilter("topics-areas-hover-outline", filter);
+            });
+
+            map.on("mouseleave", "topics-locations-layer", () => {
+                map.getCanvas().style.cursor = "";
+                isHoveringTopic = false;
+                // Don't clear outline if a popup is pinned on this topic
+                if (!pinnedTopicId) {
+                    // Restore label-based filter if a topic is selected in the panel, else hide
+                    const restoreFilter = activeLabelRef.current
+                        ? ['==', ['get', 'label'], activeLabelRef.current]
+                        : emptyTopicFilter;
+                    map.setFilter("topics-areas-hover-fill", restoreFilter);
+                    map.setFilter("topics-areas-hover-outline", restoreFilter);
+                }
+            });
+
+            let topicClickConsumed = false;
+
+            map.on("click", "topics-locations-layer", async (e) => {
+                topicClickConsumed = true;
+                setTimeout(() => { topicClickConsumed = false; }, 0);
+                if (!e.features.length) return;
+
+                const topicId = e.features[0].properties.topic_id;
+                const coords = e.features[0].geometry.coordinates.slice();
+
+                // Close any existing pinned popup
+                if (pinnedPopup) { pinnedPopup.remove(); setPinnedPopup(null); }
+
+                // Pin the outline on this topic
+                pinnedTopicId = topicId;
+                const topicFilter = ['==', ['get', 'topic_id'], topicId];
+                map.setFilter("topics-areas-hover-fill", topicFilter);
+                map.setFilter("topics-areas-hover-outline", topicFilter);
+
+                // Show loading popup immediately
+                const theaterPopup = new maplibregl.Popup({
+                    closeButton: true,
+                    closeOnClick: false,
+                    maxWidth: "none",
+                    className: "tweet-popup theater-popup-wrap",
+                    anchor: "bottom",
+                })
+                    .setLngLat(coords)
+                    .setHTML(getTheaterLoadingHTML())
+                    .addTo(map);
+
+                setPinnedPopup(theaterPopup);
+                theaterPopup.on("close", () => {
+                    setPinnedPopup(null);
+                    clearTopicOutline();
+                });
+
+
+
+                try {
+                    const [topicsRes, tweetsRes] = await Promise.all([
+                        fetch(`${API}/topics`),
+                        fetch(`${API}/topics/${topicId}`),
+                    ]);
+                    const topicsData = await topicsRes.json();
+                    const tweetsData = await tweetsRes.json();
+
+                    const topic = (topicsData.topics || []).find(t => t.TOPIC_ID === topicId) || {};
+                    const tweets = (tweetsData.tweets || []).sort(
+                        (a, b) => new Date(b.created_at) - new Date(a.created_at)
+                    );
+
+                    if (theaterPopup.isOpen()) {
+                        theaterPopup.setHTML(getTheaterHTML(topic, tweets));
+                    }
+                } catch (err) {
+                    console.error("Erreur fetch theater popup:", err);
+                    if (theaterPopup.isOpen()) {
+                        theaterPopup.setHTML(getTheaterErrorHTML());
+                    }
+                }
+            });
             let conflictPopup = new maplibregl.Popup({
                 closeButton: true,
                 closeOnClick: true,
@@ -322,6 +560,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel }, ref
                 return map.queryRenderedFeatures(point, { layers: ["conflict-areas-fill"] }).length > 0;
             };
             let isHoveringTweet = false;
+            let isHoveringTopic = false;
             let pinnedPopup = null;
             // Keep ref in sync so useImperativeHandle can access it
             const setPinnedPopup = (p) => { pinnedPopup = p; pinnedPopupRef.current = p; };
@@ -359,6 +598,8 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel }, ref
                 `;
             };
             map.on("mousemove", "tweets-hover-area", (e) => {
+                // Topics always win — bail out if the cursor is over a topic point
+                if (map.queryRenderedFeatures(e.point, { layers: ["topics-locations-layer"] }).length) return;
                 if (pinnedPopup) return;
 
                 isHoveringTweet = true;
@@ -432,6 +673,9 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel }, ref
             });
 
             map.on("click", "tweets-hover-area", (e) => {
+                // Topics always win — their click handler sets this flag synchronously
+                if (topicClickConsumed) return;
+
                 e.originalEvent.stopPropagation();
 
                 const features = map.queryRenderedFeatures(e.point, { layers: ["tweets-hover-area"] })
@@ -515,20 +759,6 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel }, ref
             });
 
             let hoveredName = null;
-
-            map.on('mousemove', 'world-areas', (e) => {
-                if (e.features.length > 0) {
-                    const name = e.features[0].properties.name;
-                    if (name !== hoveredName) {
-                        hoveredName = name;
-                        console.log(name);
-                    }
-                }
-            });
-
-            map.on('mouseleave', 'world-areas', () => {
-                hoveredName = null;
-            });
 
             //PULSE
             const animatePulse = () => {

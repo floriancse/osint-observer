@@ -57,5 +57,280 @@
 
 .tweet-popup:has(.theater-popup-inner) .maplibregl-popup-content {
   width: fit-content !important;
-  padding: 12px 16px !important;
+}
+/* ═══════════════════════════════════════════
+   THEATER POPUP
+   ═══════════════════════════════════════════ */
+
+.theater-popup-wrap .maplibregl-popup-content {
+  padding: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 12px !important;
+  overflow: hidden;
+}
+
+.theater-popup-wrap .maplibregl-popup-tip {
+  border-top-color: #0d1220 !important;
+}
+
+.theater-popup-wrap .maplibregl-popup-close-button {
+  color: #64748b;
+  font-size: 18px;
+  top: 8px;
+  right: 10px;
+  z-index: 10;
+  line-height: 1;
+}
+
+.theater-popup-wrap .maplibregl-popup-close-button:hover {
+  color: #e2e8f0;
+  background: transparent;
+}
+
+.theater-popup-inner {
+  width: 400px;
+  background: #0d1220;
+  border: 1px solid #1e2d45;
+  border-radius: 12px;
+  font-family: 'Roboto Mono', monospace;
+  overflow: hidden;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+}
+
+/* ── Header ── */
+.theater-popup-header {
+  padding: 12px 36px 10px 14px;
+  border-bottom: 1px solid #0f1625;
+  background: rgba(15, 22, 37, 0.9);
+}
+
+.theater-popup-header-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.theater-popup-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #e6edf3;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  flex: 1;
+}
+
+.theater-popup-rel-time {
+  font-size: 10px;
+  color: #4a6a8a;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* Freshness dot */
+.theater-popup-freshness-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.theater-popup-freshness-dot--hot {
+  background: #ef4444;
+  box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5);
+  animation: theater-dot-hot 1.4s ease-in-out infinite;
+}
+@keyframes theater-dot-hot {
+  0%  { box-shadow: 0 0 0 0   rgba(239, 68, 68, 0.5); }
+  70% { box-shadow: 0 0 0 5px rgba(239, 68, 68, 0); }
+  100%{ box-shadow: 0 0 0 0   rgba(239, 68, 68, 0); }
+}
+
+.theater-popup-freshness-dot--warm {
+  background: #f97316;
+  box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.4);
+  animation: theater-dot-warm 2.4s ease-in-out infinite;
+}
+@keyframes theater-dot-warm {
+  0%  { box-shadow: 0 0 0 0   rgba(249, 115, 22, 0.4); }
+  70% { box-shadow: 0 0 0 5px rgba(249, 115, 22, 0); }
+  100%{ box-shadow: 0 0 0 0   rgba(249, 115, 22, 0); }
+}
+
+.theater-popup-freshness-dot--cool { background: #eab308; }
+.theater-popup-freshness-dot--stale { background: #334155; }
+
+/* Country tags */
+.theater-popup-countries {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.theater-popup-tag {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #64748b;
+  background: rgba(100, 116, 139, 0.1);
+  border: 1px solid rgba(100, 116, 139, 0.2);
+  border-radius: 3px;
+  padding: 1px 5px;
+  white-space: nowrap;
+}
+
+/* ── Body (scrollable) ── */
+.theater-popup-body {
+  max-height: 420px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #1e2d3d transparent;
+}
+
+.theater-popup-body::-webkit-scrollbar { width: 3px; }
+.theater-popup-body::-webkit-scrollbar-thumb { background: #1e2d3d; border-radius: 4px; }
+
+/* ── Summary block ── */
+.theater-popup-summary {
+  position: relative;
+  margin: 12px 12px 0;
+  border-radius: 8px;
+  overflow: hidden;
+  background-size: cover;
+  background-position: center;
+  background-color: #0a0f1c;
+}
+
+.theater-popup-summary-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(160deg, rgba(6,9,15,0.9) 0%, rgba(6,9,15,0.7) 30%, rgba(6,9,15,0.4) 60%);
+}
+
+.theater-popup-summary-inner {
+  position: relative;
+  z-index: 1;
+  padding: 12px 12px 14px;
+}
+
+.theater-popup-summary-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #60a5fa;
+  margin-bottom: 7px;
+}
+
+.theater-popup-summary-text {
+  font-size: 11px;
+  color: #e2e8f0;
+  line-height: 1.65;
+  margin: 0;
+  font-family: sans-serif;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.7);
+}
+
+/* ── Divider ── */
+.theater-popup-divider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  margin: 10px 0 2px;
+}
+
+.theater-popup-divider::before,
+.theater-popup-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #0f1625;
+}
+
+.theater-popup-divider span {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #334155;
+  white-space: nowrap;
+}
+
+/* ── Events list ── */
+.theater-popup-events {
+  display: flex;
+  flex-direction: column;
+}
+
+.theater-popup-event {
+  padding: 10px 14px;
+  border-bottom: 1px solid #0f1625;
+}
+
+.theater-popup-event:last-child { border-bottom: none; }
+
+.theater-popup-event-date {
+  font-size: 10px;
+  color: #4a6a8a;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  margin-bottom: 4px;
+}
+
+.theater-popup-event-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #e6edf3;
+  line-height: 1.4;
+  margin: 0 0 4px;
+  letter-spacing: 0.01em;
+  font-family: sans-serif;
+}
+
+.theater-popup-event-summary {
+  font-size: 11px;
+  color: #c9d1d9;
+  line-height: 1.6;
+  margin: 0;
+  font-style: italic;
+  font-family: sans-serif;
+}
+
+/* ── Loading ── */
+.theater-popup-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 32px 20px;
+}
+
+.theater-popup-loading-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #86a0c3;
+  animation: theater-dot-pulse 1.2s ease-in-out infinite;
+}
+.theater-popup-loading-dot:nth-child(2) { animation-delay: 0.2s; }
+.theater-popup-loading-dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes theater-dot-pulse {
+  0%, 80%, 100% { opacity: 0.2; transform: scale(0.8); }
+  40%           { opacity: 1;   transform: scale(1); }
+}
+
+/* ── Empty / error ── */
+.theater-popup-empty {
+  padding: 24px 16px;
+  color: #4a6a8a;
+  font-size: 11px;
+  margin: 0;
+  text-align: center;
+  font-family: sans-serif;
 }

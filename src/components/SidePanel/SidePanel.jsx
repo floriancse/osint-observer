@@ -227,7 +227,10 @@ export default function SidePanel({ tweets, collapsed, activeLabel, onLabelChang
                                 key={feature.properties.id ?? i}
                                 className="osint-tweet-card-wrapper"
                                 style={{ cursor: 'pointer' }}
-                                onClick={() => onTweetClick?.(feature)}
+                                onClick={(e) => {
+                                    if (e.target.closest('.tweet-card-link')) return;
+                                    onTweetClick?.(feature);
+                                }}
                                 dangerouslySetInnerHTML={{
                                     __html: createPopupHTML(feature.properties, false, 0, 1, true, true)
                                 }}

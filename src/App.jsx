@@ -46,7 +46,7 @@ export default function App() {
         <LayerProvider>
           <div className="app-mobile">
             <div className="app-mobile__map">
-              <TopBar togglePanel={togglePanel} openPanel={openPanel} onTopicSelect={handleTopicSelect} />
+              <TopBar togglePanel={togglePanel} openPanel={openPanel} />
               <div style={{ flex: 1, position: 'relative' }}>
                 <MapView ref={mapRef} onTweetsLoaded={setTweets} activeLabel={activeLabel} />
               </div>
@@ -141,13 +141,12 @@ export default function App() {
                 </svg>
               </button>
             )}
-
+{/* 
             <TopBar
               togglePanel={togglePanel}
               openPanel={openPanel}
-              onTopicSelect={handleTopicSelect}
               sidePanelCollapsed={sidePanelCollapsed}
-            />
+            /> */}
             <div style={{ flex: 1, position: 'relative' }}>
               <MapView ref={mapRef} onTweetsLoaded={setTweets} activeLabel={activeLabel} />
             </div>
