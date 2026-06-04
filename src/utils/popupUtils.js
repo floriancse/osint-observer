@@ -143,7 +143,7 @@ export function createPopupHTML(props, pinned, currentIndex, totalCount, showIma
           </svg>
         </span>` : ''}
       <div class="tweet-card-time">${displayTime}</div>
-      <button onclick="window.closePopup()" class="close-btn"><svg width="10" height="10" viewBox="0 0 14 14" fill="none">
+      <button onclick="window.closePopup()" class="close-btn"><svg width="8" height="8" viewBox="0 0 14 14" fill="none">
         <path d="M1 1l12 12M13 1L1 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
       </svg></button>
     </div>

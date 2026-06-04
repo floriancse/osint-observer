@@ -9,7 +9,7 @@ import { loadChokepointImages } from "../../utils/chokepointIcons";
 import { loadTopicImages } from "../../utils/topicIcons";
 
 const MAPTILER_API_KEY = process.env.REACT_APP_MAPTILER_API_KEY;
-const STYLE_URL = `https://api.maptiler.com/maps/dataviz-dark/style.json?key=${MAPTILER_API_KEY}`;
+const STYLE_URL = `https://api.maptiler.com/maps/019e947a-cdc7-7112-be5f-b04019239e3c/style.json?key=${MAPTILER_API_KEY}`;
 const API = process.env.REACT_APP_API_URL;
 
 /* ─── Theater popup helpers ─── */
@@ -213,7 +213,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel }, ref
     const loadAllData = async (map) => {
         try {
             const { start, end } = timeRangeRef.current;
-            const [dataTweets, dataShipping, dataChokepoints, dataBorders, dataBordersTheaters, dataMilitaryAreas, dataWorldAreas, dataTopicsLocations, dataTopicsAreas] =
+            const [dataTweets, dataShipping, dataChokepoints, dataBorders, dataBordersTheaters, dataMilitaryAreas, dataWorldAreas, dataTopicsLocations, dataTopicsAreas, dataMilitaryLines] =
                 await Promise.all([
                     fetch(`${API}/tweets.geojson?start_date=${start}&end_date=${end}`).then(r => r.json()),
                     fetch(`${API}/shipping_lanes.geojson`).then(r => r.json()),
@@ -224,6 +224,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel }, ref
                     fetch(`${API}/world_areas.geojson`).then(r => r.json()),
                     fetch(`${API}/topics_location.geojson`).then(r => r.json()),
                     fetch(`${API}/topics_areas.geojson`).then(r => r.json()),
+                    fetch(`${API}/military_lines.geojson`).then(r => r.json()),
                 ]);
 
             setDataTweets(dataTweets);
@@ -238,6 +239,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel }, ref
             map.addSource("world-areas", { type: "geojson", data: dataWorldAreas });
             map.addSource("topics-locations", { type: "geojson", data: dataTopicsLocations });
             map.addSource("topics-areas", { type: "geojson", data: dataTopicsAreas });
+            map.addSource("military-lines", { type: "geojson", data: dataMilitaryLines });
             return dataTweets
         } catch (err) {
             console.error("Erreur chargement données initiales :", err);
@@ -318,7 +320,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel }, ref
             map.addLayer({
                 id: 'shipping-lanes', type: 'line', source: 'shipping-lanes',
                 layout: { 'line-join': 'round', 'line-cap': 'round' },
-                paint: { 'line-color': '#5693b0', 'line-width': .75, 'line-opacity': .5, 'line-dasharray': [2, 2] },
+                paint: { 'line-color': '#4a588e', 'line-width': .75, 'line-opacity': .5, 'line-dasharray': [2, 2] },
             });
             map.addLayer({
                 id: 'pulse-high-importance_score',
@@ -439,8 +441,9 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel }, ref
                 filter: ['==', ['get', 'topic_id'], ''],
                 paint: {
                     "line-color": "#b7bdc3",
-                    "line-width": 1,
+                    "line-width": 1.5,
                     "line-opacity": 1,
+                    "line-dasharray": [4, 2],
                 },
             });
             //MOUSE BEHAVIOR

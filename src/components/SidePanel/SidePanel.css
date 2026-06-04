@@ -107,14 +107,14 @@
 
 .header-subtitle {
   font-size: 11px;
-  color: #4a6a8a;
+  color: #8b949e;
   letter-spacing: 0.03em;
   margin-top: 3px;
 }
 
 .last-update-text {
   font-size: 11px;
-  color: #4a6a8a;
+  color: #8b949e;
   letter-spacing: 0.03em;
   margin-top: 3px;
 }
@@ -222,7 +222,7 @@
   background: #0a0f1c;
   border: none;
   border-radius: 4px;
-  color: #4a6a8a;
+  color: #8b949e;
   font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
@@ -248,7 +248,7 @@
 .sort-dropdown-chevron {
   width: 12px;
   height: 12px;
-  color: #4a6a8a;
+  color: #8b949e;
   transition: transform 0.2s ease;
   flex-shrink: 0;
 }
@@ -277,7 +277,7 @@
   background: transparent;
   border: none;
   border-bottom: 1px solid #0f1928;
-  color: #4a6a8a;
+  color: #8b949e;
   font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
@@ -317,7 +317,7 @@
   background: #0a0f1c;
   border: none;
   border-radius: 4px;
-  color: #4a6a8a;
+  color: #8b949e;
   font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
@@ -392,7 +392,7 @@
   background: transparent;
   border: none;
   border-bottom: 1px solid #0f1928;
-  color: #4a6a8a;
+  color: #8b949e;
   font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
