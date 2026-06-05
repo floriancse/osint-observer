@@ -126,7 +126,7 @@
 
 /* Text */
 .tweet-card-text {
-    font-size: 12px;
+    font-size: 11px;
     color: #e1e1e1;
     line-height: 1.6;
     padding:10px;
@@ -298,7 +298,7 @@
 }
 
 .tweet-card-link {
-    font-size: 12px;
+    font-size: 11px;
     color: #1c96e9;
     border-radius: 5px;
     text-decoration: none;
@@ -370,7 +370,7 @@
 .tweet-card-tag {
     display: inline-flex;
     align-items: center;
-    font-size: 11px;
+    font-size: 10px;
     padding:4px;
     padding-left: 10px;
     padding-right: 10px;

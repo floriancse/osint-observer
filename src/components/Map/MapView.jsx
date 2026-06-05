@@ -91,7 +91,6 @@ const getTheaterHTML = (topic, tweets) => {
                 <div class="theater-popup-header-top">
                     <span class="theater-popup-freshness-dot theater-popup-freshness-dot--${freshness}"></span>
                     <span class="theater-popup-title">${topic.LABEL || 'Theater'}</span>
-                    ${relTime ? `<span class="theater-popup-rel-time">${relTime}</span>` : ''}
                 </div>
                 ${countries ? `<div class="theater-popup-countries">${countries}</div>` : ''}
             </div>

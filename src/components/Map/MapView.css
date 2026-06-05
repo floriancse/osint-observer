@@ -3,8 +3,8 @@
   height: 100%;
   left: 0px;
   background: radial-gradient(circle at center,
-      #1c1f2b 0%,
-      #0a0f1c 50%);
+      #2b3042 0%,
+      #0a0f1c 70%);
 }
 
 .tweet-popup:has(.chokepoint-popup-inner) .maplibregl-popup-content {
@@ -190,7 +190,7 @@
 }
 
 .theater-popup-tag {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -246,7 +246,7 @@
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
