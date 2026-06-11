@@ -1,5 +1,5 @@
-import { TiWarning } from "react-icons/ti";
-const TOPIC_COLOR = "#b7bdc3";
+import { FaEye } from "react-icons/fa6";
+const TOPIC_COLOR = "#d9dee2";
 
 function extractSVGData(IconComponent) {
     const element = IconComponent({ size: 1 });
@@ -22,7 +22,7 @@ function extractSVGData(IconComponent) {
 
 function makeTopicIcon() {
     const SIZE = 128;
-    const { paths } = extractSVGData(TiWarning);
+    const { paths } = extractSVGData(FaEye);
 
     const MEASURE = 800;
     const tempCanvas = document.createElement("canvas");
@@ -64,11 +64,8 @@ function makeTopicIcon() {
     ctx.beginPath();
     ctx.arc(C, C, R, 0, Math.PI * 2);
     ctx.closePath();
-    ctx.fillStyle = "#292929";
+    ctx.fillStyle = "#0f1524";
     ctx.fill();
-    ctx.strokeStyle = TOPIC_COLOR;
-    ctx.lineWidth = 3;
-    ctx.stroke();
 
     // --- Icône par dessus ---
     ctx.translate(offsetX, offsetY);

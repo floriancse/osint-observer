@@ -143,14 +143,8 @@ export default function SidePanel({ tweets, collapsed, activeLabel, onLabelChang
                             </button>
                         </div>
                     </div>
+                    <div className="title-divider" />
                     <div className="subtitle-column">
-                        <span className="header-subtitle">Twitter/X stream</span>
-                        {lastUpdate && (
-                            <div className="last-update-text">
-                                Last update: {lastUpdate}
-                            </div>
-                        )}
-
                         <div className="filter-controls-row">
                             <div className="sort-dropdown-wrapper" ref={sortDropdownRef}>
                                 <button
@@ -239,6 +233,14 @@ export default function SidePanel({ tweets, collapsed, activeLabel, onLabelChang
                     </div>
                 ) : (
                     <div className="no-data"></div>
+                )}
+            </div>
+            <div className="sidepanel-footer">
+                <span className="header-subtitle">Twitter/X stream</span>
+                {lastUpdate && (
+                    <div className="last-update-text">
+                        Last update: {lastUpdate}
+                    </div>
                 )}
             </div>
         </div>

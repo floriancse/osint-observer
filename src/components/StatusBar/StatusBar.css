@@ -4,8 +4,8 @@
   left: 0;
   right: 0;
   height: 32px;
-  background: #0a0f1c;
-  border-top: 1px solid #1e2d3d;
+  background: #0f1524;
+  border-top: 1px solid #181f27;
   z-index: 100;
   display: flex;
   align-items: center;
@@ -20,8 +20,8 @@
   font-weight: 700;
   color: #ff3355;
   letter-spacing: 0.15em;
+  border-right: 1px solid #181f27;
   padding: 0 12px;
-  border-right: 1px solid #1e2d3d;
   height: 100%;
   display: flex;
   align-items: center;

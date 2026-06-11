@@ -22,19 +22,21 @@ const getTheaterFreshness = (isoDate) => {
     return "stale";
 };
 
-const formatTheaterRelative = (isoDate) => {
-    if (!isoDate) return null;
-    const diffH = (Date.now() - new Date(isoDate).getTime()) / 36e5;
-    if (diffH < 1) return `${Math.round(diffH * 60)}m ago`;
-    if (diffH < 24) return `${Math.round(diffH)}h ago`;
-    return `${Math.round(diffH / 24)}d ago`;
-};
-
 const formatTheaterDate = (iso) =>
     new Date(iso).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
 
 const getTheaterLoadingHTML = () => `
     <div class="theater-popup-inner">
+        <div class="theater-popup-header">
+            <div class="theater-popup-header-top">
+                <span class="theater-popup-title">Loading…</span>
+                <button onclick="window.closePopup()" class="close-btn">
+                    <svg width="8" height="8" viewBox="0 0 14 14" fill="none">
+                        <path d="M1 1l12 12M13 1L1 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
         <div class="theater-popup-loading">
             <span class="theater-popup-loading-dot"></span>
             <span class="theater-popup-loading-dot"></span>
@@ -51,7 +53,6 @@ const getTheaterErrorHTML = () => `
 
 const getTheaterHTML = (topic, tweets) => {
     const freshness = getTheaterFreshness(topic.LATEST_UPDATE);
-    const relTime = formatTheaterRelative(topic.LATEST_UPDATE);
     const countries = (topic.COUNTRIES || [])
         .map(c => `<span class="theater-popup-tag">${c}</span>`).join('');
     const imgLabel = (topic.LABEL || '').replace(/ /g, '%20');
@@ -79,7 +80,7 @@ const getTheaterHTML = (topic, tweets) => {
                 <div class="theater-popup-event">
                     <div class="theater-popup-event-date">${formatTheaterDate(t.created_at)}</div>
                     ${t.summary_title ? `<p class="theater-popup-event-title">${t.summary_title}</p>` : ''}
-                    <p class="theater-popup-event-summary">"${t.summary}"</p>
+                    <p class="theater-popup-event-summary">${t.summary}</p>
                 </div>
             `).join('')}
         </div>
@@ -91,6 +92,11 @@ const getTheaterHTML = (topic, tweets) => {
                 <div class="theater-popup-header-top">
                     <span class="theater-popup-freshness-dot theater-popup-freshness-dot--${freshness}"></span>
                     <span class="theater-popup-title">${topic.LABEL || 'Theater'}</span>
+                    <button onclick="window.closePopup()" class="close-btn">
+                        <svg width="8" height="8" viewBox="0 0 14 14" fill="none">
+                            <path d="M1 1l12 12M13 1L1 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                        </svg>
+                    </button>
                 </div>
                 ${countries ? `<div class="theater-popup-countries">${countries}</div>` : ''}
             </div>
@@ -139,7 +145,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel }, ref
             map.once('moveend', () => {
                 if (pinnedPopupRef.current) return;
                 const newPopup = new maplibregl.Popup({
-                    closeButton: true,
+                    closeButton: false,
                     closeOnClick: true,
                     maxWidth: "none",
                     className: "tweet-popup",
@@ -196,7 +202,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel }, ref
         });
 
         // Topic areas : afficher l'outline du topic sélectionné, cacher si "All topics"
-        const topicAreaLayers = ['topics-areas-hover-fill', 'topics-areas-hover-outline'];
+        const topicAreaLayers = ['topics-areas-hover-outline'];
         topicAreaLayers.forEach(layerId => {
             if (!map.getLayer(layerId)) return;
             map.setFilter(layerId, activeLabel
@@ -235,7 +241,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel }, ref
             map.addSource("conflict-borders", { type: "geojson", data: dataBorders });
             map.addSource("conflict-theaters", { type: "geojson", data: dataBordersTheaters });
             map.addSource("conflict-areas", { type: "geojson", data: dataMilitaryAreas });
-            map.addSource("world-areas", { type: "geojson", data: dataWorldAreas });
+            map.addSource("world-areas", { type: "geojson", data: dataWorldAreas, generateId: true });
             map.addSource("topics-locations", { type: "geojson", data: dataTopicsLocations });
             map.addSource("topics-areas", { type: "geojson", data: dataTopicsAreas });
             map.addSource("military-lines", { type: "geojson", data: dataMilitaryLines });
@@ -251,8 +257,8 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel }, ref
         const map = new maplibregl.Map({
             container: containerRef.current,
             style: STYLE_URL,
-            center: [2, 40],
-            zoom: 1.5,
+            center: [40, 40],
+            zoom: 2,
             projection: "globe",
         });
 
@@ -262,7 +268,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel }, ref
             map.setProjection({ type: 'globe' });
             const dataTweets = await loadAllData(map);
             let popup = new maplibregl.Popup({
-                closeButton: true,
+                closeButton: false,
                 closeOnClick: true,
                 maxWidth: "360px",
                 className: "tweet-popup",
@@ -275,7 +281,21 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel }, ref
                     setPinnedPopup(null);
                 }
             };
-
+            map.addLayer({
+                id: 'world-areas-hover-outline',
+                type: 'line',
+                source: 'world-areas',
+                paint: {
+                    'line-color': '#a6afba',
+                    'line-width': 2,
+                    'line-opacity': [
+                        'case',
+                        ['boolean', ['feature-state', 'hover'], false],
+                        0.55,
+                        0,
+                    ],
+                }
+            });
             map.addLayer({
                 id: 'conflict-theaters-fill',
                 type: 'fill',
@@ -291,7 +311,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel }, ref
                 source: 'conflict-areas',
                 paint: {
                     'fill-color': '#f7a816',
-                    'fill-opacity': 0.2
+                    'fill-opacity': 0.3
                 }
             });
             map.addLayer({
@@ -301,8 +321,8 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel }, ref
                 paint: {
                     'line-color': '#f7a816',
                     'line-width': 1,
-                    'line-opacity': 1,
-                    'line-dasharray': [6, 3]
+                    'line-opacity': .5,
+                    'line-dasharray': [4, 2]
                 }
             });
             map.addLayer({
@@ -398,7 +418,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel }, ref
                 id: "chokepoints",
                 type: "symbol",
                 source: "chokepoints",
-                filter: ["==", ["get", "status"], "CLOSED"],
+                filter: ["in", ["get", "status"], ["literal", ["CLOSED", "RESTRICTED"]]],
                 layout: {
                     "icon-image": [
                         "match",
@@ -439,10 +459,10 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel }, ref
                 source: "topics-areas",
                 filter: ['==', ['get', 'topic_id'], ''],
                 paint: {
-                    "line-color": "#b7bdc3",
+                    "line-color": "#d9dee2",
                     "line-width": 1.5,
                     "line-opacity": 1,
-                    "line-dasharray": [4, 2],
+                    "line-dasharray": [2, 2],
                 },
             });
             //MOUSE BEHAVIOR
@@ -451,7 +471,6 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel }, ref
 
             const clearTopicOutline = () => {
                 pinnedTopicId = null;
-                map.setFilter("topics-areas-hover-fill", emptyTopicFilter);
                 map.setFilter("topics-areas-hover-outline", emptyTopicFilter);
             };
 
@@ -471,7 +490,6 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel }, ref
 
                 const topicId = e.features[0].properties.topic_id;
                 const filter = ['==', ['get', 'topic_id'], topicId];
-                map.setFilter("topics-areas-hover-fill", filter);
                 map.setFilter("topics-areas-hover-outline", filter);
             });
 
@@ -484,7 +502,6 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel }, ref
                     const restoreFilter = activeLabelRef.current
                         ? ['==', ['get', 'label'], activeLabelRef.current]
                         : emptyTopicFilter;
-                    map.setFilter("topics-areas-hover-fill", restoreFilter);
                     map.setFilter("topics-areas-hover-outline", restoreFilter);
                 }
             });
@@ -505,12 +522,11 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel }, ref
                 // Pin the outline on this topic
                 pinnedTopicId = topicId;
                 const topicFilter = ['==', ['get', 'topic_id'], topicId];
-                map.setFilter("topics-areas-hover-fill", topicFilter);
                 map.setFilter("topics-areas-hover-outline", topicFilter);
 
                 // Show loading popup immediately
                 const theaterPopup = new maplibregl.Popup({
-                    closeButton: true,
+                    closeButton: false,
                     closeOnClick: false,
                     maxWidth: "none",
                     className: "tweet-popup theater-popup-wrap",
@@ -525,8 +541,6 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel }, ref
                     setPinnedPopup(null);
                     clearTopicOutline();
                 });
-
-
 
                 try {
                     const [topicsRes, tweetsRes] = await Promise.all([
@@ -697,7 +711,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel }, ref
                 };
 
                 const newPinnedPopup = new maplibregl.Popup({
-                    closeButton: true,
+                    closeButton: false,
                     closeOnClick: true,
                     maxWidth: "none",
                     className: "tweet-popup",
@@ -749,6 +763,10 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel }, ref
                             ${props.reason ? `
                             <div style="color: #ccc; font-size: 11px; margin-top: 6px;">
                                 ${props.reason}
+                                ${props.CLOSED_DURATION != null ? `
+                            <div style="color: #ccc; font-size: 11px; margin-top: 6px;">
+                                ${props.status.charAt(0).toUpperCase() + props.status.slice(1).toLowerCase()} for <span style="color: #fff">${props.CLOSED_DURATION} day${props.CLOSED_DURATION > 1 ? 's' : ''}.</span>
+                            </div>` : ""}
                             </div>` : ""}
                         </div>
                     `)
@@ -760,7 +778,26 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel }, ref
                 if (!pinnedPopup) popup.remove();
             });
 
-            let hoveredName = null;
+            let hoveredWorldAreaId = null;
+
+            map.on('mousemove', 'world-areas', (e) => {
+                if (!e.features.length) return;
+                const id = e.features[0].id;
+                if (hoveredWorldAreaId !== null && hoveredWorldAreaId !== id) {
+                    map.setFeatureState({ source: 'world-areas', id: hoveredWorldAreaId }, { hover: false });
+                }
+                if (hoveredWorldAreaId !== id) {
+                    hoveredWorldAreaId = id;
+                    map.setFeatureState({ source: 'world-areas', id }, { hover: true });
+                }
+            });
+
+            map.on('mouseleave', 'world-areas', () => {
+                if (hoveredWorldAreaId !== null) {
+                    map.setFeatureState({ source: 'world-areas', id: hoveredWorldAreaId }, { hover: false });
+                    hoveredWorldAreaId = null;
+                }
+            });
 
             //PULSE
             const animatePulse = () => {

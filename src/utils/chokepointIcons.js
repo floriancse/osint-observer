@@ -83,7 +83,7 @@ function makeIcon(status) {
     ctx.lineTo(C, C + R);
     ctx.lineTo(C - R, C);
     ctx.closePath();
-    ctx.fillStyle = "#292929";
+    ctx.fillStyle = "#0f1524";
     ctx.fill();
     ctx.strokeStyle = color;
     ctx.lineWidth = 3;

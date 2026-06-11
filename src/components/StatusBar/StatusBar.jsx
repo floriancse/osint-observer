@@ -29,7 +29,7 @@ export default function StatusBar() {
                         return (
                             <span key={i} className="statusbar-item">
                                 <span className="statusbar-date">{time} · {date}</span>
-                                <span className="statusbar-text">“{t.text}”</span>
+                                <span className="statusbar-text">{t.text}</span>
                             </span>
                         );
                     })}
