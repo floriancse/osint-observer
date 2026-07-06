@@ -7,6 +7,8 @@ import { useTime } from "../../context/TimeContext";
 import { createPopupHTML } from "../../utils/popupUtils";
 import { loadChokepointImages } from "../../utils/chokepointIcons";
 import { loadTopicImages } from "../../utils/topicIcons";
+import { loadMilImages } from "../../utils/milIcons";
+import { loadPolImages } from "../../utils/polIcons";
 
 const MAPTILER_API_KEY = process.env.REACT_APP_MAPTILER_API_KEY;
 const STYLE_URL = `https://api.maptiler.com/maps/019e947a-cdc7-7112-be5f-b04019239e3c/style.json?key=${MAPTILER_API_KEY}`;
@@ -182,8 +184,45 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel }, ref
                 ['>=', ['coalesce', ['to-number', ['get', 'importance_score']], 0], 4],
             ],
             'tweets_heatmap_other': ['!=', ['get', 'conflict_typology'], 'MIL'],
-            'tweets-mil-halo': ['==', ['get', 'conflict_typology'], 'MIL'],
-            'tweets-mil': ['==', ['get', 'conflict_typology'], 'MIL'],
+            'tweets-mil-halo': ['all',
+                ['==', ['get', 'conflict_typology'], 'MIL'],
+                ['!', ['in', ['get', 'weapon_type'], ['literal', ['Missiles', 'Explosives', 'Drones', 'Military Aviation', 'Small Arms']]]],
+                ['has', 'weapon_type'],
+                ['!=', ['get', 'weapon_type'], null],
+            ],
+            'tweets-mil': ['all',
+                ['==', ['get', 'conflict_typology'], 'MIL'],
+                ['!', ['in', ['get', 'weapon_type'], ['literal', ['Missiles', 'Explosives', 'Drones', 'Military Aviation', 'Small Arms']]]],
+                ['has', 'weapon_type'],
+                ['!=', ['get', 'weapon_type'], null],
+            ],
+            'tweets-mil-missiles': ['all',
+                ['==', ['get', 'conflict_typology'], 'MIL'],
+                ['in', ['get', 'weapon_type'], ['literal', ['Missiles', 'Explosives', 'Artillery & Armour']]],
+            ],
+            'tweets-mil-drones': ['all',
+                ['==', ['get', 'conflict_typology'], 'MIL'],
+                ['==', ['get', 'weapon_type'], 'Drones'],
+            ],
+            'tweets-mil-aviation': ['all',
+                ['==', ['get', 'conflict_typology'], 'MIL'],
+                ['==', ['get', 'weapon_type'], 'Military Aviation'],
+            ],
+            'tweets-mil-small-arms': ['all',
+                ['==', ['get', 'conflict_typology'], 'MIL'],
+                ['==', ['get', 'weapon_type'], 'Small Arms'],
+            ],
+            'tweets-mil-unknown': ['all',
+                ['==', ['get', 'conflict_typology'], 'MIL'],
+                ['any',
+                    ['!', ['has', 'weapon_type']],
+                    ['==', ['get', 'weapon_type'], null],
+                    ['==', ['get', 'weapon_type'], 'Unidentified weapon'],
+                ],
+            ],
+            'tweets_pol_icons': ['==', ['get', 'conflict_typology'], 'POL'],
+            'tweets-hover-area': null,
+            'topics-locations-layer': null,
             'tweets-hover-area': null,
         };
 
@@ -218,7 +257,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel }, ref
     const loadAllData = async (map) => {
         try {
             const { start, end } = timeRangeRef.current;
-            const [dataTweets, dataShipping, dataChokepoints, dataBorders, dataBordersTheaters, dataMilitaryAreas, dataWorldAreas, dataTopicsLocations, dataTopicsAreas, dataMilitaryLines] =
+            const [dataTweets, dataShipping, dataChokepoints, dataBorders, dataBordersTheaters, dataMilitaryAreas, dataWorldAreas, dataTopicsLocations, dataTopicsAreas] =
                 await Promise.all([
                     fetch(`${API}/tweets.geojson?start_date=${start}&end_date=${end}`).then(r => r.json()),
                     fetch(`${API}/shipping_lanes.geojson`).then(r => r.json()),
@@ -229,7 +268,6 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel }, ref
                     fetch(`${API}/world_areas.geojson`).then(r => r.json()),
                     fetch(`${API}/topics_location.geojson`).then(r => r.json()),
                     fetch(`${API}/topics_areas.geojson`).then(r => r.json()),
-                    fetch(`${API}/military_lines.geojson`).then(r => r.json()),
                 ]);
 
             setDataTweets(dataTweets);
@@ -244,7 +282,6 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel }, ref
             map.addSource("world-areas", { type: "geojson", data: dataWorldAreas, generateId: true });
             map.addSource("topics-locations", { type: "geojson", data: dataTopicsLocations });
             map.addSource("topics-areas", { type: "geojson", data: dataTopicsAreas });
-            map.addSource("military-lines", { type: "geojson", data: dataMilitaryLines });
             return dataTweets
         } catch (err) {
             console.error("Erreur chargement données initiales :", err);
@@ -341,34 +378,75 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel }, ref
                 layout: { 'line-join': 'round', 'line-cap': 'round' },
                 paint: { 'line-color': '#4a588e', 'line-width': .75, 'line-opacity': .5, 'line-dasharray': [2, 2] },
             });
-            map.addLayer({
-                id: 'pulse-high-importance_score',
-                type: 'circle',
-                source: 'tweets',
-                filter: ['all',
-                    ['==', ['get', 'conflict_typology'], 'MIL'],
-                    ['>=', ['coalesce', ['to-number', ['get', 'importance_score']], 0], 4],
-                ],
-                paint: {
-                    'circle-color': ['match', ['get', 'conflict_typology'], 'MIL', '#f71616', 'rgb(129, 183, 249)'],
-                    'circle-radius': 8,
-                    'circle-opacity': 0,
-                    'circle-stroke-width': 0,
-                },
-            });
+            // map.addLayer({
+            //     id: 'pulse-high-importance_score',
+            //     type: 'circle',
+            //     source: 'tweets',
+            //     filter: ['all',
+            //         ['==', ['get', 'conflict_typology'], 'MIL'],
+            //         ['>=', ['coalesce', ['to-number', ['get', 'importance_score']], 0], 4],
+            //     ],
+            //     paint: {
+            //         'circle-color': ['match', ['get', 'conflict_typology'], 'MIL', '#f71616', 'rgb(129, 183, 249)'],
+            //         'circle-radius': 8,
+            //         'circle-opacity': 0,
+            //         'circle-stroke-width': 0,
+            //     },
+            // });
             map.addLayer({
                 id: 'tweets_heatmap_other', type: 'heatmap', source: 'tweets',
-                filter: ['!=', ['get', 'conflict_typology'], 'MIL'],
+                filter: ['==', ['get', 'conflict_typology'], 'OTHER'],
                 paint: {
                     'heatmap-weight': ['interpolate', ['linear'], ['get', 'importance_score'], 1, 0.5, 5, 1],
                     'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 0, 1, 9, 3],
                     'heatmap-color': ['interpolate', ['linear'], ['heatmap-density'],
-                        0, 'rgba(0,0,0,0)', 0.2, 'rgb(78, 152, 241)', 1, '#9fc5f4'],
+                        0, 'rgba(0,0,0,0)', 0.2, 'rgb(81, 124, 178)', 1, '#9fc5f4'],
                     'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 0, 5, 7, 13],
                     'heatmap-opacity': ['interpolate', ['linear'], ['zoom'], 7, 1, 9, 0.8],
                 },
             });
-            const MIL_FILTER = ["==", ["get", "conflict_typology"], "MIL"];
+            map.addLayer({
+                id: 'tweets_pol_icons',
+                type: 'symbol',
+                source: 'tweets',
+                filter: ['==', ['get', 'conflict_typology'], 'POL'],
+                layout: {
+                    'icon-image': 'pol-POL',
+                    'icon-size': 0.3,
+                    'icon-allow-overlap': true,
+                },
+            });
+            const MIL_SYMBOL_TYPES = ["Missiles", "Explosives", "Artillery & Armour", "Drones", "Military Aviation", "Small Arms", "Unidentified weapon"];
+            const MIL_FILTER = ["all",
+                ["==", ["get", "conflict_typology"], "MIL"],
+                ["!", ["in", ["get", "weapon_type"], ["literal", MIL_SYMBOL_TYPES]]],
+                ["has", "weapon_type"],
+                ["!=", ["get", "weapon_type"], null],
+            ];
+            const MIL_MISSILES_FILTER = ["all",
+                ["==", ["get", "conflict_typology"], "MIL"],
+                ["in", ["get", "weapon_type"], ["literal", ["Missiles", "Explosives", "Artillery & Armour"]]],
+            ];
+            const MIL_DRONES_FILTER = ["all",
+                ["==", ["get", "conflict_typology"], "MIL"],
+                ["==", ["get", "weapon_type"], "Drones"],
+            ];
+            const MIL_AVIATION_FILTER = ["all",
+                ["==", ["get", "conflict_typology"], "MIL"],
+                ["==", ["get", "weapon_type"], "Military Aviation"],
+            ];
+            const MIL_SMALL_ARMS_FILTER = ["all",
+                ["==", ["get", "conflict_typology"], "MIL"],
+                ["==", ["get", "weapon_type"], "Small Arms"],
+            ];
+            const MIL_UNKNOWN_FILTER = ["all",
+                ["==", ["get", "conflict_typology"], "MIL"],
+                ["any",
+                    ["!", ["has", "weapon_type"]],
+                    ["==", ["get", "weapon_type"], null],
+                    ["==", ["get", "weapon_type"], "Unidentified weapon"],
+                ],
+            ];
             map.addLayer({
                 id: "tweets-mil-halo",
                 type: "circle",
@@ -414,16 +492,114 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel }, ref
 
             loadChokepointImages(map);
             loadTopicImages(map);
+            loadMilImages(map);
+            loadPolImages(map);
+
+            // Layer symbol pour les tweets MIL weapon_type = "Missiles"
+            map.addLayer({
+                id: "tweets-mil-missiles",
+                type: "symbol",
+                source: "tweets",
+                filter: MIL_MISSILES_FILTER,
+                layout: {
+                    "icon-image": "mil-MISSILES",
+                    "icon-size": ["interpolate", ["linear"],
+                        ["coalesce", ["to-number", ["get", "importance_score"]], 1],
+                        1, 0.18,
+                        3, 0.32,
+                        5, 0.5,
+                    ],
+                    "icon-allow-overlap": true,
+                    "icon-ignore-placement": true,
+                    "symbol-sort-key": ["coalesce", ["to-number", ["get", "importance_score"]], 0],
+                },
+            });
+            // Layer symbol pour les tweets MIL weapon_type = "Drones"
+            map.addLayer({
+                id: "tweets-mil-drones",
+                type: "symbol",
+                source: "tweets",
+                filter: MIL_DRONES_FILTER,
+                layout: {
+                    "icon-image": "mil-DRONES",
+                    "icon-size": ["interpolate", ["linear"],
+                        ["coalesce", ["to-number", ["get", "importance_score"]], 1],
+                        1, 0.18,
+                        3, 0.32,
+                        5, 0.5,
+                    ],
+                    "icon-allow-overlap": true,
+                    "icon-ignore-placement": true,
+                    "symbol-sort-key": ["coalesce", ["to-number", ["get", "importance_score"]], 0],
+                },
+            });
+            // Layer symbol pour les tweets MIL weapon_type = "Military Aviation"
+            map.addLayer({
+                id: "tweets-mil-aviation",
+                type: "symbol",
+                source: "tweets",
+                filter: MIL_AVIATION_FILTER,
+                layout: {
+                    "icon-image": "mil-MILITARY_AVIATION",
+                    "icon-size": ["interpolate", ["linear"],
+                        ["coalesce", ["to-number", ["get", "importance_score"]], 1],
+                        1, 0.18,
+                        3, 0.32,
+                        5, 0.5,
+                    ],
+                    "icon-allow-overlap": true,
+                    "icon-ignore-placement": true,
+                    "symbol-sort-key": ["coalesce", ["to-number", ["get", "importance_score"]], 0],
+                },
+            });
+            // Layer symbol pour les tweets MIL weapon_type = "Small Arms"
+            map.addLayer({
+                id: "tweets-mil-small-arms",
+                type: "symbol",
+                source: "tweets",
+                filter: MIL_SMALL_ARMS_FILTER,
+                layout: {
+                    "icon-image": "mil-SMALL_ARMS",
+                    "icon-size": ["interpolate", ["linear"],
+                        ["coalesce", ["to-number", ["get", "importance_score"]], 1],
+                        1, 0.18,
+                        3, 0.32,
+                        5, 0.5,
+                    ],
+                    "icon-allow-overlap": true,
+                    "icon-ignore-placement": true,
+                    "symbol-sort-key": ["coalesce", ["to-number", ["get", "importance_score"]], 0],
+                },
+            });
+            // Layer symbol pour les tweets MIL sans weapon_type
+            map.addLayer({
+                id: "tweets-mil-unknown",
+                type: "symbol",
+                source: "tweets",
+                filter: MIL_UNKNOWN_FILTER,
+                layout: {
+                    "icon-image": "mil-UNKNOWN",
+                    "icon-size": ["interpolate", ["linear"],
+                        ["coalesce", ["to-number", ["get", "importance_score"]], 1],
+                        1, 0.18,
+                        3, 0.32,
+                        5, 0.5,
+                    ],
+                    "icon-allow-overlap": true,
+                    "icon-ignore-placement": true,
+                    "symbol-sort-key": ["coalesce", ["to-number", ["get", "importance_score"]], 0],
+                },
+            });
             map.addLayer({
                 id: "chokepoints",
                 type: "symbol",
                 source: "chokepoints",
-                filter: ["in", ["get", "status"], ["literal", ["CLOSED", "RESTRICTED"]]],
+                filter: ["in", ["get", "status"], ["literal", ["OPENED", "CLOSED", "RESTRICTED"]]],
                 layout: {
                     "icon-image": [
                         "match",
                         ["get", "status"],
-                        "OPEN", "chokepoint-OPEN",
+                        "OPENED", "chokepoint-OPENED",
                         "CLOSED", "chokepoint-CLOSED",
                         "RESTRICTED", "chokepoint-RESTRICTED",
                         "chokepoint-UNKNOWN",
@@ -738,7 +914,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel }, ref
                 const coords = e.features[0].geometry.coordinates.slice();
 
                 const baseColor =
-                    props.status === "OPEN" ? "16, 185, 129" :
+                    props.status === "OPENED" ? "16, 185, 129" :
                         props.status === "CLOSED" ? "237, 63, 63" :
                             props.status === "RESTRICTED" ? "255, 166, 0 " :
                                 "156, 156, 156";

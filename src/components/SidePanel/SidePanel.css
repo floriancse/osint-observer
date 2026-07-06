@@ -202,7 +202,7 @@
 .filter-controls-row {
   display: flex;
   gap: 6px;
-  padding: 6px 0 2px;
+  padding: 2px 0 2px;
 }
 
 /* ── Shared dropdown base ────────────────────────── */
@@ -241,7 +241,7 @@
 .label-dropdown-trigger:hover {
   border-color: #2e4a6a;
   color: #d1d6dd;
-  background: #262b36;
+  background: #1d273a;
 }
 
 .label-dropdown-trigger:disabled {
@@ -345,14 +345,14 @@
 
 .sort-dropdown-item:hover,
 .label-dropdown-item:hover {
-  background: #262b36;
+  background: #1d273a;
   color: #d1d6dd;
 }
 
 .sort-dropdown-item.active,
 .label-dropdown-item--active {
   color: #d1d6dd;
-  background: #262b36;
+  background: #1d273a;
 }
 
 .sort-dropdown-item.active:hover,

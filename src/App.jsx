@@ -158,7 +158,7 @@ export default function App() {
                 setTimeout(() => mapRef.current?.resize?.(), 250);
               }}
             /> */}
-            <StatusBar />
+            {/* <StatusBar /> */}
           </div>
 
         </div>

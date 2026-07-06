@@ -2,14 +2,14 @@
 import { FaAnchorCircleCheck, FaAnchorCircleXmark, FaAnchorCircleExclamation } from "react-icons/fa6";
 
 const COLORS = {
-    OPEN: "#298a6a",
+    OPENED: "rgb(16, 185, 129)",
     CLOSED: "#f71616",
     UNKNOWN: "#6f6f6f",
     RESTRICTED: "#ffa600"
 };
 
 const ICON_COMPONENTS = {
-    OPEN: FaAnchorCircleCheck,
+    OPENED: FaAnchorCircleCheck,
     CLOSED: FaAnchorCircleXmark,
     RESTRICTED: FaAnchorCircleXmark,
     UNKNOWN: FaAnchorCircleExclamation,
@@ -99,7 +99,7 @@ function makeIcon(status) {
 }
 
 export function loadChokepointImages(map) {
-    ["OPEN", "CLOSED", "RESTRICTED", "UNKNOWN"].forEach((status) => {
+    ["OPENED", "CLOSED", "RESTRICTED", "UNKNOWN"].forEach((status) => {
         const key = `chokepoint-${status}`;
         if (map.hasImage(key)) return;
         const imageData = makeIcon(status);
