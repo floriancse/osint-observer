@@ -55,6 +55,39 @@ export default function SidePanel({ tweets, collapsed, activeLabel, onLabelChang
     const [sortDropdownOpen, setSortDropdownOpen] = useState(false);
     const dropdownRef = useRef(null);
     const sortDropdownRef = useRef(null);
+    const [allUniqueLabels, setAllUniqueLabels] = useState([]);
+
+    // Mémorise le dernier compte connu par label. Comme `tweets` peut arriver
+    // déjà filtré par activeLabel (fetch côté parent), on ne veut jamais
+    // "oublier" le compte des labels qui ne sont plus dans le lot courant :
+    // on fusionne au lieu d'écraser, ce qui garde l'ordre du dropdown stable.
+    const labelCountsRef = useRef({});
+
+    useEffect(() => {
+        if (tweets?.availableLabelsForFilters) {
+            setAllUniqueLabels(tweets.availableLabelsForFilters);
+        }
+        // Fallback pour le chargement initial
+        else if (tweets?.allLabelsForTimeRange) {
+            setAllUniqueLabels(tweets.allLabelsForTimeRange);
+        }
+        else if (tweets?.features) {
+            const features = tweets.features.filter(f => Boolean(f.properties.label));
+            const labels = [...new Set(features.map(f => f.properties.label))].sort();
+            setAllUniqueLabels(labels);
+        }
+
+        // Met à jour le cache de comptage à partir des données courantes,
+        // sans effacer les comptes des labels absents du lot actuel.
+        if (tweets?.features) {
+            const counts = tweets.features.reduce((acc, f) => {
+                const label = f.properties.label;
+                if (label) acc[label] = (acc[label] || 0) + 1;
+                return acc;
+            }, {});
+            labelCountsRef.current = { ...labelCountsRef.current, ...counts };
+        }
+    }, [tweets]);
 
     useEffect(() => {
         function handleClickOutside(e) {
@@ -118,8 +151,10 @@ export default function SidePanel({ tweets, collapsed, activeLabel, onLabelChang
         if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
         if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
         return 0;
-    });
 
+    });
+    const currentCount = sortedTweets.length;
+    const totalOnPeriod = tweets?.totalCountForTimeRange || (tweets?.features ? tweets.features.length : 0);
     return (
         <div className={`sidepanel${collapsed ? " sidepanel--collapsed" : ""}`}>
             <div className="sidepanel-header">
@@ -128,7 +163,7 @@ export default function SidePanel({ tweets, collapsed, activeLabel, onLabelChang
                         <h3>OSINT Feed</h3>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                             <span className="tweet-count">
-                                {isLoading ? '' : `${sortedTweets.length} / ${tweetFeatures.length} events`}
+                                {isLoading ? '' : `${currentCount} events`}
                             </span>
                             {/* Bouton toggle — visible uniquement quand le panel est ouvert */}
                             <button className="sidepanel-toggle" onClick={onToggle} >
@@ -172,7 +207,8 @@ export default function SidePanel({ tweets, collapsed, activeLabel, onLabelChang
                                 )}
                             </div>
 
-                            {!isLoading && uniqueLabels.length > 0 && (
+                            {/* Remplacez uniqueLabels.length par allUniqueLabels.length */}
+                            {!isLoading && allUniqueLabels.length > 0 && (
                                 <div className="label-dropdown-wrapper" ref={dropdownRef}>
                                     <button
                                         className={`label-dropdown-trigger label-dropdown-trigger--active${dropdownOpen ? ' label-dropdown-trigger--open' : ''}`}
@@ -193,15 +229,18 @@ export default function SidePanel({ tweets, collapsed, activeLabel, onLabelChang
                                             >
                                                 All topics
                                             </button>
-                                            {uniqueLabels.map(label => (
-                                                <button
-                                                    key={label}
-                                                    className={`label-dropdown-item ${activeLabel === label ? 'label-dropdown-item--active' : ''}`}
-                                                    onClick={() => { onLabelChange(label); setDropdownOpen(false); }}
-                                                >
-                                                    {label}
-                                                </button>
-                                            ))}
+                                            {/* Utilisez allUniqueLabels ici à la place de uniqueLabels */}
+                                            {[...allUniqueLabels]
+                                                .sort((a, b) => (labelCountsRef.current[b] || 0) - (labelCountsRef.current[a] || 0))  // Tri décroissant par volume (compte persistant, stable même filtré)
+                                                .map(label => (
+                                                    <button
+                                                        key={label}
+                                                        className={`label-dropdown-item ${activeLabel === label ? 'label-dropdown-item--active' : ''}`}
+                                                        onClick={() => { onLabelChange(label); setDropdownOpen(false); }}
+                                                    >
+                                                        {label}
+                                                    </button>
+                                                ))}
                                         </div>
                                     )}
                                 </div>

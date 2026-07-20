@@ -9,7 +9,7 @@ import { useState, useEffect, useRef } from "react";
 import "./utils/popupUtils.css";
 import "./App.css";
 import EventsChart from "./components/EventsChart/EventsChart";
-
+import MapFilters from "./components/MapFilters/MapFilters"
 export default function App() {
   const [tweets, setTweets] = useState(null);
   const [contentPanelOpen, setContentPanelOpen] = useState(true);
@@ -19,19 +19,16 @@ export default function App() {
   const mapRef = useRef(null);
   const [activeLabel, setActiveLabel] = useState(null);
   const [chartOpen, setChartOpen] = useState(true);
-
-  const handleTopicSelect = ({ lng, lat }) => {
-    if (mapRef.current) {
-      mapRef.current.flyTo({ center: [lng, lat], zoom: 5, duration: 1500 });
-    }
-  };
+  const [activeWeaponTypes, setActiveWeaponTypes] = useState([]);
+  const [activeObjectiveTypes, setActiveObjectiveTypes] = useState([]);
 
   const handleTweetClick = (feature) => {
     if (mapRef.current) {
       mapRef.current.openTweetPopup(feature);
     }
   };
-
+  const [availableWeaponTypes, setAvailableWeaponTypes] = useState([]);
+  const [availableObjectiveTypes, setAvailableObjectiveTypes] = useState([]);
   const togglePanel = (panel) => setOpenPanel((current) => (current === panel ? null : panel));
 
   useEffect(() => {
@@ -39,7 +36,47 @@ export default function App() {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+  useEffect(() => {
+    if (!tweets) return;
+    // Priorité à la liste calculée par MapView pour la période courante
+    // (indépendante du filtre armes actif, donc elle ne se réduit pas
+    // quand on coche un filtre).
+    if (tweets.availableWeaponTypesForTimeRange) {
+      setAvailableWeaponTypes(tweets.availableWeaponTypesForTimeRange);
+      return;
+    }
+    // Fallback (ex: tout premier chargement, avant que MapView n'ait
+    // injecté les métadonnées de période).
+    if (tweets.features) {
+      const uniqueTypes = [...new Set(
+        tweets.features
+          .map(f => f.properties?.weapon_type)
+          .filter(Boolean)
+      )].sort();
+      setAvailableWeaponTypes(uniqueTypes);
+    }
+  }, [tweets]);
 
+  useEffect(() => {
+    if (!tweets) return;
+    // Priorité à la liste calculée par MapView pour la période courante
+    // (indépendante du filtre objectifs actif, donc elle ne se réduit pas
+    // quand on coche un filtre).
+    if (tweets.availableObjectiveTypesForTimeRange) {
+      setAvailableObjectiveTypes(tweets.availableObjectiveTypesForTimeRange);
+      return;
+    }
+    // Fallback (ex: tout premier chargement, avant que MapView n'ait
+    // injecté les métadonnées de période).
+    if (tweets.features) {
+      const uniqueTypes = [...new Set(
+        tweets.features
+          .map(f => f.properties?.objective_type)
+          .filter(Boolean)
+      )].sort();
+      setAvailableObjectiveTypes(uniqueTypes);
+    }
+  }, [tweets]);
   if (isMobile) {
     return (
       <TimeProvider>
@@ -141,23 +178,37 @@ export default function App() {
                 </svg>
               </button>
             )}
-{/* 
+            {/* 
             <TopBar
               togglePanel={togglePanel}
               openPanel={openPanel}
               sidePanelCollapsed={sidePanelCollapsed}
             /> */}
             <div style={{ flex: 1, position: 'relative' }}>
-              <MapView ref={mapRef} onTweetsLoaded={setTweets} activeLabel={activeLabel} />
+              <MapFilters
+                activeWeaponTypes={activeWeaponTypes}
+                setActiveWeaponTypes={setActiveWeaponTypes}
+                availableWeaponTypes={availableWeaponTypes}
+                activeObjectiveTypes={activeObjectiveTypes}
+                setActiveObjectiveTypes={setActiveObjectiveTypes}
+                availableObjectiveTypes={availableObjectiveTypes}
+              />
+              <MapView
+                ref={mapRef}
+                onTweetsLoaded={setTweets}
+                activeLabel={activeLabel}
+                activeWeaponTypes={activeWeaponTypes}
+                activeObjectiveTypes={activeObjectiveTypes}
+              />
             </div>
             <ContentPanel isOpen={contentPanelOpen} onToggle={() => setContentPanelOpen(v => !v)} />
-            {/* <EventsChart
+            <EventsChart
               isOpen={chartOpen}
               onToggle={() => {
                 setChartOpen(v => !v);
                 setTimeout(() => mapRef.current?.resize?.(), 250);
               }}
-            /> */}
+            />
             {/* <StatusBar /> */}
           </div>
 

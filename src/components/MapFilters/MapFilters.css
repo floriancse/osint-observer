@@ -1,0 +1,166 @@
+.map-floating-filters {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  z-index: 100;
+  width: 220px;
+  background: #0a0e1a;
+  border: 1px solid #2a2a3e;
+  border-radius: 8px;
+  overflow: hidden;
+  font-family: 'Roboto Mono', monospace;
+  color: #e2e8f0;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+/* ── Barre de titre type terminal ─────────────────── */
+.terminal-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  background: #0f1524;
+  border-bottom: 1px solid #1a232c;
+}
+
+.terminal-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.terminal-dot--red {
+  background: #f71616;
+}
+
+.terminal-dot--amber {
+  background: #d9a441;
+}
+
+.terminal-dot--blue {
+  background: #4f9dff;
+}
+
+.terminal-title {
+  margin-left: 4px;
+  font-size: 10px;
+  color: #62778a;
+  letter-spacing: 0.04em;
+}
+
+/* ── Corps du terminal ─────────────────────────────── */
+.terminal-body {
+  padding: 8px 10px 10px;
+}
+
+.terminal-prompt {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  margin-bottom: 6px;
+  white-space: nowrap;
+}
+
+.prompt-user {
+  color: #4f9dff;
+  font-weight: 600;
+}
+
+.prompt-sep,
+.prompt-path {
+  color: #62778a;
+}
+
+.prompt-dollar {
+  color: #6b7076;
+  margin: 0 2px;
+}
+
+.prompt-cmd {
+  color: #d1d6dd;
+}
+
+.cursor-blink {
+  color: #4f9dff;
+  animation: cursor-blink-anim 1s step-start infinite;
+}
+
+@keyframes cursor-blink-anim {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* ── Arbre de filtres ───────────────────────────────── */
+.filter-tree {
+  display: flex;
+  flex-direction: column;
+}
+
+.tree-branch {
+  display: flex;
+  font-size: 11px;
+  padding: 2px 0;
+}
+
+.tree-dir {
+  color: #4f9dff;
+  font-weight: 600;
+}
+
+.tree-leaf {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  background: transparent;
+  border: none;
+  padding: 3px 0;
+  font-family: inherit;
+  font-size: 11px;
+  color: #62778a;
+  cursor: pointer;
+  text-align: left;
+  transition: color 0.15s ease, background 0.15s ease;
+  border-radius: 3px;
+}
+
+.tree-leaf:hover {
+  color: #d1d6dd;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.tree-leaf.active {
+  color: #f71616;
+  font-weight: 600;
+}
+
+.tree-leaf.active:hover {
+  color: #f71616;
+  background: rgba(247, 22, 22, 0.1);
+}
+
+.tree-connector {
+  color: #2e3742;
+  white-space: pre;
+  flex-shrink: 0;
+}
+
+.tree-indent {
+  color: transparent;
+  white-space: pre;
+  flex-shrink: 0;
+}
+
+.tree-checkbox {
+  flex-shrink: 0;
+  margin-right: 6px;
+  color: inherit;
+}
+
+.tree-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

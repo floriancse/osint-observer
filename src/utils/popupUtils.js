@@ -62,11 +62,11 @@ function tagsHTML(props) {
   }
 
   if (props.target) {
-    tags.push(`<span class="tweet-card-tag target">${props.target}</span>`);
+    tags.push(`<span class="tweet-card-tag aggressor">${props.aggressor}</span>`);
   }
 
   if (props.aggressor) {
-    tags.push(`<span class="tweet-card-tag aggressor">${props.aggressor}</span>`);
+    tags.push(`<span class="tweet-card-tag target">${props.target}</span>`);
   }
 
   if (props.objective_type) {

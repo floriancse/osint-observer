@@ -1,288 +1,101 @@
-/* ========================================= */
-/*   EVENTS CHART — bottom activity line     */
-/* ========================================= */
-
 .events-chart {
-  position: relative;
-  width: 100%;
-  background: #06090f;
-  border-top: 1px solid #1e2d3d;
+  background: #0f1524;
+  border-top: 1px solid #2a2d33;
+  color: #e2e8f0;
+  font-family: sans-serif;
   flex-shrink: 0;
-  z-index: 50;
-  height:110px;
-  font-family: 'Roboto Mono', monospace;
+  z-index: 150;
 }
 
-.events-chart--closed {
-  height: 22px; /* hauteur du seul bouton toggle */
-}
-
-
-/* ─── Toggle handle ─── */
 .events-chart__toggle {
+  width: 100%;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  padding: 5px 14px;
+  gap: 8px;
+  padding: 6px 12px;
   background: transparent;
   border: none;
-  border-bottom: 1px solid transparent;
+  color: #e2e8f0;
   cursor: pointer;
-  color: #4a6a8a;
-  transition: background 0.12s, color 0.12s;
+  font-size: 11px;
 }
 
 .events-chart__toggle:hover {
-  background: #0a0f1c;
-  color: #86a0c3;
+  background: #1d273a;
 }
 
-.events-chart--open .events-chart__toggle {
-  border-bottom-color: #0f1625;
-}
-
-.events-chart__toggle-label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.10em;
-  text-transform: uppercase;
-}
-
-.events-chart__toggle-chevron {
-  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  color: #4a6a8a;
-}
-
-/* ─── Body ─── */
-.events-chart__body {
-  padding: 10px 14px 6px;
-  animation: chartFadeIn 0.2s ease;
-}
-
-@keyframes chartFadeIn {
-  from { opacity: 0; transform: translateY(4px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-/* ─── Loading ─── */
-.events-chart__loading {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  height: 72px;
-}
-
-/* ─── Inner layout ─── */
-.events-chart__inner {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-/* ─── Y-axis labels ─── */
-.events-chart__y-axis {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  position: absolute;
-  left: 14px;
-  /* positioned by JS/CSS relative to svg-wrap */
-  pointer-events: none;
-  height: 52px; /* matches SVG height */
-  margin-top: 10px; /* matches body padding-top */
-}
-
-.events-chart__y-axis span {
-  font-size: 9px;
-  color: #4a6a8a;
-  font-weight: 600;
-  letter-spacing: 0.03em;
-  line-height: 1;
-}
-
-/* ─── SVG wrapper ─── */
-.events-chart__svg-wrap {
-  position: relative;
-  margin-left: 28px;
-  min-width: 0;          /* empêche le flex child de déborder */
-  overflow: hidden;      /* coupe si ça dépasse quand même */
-  box-sizing: border-box;
-}
-
-.events-chart__svg {
-  display: block;
-  width: 100%;
-  height: 52px;
-  overflow: visible;
-  cursor: crosshair;
-}
-
-/* ─── X-axis labels ─── */
-.events-chart__x-labels {
-  position: relative;
-  height: 16px;
-  margin-top: 2px;
-}
-
-.events-chart__x-label {
-  position: absolute;
-  transform: translateX(-50%);
-  font-size: 8px;
-  color: #4a6a8a;
-  letter-spacing: 0.03em;
-  font-weight: 600;
-  white-space: nowrap;
-  top: 0;
-}
-
-/* ─── Tooltip ─── */
-.events-chart__tooltip {
-  position: absolute;
-  bottom: calc(100% + 8px);
-  background: #0a0f1c;
-  border: 1px solid #1e3a5f;
-  border-radius: 6px;
-  padding: 5px 9px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  white-space: nowrap;
-  z-index: 100;
-  pointer-events: none;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
-  animation: tooltipIn 0.1s ease;
-}
-
-@keyframes tooltipIn {
-  from { opacity: 0; transform: translateY(3px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-.events-chart__tooltip::after {
-  content: "";
-  position: absolute;
-  top: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  border: 4px solid transparent;
-  border-top-color: #1e3a5f;
-}
-
-.events-chart__tooltip-date {
-  font-size: 9px;
-  color: #4a6a8a;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.events-chart__tooltip-val {
-  font-size: 12px;
-  color: #60a5fa;
-  font-weight: 700;
-}
-
-/* ─── Legend ─── */
-.events-chart__legend {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-left: 28px;
-  margin-top: 2px;
-  padding-top: 2px;
-}
-
-.events-chart__legend-avg {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 9px;
-  color: #4a6a8a;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-}
-
-.events-chart__legend-dash {
-  display: inline-block;
-  width: 16px;
-  height: 0;
-  border-top: 1px dashed rgba(30, 64, 175, 0.5);
-}
-
-.events-chart__legend-total {
-  font-size: 9px;
-  color: #4a6a8a;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-}
-
-/* ─────────────────────────────────────────────
-   Ajouts à EventsChart.css
-   Copiez ces règles dans votre EventsChart.css
-   ───────────────────────────────────────────── */
-
-/* Tooltip affiché pendant le drag des poignées */
-.events-chart__drag-tooltip {
-  position: absolute;
-  top: -24px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: #1e293b;
-  border: 1px solid #3b82f6;
-  border-radius: 4px;
-  padding: 3px 8px;
-  font-size: 10px;
-  color: #e2e8f0;
-  white-space: nowrap;
-  pointer-events: none;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  z-index: 10;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
-}
-
-.events-chart__drag-arrow {
-  color: #3b82f6;
-  font-size: 9px;
-}
-
-.events-chart__drag-days {
-  color: #60a5fa;
-  font-size: 9px;
-  font-weight: 600;
-  background: rgba(59, 130, 246, 0.15);
-  padding: 0 4px;
-  border-radius: 3px;
-}
-
-/* Plage sélectionnée affichée dans la légende */
-.events-chart__range-info {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 10px;
-  color: #93c5fd;
-  font-variant-numeric: tabular-nums;
-}
-
-.events-chart__range-info svg {
-  color: #3b82f6;
+.events-chart__toggle svg {
+  transition: transform 0.2s ease;
   flex-shrink: 0;
 }
 
-.events-chart__range-arrow {
-  color: #3b82f6;
-  font-size: 9px;
+.events-chart__active-range {
+  margin-left: auto;
+  color: #9aa0a6;
+  font-size: 11px;
 }
 
-.events-chart__range-days {
-  color: #64748b;
+.events-chart__body {
+  padding: 6px 12px 10px;
+}
+
+.events-chart__controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+
+.events-chart__controls label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #9aa0a6;
+}
+
+.events-chart__controls input[type="date"] {
+  background: #22252a;
+  border: 1px solid #41444a;
+  color: #9aa0a6;
+  border-radius: 4px;
+  padding: 3px 6px;
+  font-size: 11px;
+  color-scheme: dark;
+}
+
+.events-chart__apply {
+  background: #4f9dff;
+  border: none;
+  color: #0b0c0e;
+  font-weight: 600;
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.events-chart__apply:hover {
+  background: #6cadff;
+}
+
+.events-chart__hint {
+  margin-left: auto;
+  color: #6b7076;
   font-size: 10px;
+  font-style: italic;
+}
+
+.events-chart__loading {
+  height: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9aa0a6;
+  font-size: 12px;
+}
+
+.events-chart__graph {
+  user-select: none;
 }
