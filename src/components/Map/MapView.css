@@ -49,8 +49,9 @@
 }
 
 .maplibregl-ctrl-attrib-inner {
-  font-size: 11px;
+  font-size: .6rem;
 }
+
 
 .tweet-popup:has(.theater-popup-inner) .maplibregl-popup-content {
   width: fit-content !important;
@@ -104,7 +105,7 @@
 }
 
 .theater-popup-title {
-  font-size: 12px;
+  font-size: .7rem;
   font-weight: 700;
   color: #e6edf3;
   letter-spacing: 0.06em;
@@ -183,7 +184,7 @@
 }
 
 .theater-popup-tag {
-  font-size: 10px;
+  font-size: .55rem;
   font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -239,7 +240,7 @@
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: 10px;
+  font-size: .7rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -248,7 +249,7 @@
 }
 
 .theater-popup-summary-text {
-  font-size: 11px;
+  font-size: .6rem;
   color: #e2e8f0;
   line-height: 1.65;
   margin: 0;
@@ -298,7 +299,7 @@
 }
 
 .theater-popup-event-date {
-  font-size: 10px;
+  font-size: .6rem;
   color: #8b949e;
   font-weight: 600;
   letter-spacing: 0.03em;
@@ -306,7 +307,7 @@
 }
 
 .theater-popup-event-title {
-  font-size: 12px;
+  font-size: .7rem;
   font-weight: 600;
   color: #e6edf3;
   line-height: 1.4;
@@ -316,7 +317,7 @@
 }
 
 .theater-popup-event-summary {
-  font-size: 11px;
+  font-size: .6rem;
   color: #c9d1d9;
   line-height: 1.6;
   margin: 0;
@@ -379,8 +380,9 @@
    ═══════════════════════════════════════════ */
 
 .maplibregl-ctrl.maplibregl-ctrl-attrib {
-  background-color: rgba(15, 21, 36, 0.75) !important;
-  color: #8b949e !important;
+  display: flex !important;
+  align-items: center !important;
+  min-height: 24px; 
 }
 
 .maplibregl-ctrl-attrib.maplibregl-compact {
@@ -390,7 +392,7 @@
 }
 
 .maplibregl-ctrl-attrib.maplibregl-compact-show {
-  background-color: rgba(15, 21, 36, 0.92) !important;
+  background-color: #0f1524 !important;
 }
 
 /* Liens dans l'attribution */
@@ -417,7 +419,6 @@
 }
 
 .maplibregl-ctrl-attrib-button {
-  background-color: #2a3d5a !important;
   border-radius: 50% !important;
   opacity: 0.85;
   filter: none !important;

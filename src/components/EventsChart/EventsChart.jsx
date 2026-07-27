@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import {
   ResponsiveContainer,
-  AreaChart,
-  Area,
+  BarChart,
+  Bar,
+  Cell,
   XAxis,
   YAxis,
   Tooltip,
@@ -18,9 +19,8 @@ const API = process.env.REACT_APP_API_URL;
 // actuellement sélectionnée pour la carte) — limitée aux 30 derniers jours.
 const HISTORY_DAYS = 30;
 
-// Durée de chaque bucket du graphique. Passé de 24h (1 jour) à 12h :
-// chaque jour est désormais représenté par 2 points (matin / après-midi).
-const BUCKET_HOURS = 12;
+// Durée de chaque bucket du graphique : 24h, soit 1 point par jour.
+const BUCKET_HOURS = 24;
 const BUCKET_MS = BUCKET_HOURS * 60 * 60 * 1000;
 
 const COLOR_SELECTED = "#4f9dff";
@@ -31,7 +31,7 @@ function CustomTooltip({ active, payload, label }) {
   const date = payload[0]?.payload?.date;
   const count = payload[0]?.value;
   return (
-    <div style={{ background: "#0f1524", border: "1px solid #41444a", fontSize: 12, padding: "6px 10px" }}>
+    <div style={{ background: "#0f1524", border: "1px solid #41444a", fontSize: ".6rem", padding: "6px 10px" }}>
       <div style={{ color: "#e2e8f0" }}>{date ? formatDateLong(date) : label}</div>
       <div style={{ color: "#e2e8f0" }}>{count} events</div>
     </div>
@@ -68,39 +68,60 @@ function bucketStart(d) {
   return parseAsUTC(d);
 }
 // Fin exacte d'un bucket : début du bucket suivant, moins 1 ms.
-// Utilise d.endDate si le backend le fournit, sinon calcule +12h.
+// Utilise d.endDate si le backend le fournit, sinon calcule +24h.
 function bucketEnd(point) {
   if (point?.endDate) return parseAsUTC(point.endDate);
   return new Date(parseAsUTC(point.date ?? point).getTime() + BUCKET_MS - 1);
 }
 
-export default function EventsChart({ isOpen, onToggle }) {
+export default function EventsChart({ isOpen, onToggle, activeWeaponTypes, activeObjectiveTypes }) {
   const { timeRange, setRange } = useTime();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [draftStart, setDraftStart] = useState("");
   const [draftEnd, setDraftEnd] = useState("");
-
-  // Sélection en cours (glisser-déposer directement sur les barres)
+  const anchorRef = useRef(null);
+  if (anchorRef.current === null) {
+    const end = new Date();
+    const start = new Date(end);
+    start.setDate(start.getDate() - HISTORY_DAYS);
+    anchorRef.current = { start, end };
+  }
+  // Sélection en cours (glisser-déposer directement sur les barres).
+  // dragStateRef est la source de vérité "temps réel" (lue/écrite dans les
+  // handlers mousedown/mousemove/mouseup) : elle évite tout souci de closure
+  // React périmée sur un clic très rapide (mousedown immédiatement suivi de
+  // mouseup). Les states ci-dessous ne servent qu'à piloter le rendu visuel
+  // (couleur des barres, ReferenceArea).
+  const dragStateRef = useRef({ isDragging: false, left: null, right: null });
   const [dragLeft, setDragLeft] = useState(null);
   const [dragRight, setDragRight] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
 
   // Chargement de l'historique du graphique (zero-filled côté backend par bucket
-  // de 12h, donc tous les buckets sont présents, matin et après-midi)
+  // de 24h, donc tous les jours sont présents)
+  const hasLoadedOnce = useRef(false);
   useEffect(() => {
     if (!isOpen) return;
-    setLoading(true);
-    const end = new Date();
-    const start = new Date(end);
-    start.setDate(start.getDate() - HISTORY_DAYS);
+    if (!hasLoadedOnce.current) setLoading(true);
+    const { start, end } = anchorRef.current;
 
-    fetch(`${API}/graph_events?start_date=${start.toISOString()}&end_date=${end.toISOString()}`)
+    const params = new URLSearchParams({
+      start_date: start.toISOString(),
+      end_date: end.toISOString(),
+    });
+    activeWeaponTypes.forEach((t) => params.append('weapon_type', t));
+    activeObjectiveTypes.forEach((t) => params.append('objective_type', t));
+
+    fetch(`${API}/graph_events?${params.toString()}`)
       .then((r) => r.json())
       .then((json) => setData(json.events || []))
       .catch((err) => console.error("Erreur chargement graph_events :", err))
-      .finally(() => setLoading(false));
-  }, [isOpen]);
+      .finally(() => {
+        setLoading(false);
+        hasLoadedOnce.current = true;
+      });
+  }, [isOpen, activeWeaponTypes, activeObjectiveTypes]);
 
   // Garde les 2 champs de dates synchronisés avec la plage active (carte + graphique)
   useEffect(() => {
@@ -112,15 +133,15 @@ export default function EventsChart({ isOpen, onToggle }) {
     () =>
       data.map((d) => ({
         date: d.date,
-        endDate: d.endDate, // fin exacte du bucket 12h, si fournie par le backend
+        endDate: d.endDate, // fin exacte du bucket 24h, si fournie par le backend
         count: d.count,
       })),
     [data]
   );
 
-  // Un bucket (12h) est "sélectionné" (coloré) s'il CHEVAUCHE la plage active du
+  // Un bucket (24h) est "sélectionné" (coloré) s'il CHEVAUCHE la plage active du
   // contexte — et pas seulement si son timestamp de *début* tombe dedans. Sans ça,
-  // une plage active plus étroite que 12h (ex: "1h", "6h", ou "24h" tôt le matin)
+  // une plage active plus étroite que 24h (ex: "1h" ou "6h")
   // ne matcherait jamais le début d'aucun bucket, même si ce bucket couvre bien
   // toute la plage sélectionnée.
   const isBucketSelected = useCallback(
@@ -135,35 +156,40 @@ export default function EventsChart({ isOpen, onToggle }) {
   );
 
   // --- Sélection par glisser-déposer directement sur les barres ---
+  // Un simple clic (mousedown puis mouseup sur la même barre, sans déplacement)
+  // sélectionne le jour cliqué. Un drag (mousedown, déplacement, mouseup)
+  // sélectionne la plage de jours parcourue.
   const handleMouseDown = (e) => {
     if (!e || e.activeLabel == null) return;
+    dragStateRef.current = { isDragging: true, left: e.activeLabel, right: e.activeLabel };
     setIsDragging(true);
     setDragLeft(e.activeLabel);
     setDragRight(e.activeLabel);
   };
 
   const handleMouseMove = (e) => {
-    if (!isDragging || !e || e.activeLabel == null) return;
+    if (!dragStateRef.current.isDragging || !e || e.activeLabel == null) return;
+    dragStateRef.current.right = e.activeLabel;
     setDragRight(e.activeLabel);
   };
 
   const finishDrag = useCallback(() => {
-    if (!isDragging) return;
+    const { isDragging: wasDragging, left, right } = dragStateRef.current;
+    dragStateRef.current = { isDragging: false, left: null, right: null };
     setIsDragging(false);
-    if (dragLeft == null || dragRight == null) return;
+    setDragLeft(null);
+    setDragRight(null);
+    if (!wasDragging || left == null || right == null) return;
 
-    const leftIdx = chartData.findIndex((d) => d.date === dragLeft);
-    const rightIdx = chartData.findIndex((d) => d.date === dragRight);
+    const leftIdx = chartData.findIndex((d) => d.date === left);
+    const rightIdx = chartData.findIndex((d) => d.date === right);
     if (leftIdx === -1 || rightIdx === -1) return;
 
     const [fromIdx, toIdx] = leftIdx <= rightIdx ? [leftIdx, rightIdx] : [rightIdx, leftIdx];
     const start = bucketStart(chartData[fromIdx].date);
     const end = bucketEnd(chartData[toIdx]);
     setRange(start.toISOString(), end.toISOString());
-
-    setDragLeft(null);
-    setDragRight(null);
-  }, [isDragging, dragLeft, dragRight, chartData, setRange]);
+  }, [chartData, setRange]);
 
   // Sélection par saisie directe des 2 dates
   const applyManualRange = () => {
@@ -183,37 +209,23 @@ export default function EventsChart({ isOpen, onToggle }) {
     return toInputDate(d.toISOString());
   }, []);
 
-  // Position (en %) du début/fin de la plage sélectionnée dans le jeu de données,
-  // utilisée pour dessiner un dégradé net bleu/gris sur la ligne et la zone remplie.
+  // Couleur de chaque barre : bleu (sélectionné) ou gris (non sélectionné).
   // Priorité à la plage en cours de glisser-déposer (drag), sinon la plage active.
-  const gradientStops = useMemo(() => {
-    const total = chartData.length;
-    if (total < 2) return null;
-
+  const barColors = useMemo(() => {
     if (isDragging && dragLeft != null && dragRight != null) {
       const leftIdx = chartData.findIndex((d) => d.date === dragLeft);
       const rightIdx = chartData.findIndex((d) => d.date === dragRight);
-      if (leftIdx === -1 || rightIdx === -1) return null;
+      if (leftIdx === -1 || rightIdx === -1) return chartData.map(() => COLOR_UNSELECTED);
       const [fromIdx, toIdx] = leftIdx <= rightIdx ? [leftIdx, rightIdx] : [rightIdx, leftIdx];
-      return {
-        startPct: (fromIdx / (total - 1)) * 100,
-        endPct: (toIdx / (total - 1)) * 100,
-      };
+      return chartData.map((_, i) => (i >= fromIdx && i <= toIdx ? COLOR_SELECTED : COLOR_UNSELECTED));
     }
 
-    const selectedIdx = [];
-    chartData.forEach((d, i) => {
-      if (isBucketSelected(d)) selectedIdx.push(i);
-    });
-    if (selectedIdx.length === 0) return null;
-    const startPct = (Math.min(...selectedIdx) / (total - 1)) * 100;
-    const endPct = (Math.max(...selectedIdx) / (total - 1)) * 100;
-    return { startPct, endPct };
+    return chartData.map((d) => (isBucketSelected(d) ? COLOR_SELECTED : COLOR_UNSELECTED));
   }, [chartData, isBucketSelected, isDragging, dragLeft, dragRight]);
 
-  // Espacement des ticks de l'axe X pour rester lisible : avec un pas de 12h,
-  // on a ~2x plus de points qu'avant (2 par jour). Diviseur à 60 pour n'afficher
-  // qu'environ 7 ticks au total (ajuster ce nombre pour plus/moins de ticks).
+  // Espacement des ticks de l'axe X pour rester lisible : avec un pas de 24h,
+  // on a 1 point par jour. Diviseur à 10 pour n'afficher qu'environ 10 ticks
+  // au total (ajuster ce nombre pour plus/moins de ticks).
   const tickInterval = Math.max(0, Math.ceil(chartData.length / 10) - 1);
 
   return (
@@ -236,61 +248,37 @@ export default function EventsChart({ isOpen, onToggle }) {
 
           <div className="events-chart__graph">
             {loading ? (
-              <div className="events-chart__loading">Chargement…</div>
+              <div className="events-chart__loading" style={{ height: 80 }}></div>
             ) : (
-              <ResponsiveContainer width="100%" height={120}>
-                <AreaChart
+              <ResponsiveContainer width="100%" height={80}>
+                <BarChart
                   data={chartData}
-                  margin={{ top: 8, right: 16, left: 0, bottom: 0 }}
+                  margin={{ top: 0, right: 0, left: 0, bottom: 0 }}
                   onMouseDown={handleMouseDown}
                   onMouseMove={handleMouseMove}
                   onMouseUp={finishDrag}
                   onMouseLeave={finishDrag}
                 >
-                  <defs>
-                    <linearGradient id="eventsLineColor" x1="0" y1="0" x2="1" y2="0">
-                      <stop offset="0%" stopColor={COLOR_UNSELECTED} />
-                      <stop offset={`${gradientStops?.startPct ?? 100}%`} stopColor={COLOR_UNSELECTED} />
-                      <stop offset={`${gradientStops?.startPct ?? 100}%`} stopColor={COLOR_SELECTED} />
-                      <stop offset={`${gradientStops?.endPct ?? 100}%`} stopColor={COLOR_SELECTED} />
-                      <stop offset={`${gradientStops?.endPct ?? 100}%`} stopColor={COLOR_UNSELECTED} />
-                      <stop offset="100%" stopColor={COLOR_UNSELECTED} />
-                    </linearGradient>
-                    <linearGradient id="eventsAreaColor" x1="0" y1="0" x2="1" y2="0">
-                      <stop offset="0%" stopColor={COLOR_UNSELECTED} stopOpacity={0.18} />
-                      <stop offset={`${gradientStops?.startPct ?? 100}%`} stopColor={COLOR_UNSELECTED} stopOpacity={0.18} />
-                      <stop offset={`${gradientStops?.startPct ?? 100}%`} stopColor={COLOR_SELECTED} stopOpacity={0.15} />
-                      <stop offset={`${gradientStops?.endPct ?? 100}%`} stopColor={COLOR_SELECTED} stopOpacity={0.15} />
-                      <stop offset={`${gradientStops?.endPct ?? 100}%`} stopColor={COLOR_UNSELECTED} stopOpacity={0.18} />
-                      <stop offset="100%" stopColor={COLOR_UNSELECTED} stopOpacity={0.18} />
-                    </linearGradient>
-                  </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
                   <XAxis
                     dataKey="date"
                     tickFormatter={formatDateShort}
-                    tick={{ fill: "#9aa0a6", fontSize: 10 }}
+                    tick={{ fill: "#9aa0a6", fontSize: ".55rem" }}
                     interval={tickInterval}
                     textAnchor="middle"
                     angle={0}
                     height={34}
                   />
-                  <YAxis tick={{ fill: "#9aa0a6", fontSize: 10 }} width={30} allowDecimals={false} />
+                  <YAxis tick={{ fill: "#9aa0a6", fontSize: ".55rem" }} width={30} allowDecimals={false} />
                   <Tooltip
                     content={<CustomTooltip />}
-                    cursor={{ stroke: "#4f9dff", strokeOpacity: 0.3 }}
+                    cursor={{ fill: "#4f9dff", fillOpacity: 0.1 }}
                   />
-                  <Area
-                    type="monotone"
-                    dataKey="count"
-                    stroke="url(#eventsLineColor)"
-                    strokeWidth={2}
-                    fill="url(#eventsAreaColor)"
-                    fillOpacity={1}
-                    isAnimationActive={false}
-                    dot={false}
-                    activeDot={false}
-                  />
+                  <Bar dataKey="count" isAnimationActive={false}>
+                    {chartData.map((d, i) => (
+                      <Cell key={d.date ?? i} fill={barColors[i] ?? COLOR_UNSELECTED} />
+                    ))}
+                  </Bar>
                   {isDragging && dragLeft != null && dragRight != null && (
                     <ReferenceArea
                       x1={dragLeft}
@@ -301,7 +289,7 @@ export default function EventsChart({ isOpen, onToggle }) {
                       fillOpacity={0.15}
                     />
                   )}
-                </AreaChart>
+                </BarChart>
               </ResponsiveContainer>
             )}
           </div>

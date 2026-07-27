@@ -3,7 +3,7 @@ import { FaAnchorCircleCheck, FaAnchorCircleXmark, FaAnchorCircleExclamation } f
 
 const COLORS = {
     OPENED: "rgb(16, 185, 129)",
-    CLOSED: "#f71616",
+    CLOSED: "#ED0C0C",
     UNKNOWN: "#6f6f6f",
     RESTRICTED: "#ffa600"
 };

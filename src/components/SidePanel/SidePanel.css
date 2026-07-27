@@ -97,23 +97,24 @@
 }
 
 .sidepanel-header h3 {
-  font-size: 13px;
+  font-size: .8rem;
   font-weight: 600;
   color: #d1d6dd;
   text-transform: uppercase;
   margin: 0;
   line-height: 1;
+  letter-spacing: .08rem;
 }
 
 .header-subtitle {
-  font-size: 10px;
+  font-size: .55rem;
   color: #8b949e;
   letter-spacing: 0.03em;
   margin-top: 3px;
 }
 
 .last-update-text {
-  font-size: 10px;
+  font-size: .55rem;
   color: #8b949e;
   letter-spacing: 0.03em;
   margin-top: 3px;
@@ -133,7 +134,7 @@
 }
 
 .tweet-count {
-  font-size: 11px;
+  font-size: .6rem;
   font-weight: 500;
   color: #d1d6dd;
   letter-spacing: 0.02em;
@@ -156,7 +157,7 @@
 
 .osint-tweet-date {
   font-family: 'Roboto Mono', monospace;
-  font-size: 10px;
+  font-size: .55rem;
   color: #3b82f6;
   font-weight: 700;
 }
@@ -184,12 +185,6 @@
 .osint-tweet-card-wrapper:has(.tweet-card.important-tweet) {
   border-radius: 10px;
   box-shadow: 0 0 0 2px rgba(237, 63, 63, 1);
-}
-
-.tweet-card-username {
-  font-size: 13px;
-  color: #e6edf3;
-  font-weight: 600;
 }
 
 .no-data {
@@ -228,7 +223,7 @@
   border: none;
   border-radius: 9999px;
   color: #62778a;
-  font-size: 10px;
+  font-size: .55rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -326,7 +321,7 @@
   border: none;
   border-bottom: 1px solid #111d2e;
   color: #62778a;
-  font-size: 10px;
+  font-size: .55rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;

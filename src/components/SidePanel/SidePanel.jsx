@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import "./SidePanel.css";
 import { createPopupHTML } from "../../utils/popupUtils";
-
-const API = process.env.REACT_APP_API_URL;
+import { useBootstrap } from "../../context/BootstrapContext";
 
 const SortIcon = ({ keyId, sortConfig }) => {
     if (sortConfig.key !== keyId) return null;
@@ -49,7 +48,12 @@ export default function SidePanel({ tweets, collapsed, activeLabel, onLabelChang
     const isLoading = !tweets;
 
     const tweetFeatures = (tweets?.features || []).filter(f => Boolean(f.properties.label));
-    const [lastUpdate, setLastUpdate] = useState(null);
+    const { data: bootstrapData } = useBootstrap();
+    const lastUpdate = bootstrapData?.last_update
+        ? new Date(bootstrapData.last_update).toLocaleString('fr-FR', {
+            day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+        })
+        : null;
     const [sortConfig, setSortConfig] = useState({ key: 'date', direction: 'desc' });
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const [sortDropdownOpen, setSortDropdownOpen] = useState(false);
@@ -100,22 +104,6 @@ export default function SidePanel({ tweets, collapsed, activeLabel, onLabelChang
         }
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
-
-    useEffect(() => {
-        async function fetchLastUpdate() {
-            try {
-                const response = await fetch(`${API}/last_update`);
-                const data = await response.json();
-                if (data.last_update) {
-                    const date = new Date(data.last_update).toLocaleString('fr-FR', {
-                        day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
-                    });
-                    setLastUpdate(date);
-                }
-            } catch (error) { }
-        }
-        fetchLastUpdate();
     }, []);
 
     const labelCounts = tweetFeatures.reduce((acc, f) => {

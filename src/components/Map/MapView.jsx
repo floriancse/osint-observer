@@ -7,11 +7,11 @@ import { useTime } from "../../context/TimeContext";
 import { createPopupHTML } from "../../utils/popupUtils";
 import { loadChokepointImages } from "../../utils/chokepointIcons";
 import { loadTopicImages } from "../../utils/topicIcons";
+import { useBootstrap } from "../../context/BootstrapContext";
 
 const MAPTILER_API_KEY = process.env.REACT_APP_MAPTILER_API_KEY;
 const STYLE_URL = `https://api.maptiler.com/maps/019e947a-cdc7-7112-be5f-b04019239e3c/style.json?key=${MAPTILER_API_KEY}`;
 const API = process.env.REACT_APP_API_URL;
-
 // Filtre côté client un FeatureCollection de tweets déjà chargé, selon une plage
 const filterTweets = (collection, { start, end }, activeWeaponTypes, activeObjectiveTypes, activeLabel) => {
     if (!collection?.features) return { type: "FeatureCollection", features: [] };
@@ -196,11 +196,43 @@ const getTheaterHTML = (topic, tweets) => {
 
 const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activeWeaponTypes, activeObjectiveTypes }, ref) {
     const { timeRange } = useTime();
+    const { data: bootstrapData, error: bootstrapError } = useBootstrap();
+
+    // Le fetch de /bootstrap est déclenché une seule fois dans BootstrapProvider,
+    // en amont dans l'arbre React. Il peut ne pas être terminé au moment où la
+    // carte MapLibre émet son évènement "load" (créée dans un useEffect à part,
+    // au tout premier rendu). On expose donc bootstrapData sous forme d'une
+    // Promise qu'on peut "await" dans le handler "load" : elle se résout dès
+    // que le contexte a fini de charger, immédiatement si c'est déjà le cas.
+    const bootstrapReadyRef = useRef(null);
+    if (!bootstrapReadyRef.current) {
+        let resolveFn, rejectFn;
+        const promise = new Promise((resolve, reject) => {
+            resolveFn = resolve;
+            rejectFn = reject;
+        });
+        bootstrapReadyRef.current = { promise, resolve: resolveFn, reject: rejectFn, settled: false };
+    }
+    useEffect(() => {
+        const ready = bootstrapReadyRef.current;
+        if (ready.settled) return;
+        if (bootstrapData) {
+            ready.settled = true;
+            ready.resolve(bootstrapData);
+        } else if (bootstrapError) {
+            ready.settled = true;
+            ready.reject(bootstrapError);
+        }
+    }, [bootstrapData, bootstrapError]);
+
     const containerRef = useRef(null);
     const timeRangeRef = useRef(timeRange);
     const activeLabelRef = useRef(activeLabel);
     const activeWeaponTypesRef = useRef(activeWeaponTypes);
     const activeObjectiveTypesRef = useRef(activeObjectiveTypes);
+    useEffect(() => {
+        activeLabelRef.current = activeLabel;
+    }, [activeLabel]);
     useEffect(() => {
         activeWeaponTypesRef.current = activeWeaponTypes;
     }, [activeWeaponTypes]);
@@ -258,7 +290,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
     }));
     const animFrameRef = useRef(null)
     const [dataTweets, setDataTweets] = useState(null);
-    const allTweetsRef = useRef(null); // jeu complet des dernières 36h, filtré côté client
+    const allTweetsRef = useRef(null); // jeu complet des 30 derniers jours, filtré côté client
     const allMilitaryLinesRef = useRef(null); // idem pour les lignes militaires
     const onTweetsLoadedRef = useRef(onTweetsLoaded);
     const isFirstRender = useRef(true);
@@ -270,7 +302,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
     const militaryPulseFrameRef = useRef(null);
     const resumeAnimationsRef = useRef(null);
     const tweetCount = dataTweets?.features?.length || 0;
-    const PERFORMANCE_MODE_THRESHOLD = 200;
+    const PERFORMANCE_MODE_THRESHOLD = 0;
 
     useEffect(() => { onTweetsLoadedRef.current = onTweetsLoaded; }, [onTweetsLoaded]);
     useEffect(() => {
@@ -286,11 +318,15 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
         }
     }, [activeWeaponTypes, activeObjectiveTypes, timeRange]);
 
-    // Charge au lancement les dernières 36h (unique point d'entrée des tweets et military_lines désormais)
+    // Charge au lancement les 30 derniers jours (fetchs séparés, indépendants du
+    // bootstrap) : cette fenêtre doit rester alignée sur HISTORY_DAYS côté
+    // EventsChart, sans quoi le sidepanel (filtré côté client sur ce cache)
+    // affichera moins d'events que le graphique dès qu'on sélectionne une
+    // plage plus ancienne que la fenêtre chargée ici.
     const loadHistoryInBackground = (map) => {
         const end = new Date();
         const start = new Date(end);
-        start.setHours(start.getHours() - 36);
+        start.setDate(start.getDate() - 30);
 
         fetch(`${API}/tweets.geojson?start_date=${start.toISOString()}&end_date=${end.toISOString()}`)
             .then((r) => r.json())
@@ -310,7 +346,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                 const tweetSource = map.getSource("tweets");
                 if (tweetSource) tweetSource.setData(filtered);
             })
-            .catch((err) => console.error("Erreur chargement historique 36h :", err));
+            .catch((err) => console.error("Erreur chargement historique 30 jours :", err));
 
         fetch(`${API}/military_lines.geojson?start_date=${start.toISOString()}&end_date=${end.toISOString()}`)
             .then((r) => r.json())
@@ -326,27 +362,33 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                 const militaryLinesSource = map.getSource("military-lines");
                 if (militaryLinesSource) militaryLinesSource.setData(filtered);
             })
-            .catch((err) => console.error("Erreur chargement historique 36h (military_lines) :", err));
+            .catch((err) => console.error("Erreur chargement historique 30 jours (military_lines) :", err));
     };
 
+    // Initialise les sources "statiques" de la carte à partir des données déjà
+    // chargées par BootstrapProvider (aucun fetch ici : on attend juste que
+    // le contexte ait fini son unique requête /bootstrap, via la Promise
+    // exposée par bootstrapReadyRef). tweets et military_lines sont chargés
+    // séparément par loadHistoryInBackground (voir plus bas).
     const loadAllData = async (map) => {
         try {
-            // Chargement des autres GeoJSON statiques/environnementaux d'un seul coup
-            const [dataShipping, dataChokepoints, dataBorders, dataBordersTheaters, dataMilitaryAreas, dataWorldAreas, dataTopicsLocations, dataTopicsAreas] =
-                await Promise.all([
-                    fetch(`${API}/shipping_lanes.geojson`).then(r => r.json()),
-                    fetch(`${API}/chokepoints.geojson`).then(r => r.json()),
-                    fetch(`${API}/conflict_borders.geojson`).then(r => r.json()),
-                    fetch(`${API}/conflict_theaters.geojson`).then(r => r.json()),
-                    fetch(`${API}/conflict_areas.geojson`).then(r => r.json()),
-                    fetch(`${API}/world_areas.geojson`).then(r => r.json()),
-                    fetch(`${API}/topics_location.geojson`).then(r => r.json()),
-                    fetch(`${API}/topics_areas.geojson`).then(r => r.json()),
-                ]);
+            const bootstrap = await bootstrapReadyRef.current.promise;
+
+            const {
+                shipping_lanes: dataShipping,
+                chokepoints: dataChokepoints,
+                conflict_borders: dataBorders,
+                conflict_theaters: dataBordersTheaters,
+                conflict_areas: dataMilitaryAreas,
+                world_areas: dataWorldAreas,
+                topics_location: dataTopicsLocations,
+                topics_areas: dataTopicsAreas,
+            } = bootstrap;
 
             const emptyGeoJSON = { type: "FeatureCollection", features: [] };
 
             // Initialisation des sources tweets et military-lines à vide
+            // (remplies par loadHistoryInBackground juste après)
             map.addSource("tweets", { type: "geojson", data: emptyGeoJSON });
             map.addSource("military-lines", { type: "geojson", data: emptyGeoJSON, lineMetrics: true });
 
@@ -365,7 +407,8 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
 
             return emptyGeoJSON;
         } catch (err) {
-            console.error("Erreur chargement données initiales :", err);
+            console.error("Erreur chargement données initiales (bootstrap) :", err);
+            return { type: "FeatureCollection", features: [] };
         }
     };
 
@@ -439,7 +482,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                 type: 'fill',
                 source: 'conflict-theaters',
                 paint: {
-                    'fill-color': '#f71616',
+                    'fill-color': '#ED0C0C',
                     'fill-opacity': 0.2
                 }
             });
@@ -469,7 +512,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                 source: 'conflict-borders',
                 layout: { 'line-join': 'round', 'line-cap': 'round' },
                 paint: {
-                    'line-color': '#f71616',
+                    'line-color': '#ED0C0C',
                     'line-width': 2,
                     'line-opacity': 1,
                 }
@@ -488,7 +531,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                     ['>=', ['coalesce', ['to-number', ['get', 'importance_score']], 0], 4],
                 ],
                 paint: {
-                    'circle-color': ['match', ['get', 'conflict_typology'], 'MIL', '#f71616', 'rgb(129, 183, 249)'],
+                    'circle-color': ['match', ['get', 'conflict_typology'], 'MIL', '#ED0C0C', 'rgb(129, 183, 249)'],
                     'circle-radius': 8,
                     'circle-opacity': 0,
                     'circle-stroke-width': 0,
@@ -518,10 +561,10 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                         1, 1, 3, 2, 5, 5,
                     ],
                     "circle-color": "rgba(0,0,0,0)",
-                    "circle-stroke-color": "#f71616",
+                    "circle-stroke-color": "#ED0C0C",
                     "circle-stroke-width": ["interpolate", ["linear"],
                         ["coalesce", ["to-number", ["get", "importance_score"]], 1],
-                        1, 3, 3, 6, 5, 12,
+                        1, 2, 3, 5, 5, 10,
                     ],
                     "circle-stroke-opacity": 0.6,
                     "circle-blur": 0.5,
@@ -538,10 +581,10 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                 paint: {
                     "circle-radius": ["interpolate", ["linear"],
                         ["coalesce", ["to-number", ["get", "importance_score"]], 1],
-                        1, 1.5, 3, 2.5, 5, 5,
+                        1, 1, 3, 2, 5, 5,
                     ],
                     "circle-color": "#ffffff",
-                    "circle-stroke-color": "#f71616",
+                    "circle-stroke-color": "#ED0C0C",
                     "circle-stroke-width": 1.5,
                 },
             });
@@ -603,6 +646,20 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                     "line-dasharray": [2, 2],
                 },
             });
+            // Couche dédiée au topic sélectionné dans le SidePanel : totalement
+            // indépendante du survol souris, ne disparaît que si activeLabel change.
+            map.addLayer({
+                id: "topics-areas-selected-outline",
+                type: "line",
+                source: "topics-areas",
+                filter: ['==', ['get', 'label'], ''],
+                paint: {
+                    "line-color": "#d9dee2",
+                    "line-width": 1.5,
+                    "line-opacity": 1,
+                    "line-dasharray": [2, 2],
+                },
+            });
             //MOUSE BEHAVIOR
             let pinnedTopicId = null;
             const emptyTopicFilter = ['==', ['get', 'topic_id'], ''];
@@ -634,13 +691,11 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
             map.on("mouseleave", "topics-locations-layer", () => {
                 map.getCanvas().style.cursor = "";
                 isHoveringTopic = false;
-                // Don't clear outline if a popup is pinned on this topic
+                // Ne garde le contour de hover que si un topic est épinglé (clic).
+                // La sélection du SidePanel vit désormais sur sa propre couche
+                // (topics-areas-selected-outline) et n'est jamais affectée ici.
                 if (!pinnedTopicId) {
-                    // Restore label-based filter if a topic is selected in the panel, else hide
-                    const restoreFilter = activeLabelRef.current
-                        ? ['==', ['get', 'label'], activeLabelRef.current]
-                        : emptyTopicFilter;
-                    map.setFilter("topics-areas-hover-outline", restoreFilter);
+                    map.setFilter("topics-areas-hover-outline", emptyTopicFilter);
                 }
             });
 
@@ -733,19 +788,19 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                 });
 
                 return `
-                    <div style="white-space: nowrap; font-family:'Roboto Mono',monospace; font-size:13px; background:#0a0f1c; border-radius:8px; border:1px solid #2a2a3e; padding:12px 14px;">                    <div style="margin-bottom:8px;">
+                    <div style="white-space: nowrap; font-family:'Roboto Mono',monospace; font-size:11px; background:#0a0f1c; border-radius:8px; border:1px solid #2a2a3e; padding:12px 14px;">                    <div style="margin-bottom:8px;">
                         <span style="font-size:11px; color:${statusColor}; font-weight:bold; background:${statusBg}; padding:2px 8px; border-radius:4px; border:1px solid ${statusBorder}; letter-spacing:0.03em;">
                         ${props.name}
                         </span>
                     </div>
                     <div style="border-top:1px solid rgba(255,255,255,0.08); padding-top:8px; display:flex; flex-direction:column; gap:5px;">
                         <div style="display:flex; align-items:center; gap:6px;">
-                        <span style="font-size:10px; color:${labelColor}; text-transform:uppercase; letter-spacing:0.06em; ">Activities</span>
-                        <span style="font-size:12px; color:#e0e0e0; font-weight:bold;">${props.count}</span>
+                        <span style="font-size:9px; color:${labelColor}; text-transform:uppercase; letter-spacing:0.06em; ">Activities</span>
+                        <span style="font-size:10px; color:#e0e0e0; font-weight:bold;">${props.count}</span>
                         </div>
                         <div style="display:flex; align-items:center; gap:6px;">
-                        <span style="font-size:10px; color:${labelColor}; text-transform:uppercase; letter-spacing:0.06em;">Date</span>
-                        <span style="font-size:11px; color:#aaa;">${today}</span>
+                        <span style="font-size:9px; color:${labelColor}; text-transform:uppercase; letter-spacing:0.06em;">Date</span>
+                        <span style="font-size:10px; color:#aaa;">${today}</span>
                         </div>
                     </div>
                     </div>
@@ -877,7 +932,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
 
                 const baseColor =
                     props.status === "OPEN" ? "16, 185, 129" :
-                        props.status === "CLOSED" ? "237, 63, 63" :
+                        props.status === "CLOSED" ? "237, 12, 12" :
                             props.status === "RESTRICTED" ? "255, 166, 0 " :
                                 "156, 156, 156";
 
@@ -887,9 +942,9 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                 popup
                     .setLngLat(coords)
                     .setHTML(`
-                        <div class="chokepoint-popup-inner" style="font-family: sans-serif; font-size: 13px; min-width: 80px; padding: 10px">
+                        <div class="chokepoint-popup-inner" style="font-family: sans-serif; font-size: 12px; min-width: 80px; padding: 10px">
                             <div style="display: flex;   gap: 8px;">
-                                <div style="font-weight: bold; font-size: 12px; color: #ccc">
+                                <div style="font-weight: bold; font-size: 11px; color: #ccc">
                                     ${props.portname}
                                 </div>
                                 <div style="font-size: 10px">
@@ -899,10 +954,10 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                                 </div>
                             </div>
                             ${props.reason ? `
-                            <div style="color: #ccc; font-size: 11px; margin-top: 6px;">
+                            <div style="color: #ccc; font-size: 10px; margin-top: 6px;">
                                 ${props.reason}
                                 ${props.STATE_DURATION != null ? `
-                            <div style="color: #ccc; font-size: 11px; margin-top: 6px;">
+                            <div style="color: #ccc; font-size: 10px; margin-top: 6px;">
                                 ${props.status.charAt(0).toUpperCase() + props.status.slice(1).toLowerCase()} for <span style="color: #fff">${props.STATE_DURATION} day${props.STATE_DURATION > 1 ? 's' : ''}.</span>
                             </div>` : ""}
                             </div>` : ""}
@@ -1001,7 +1056,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                 }
                 if (zoom < 3) opacity *= 0.6;
                 const baseRadius = zoom < 3 ? 4 : zoom < 6 ? 5 : zoom < 9 ? 5 : 4;
-                const radius = baseRadius + (baseRadius * 6) * phase;
+                const radius = baseRadius + (baseRadius * 4) * phase;
                 map.setPaintProperty('pulse-high-importance_score', 'circle-stroke-opacity', 0);
                 map.setPaintProperty('pulse-high-importance_score', 'circle-opacity', opacity * 1);
                 map.setPaintProperty('pulse-high-importance_score', 'circle-radius', radius);
@@ -1087,6 +1142,26 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                 if (militaryLinesSource) militaryLinesSource.setData(filteredLines);
             }
         }
+
+        // 8. Affiche/masque le contour de la topic area sur la carte en fonction
+        // du topic sélectionné dans le SidePanel. Couche dédiée, indépendante
+        // du survol souris (topics-areas-hover-outline) : elle ne change que
+        // lorsque activeLabel change, jamais au survol d'un autre topic.
+        if (map.getLayer("topics-areas-selected-outline")) {
+            const topicFilter = activeLabel
+                ? ['==', ['get', 'label'], activeLabel]
+                : ['==', ['get', 'label'], ''];
+            map.setFilter("topics-areas-selected-outline", topicFilter);
+        }
+
+        // 9. Masque les points topics-locations des autres topics quand un
+        // topic est sélectionné dans le SidePanel ; les réaffiche tous sinon.
+        if (map.getLayer("topics-locations-layer")) {
+            const locationsFilter = activeLabel
+                ? ['==', ['get', 'label'], activeLabel]
+                : null;
+            map.setFilter("topics-locations-layer", locationsFilter);
+        }
     }, [timeRange.start, timeRange.end, activeWeaponTypes, activeObjectiveTypes, activeLabel]);
 
     // ── Téléchargement de la sélection actuelle (dataTweets) au format GeoJSON ──
@@ -1125,8 +1200,8 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                 <div
                     style={{
                         position: 'absolute',
-                        bottom: 14,
-                        left: 14,
+                        bottom: 10,
+                        left: 10,
                         zIndex: 999,
                         display: 'flex',
                         alignItems: 'center',
@@ -1144,8 +1219,8 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                             width: 30,
                             height: 30,
                             borderRadius: '50%',
-                            border: '1px solid #334155',
-                            background: 'rgba(15,21,36,0.85)',
+                            border: 'transparent',
+                            background: 'rgba(15,21,36,1)',
                             backdropFilter: 'blur(4px)',
                             color: '#94a3b8',
                             cursor: 'pointer',
@@ -1153,8 +1228,8 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                             transition: 'border-color 0.15s ease, color 0.15s ease, background 0.15s ease',
                         }}
                         onMouseEnter={e => {
-                            e.currentTarget.style.borderColor = '#f71616';
-                            e.currentTarget.style.color = '#f71616';
+                            e.currentTarget.style.borderColor = '#ffffff';
+                            e.currentTarget.style.color = '#ffffff';
                         }}
                         onMouseLeave={e => {
                             e.currentTarget.style.borderColor = '#334155';
@@ -1177,14 +1252,14 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                                 gap: 8,
                                 padding: '6px 10px',
                                 borderRadius: 20,
-                                border: `1px solid ${performanceMode ? '#f71616' : '#334155'}`,
+                                border: `transparent`,
                                 background: 'rgba(15,21,36,1)',
                                 backdropFilter: 'blur(4px)',
                                 fontFamily: 'sans-serif',
-                                fontSize: 11,
+                                fontSize: ".6rem",
                                 fontWeight: 600,
                                 letterSpacing: '0.02em',
-                                color: performanceMode ? '#f71616' : '#94a3b8',
+                                color: performanceMode ? '#ED0C0C' : '#94a3b8',
                                 cursor: 'pointer',
                                 userSelect: 'none',
                                 transition: 'border-color 0.15s ease, color 0.15s ease',
@@ -1199,7 +1274,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                                     height: 18,
                                     borderRadius: 999,
                                     flexShrink: 0,
-                                    background: performanceMode ? '#f71616' : '#334155',
+                                    background: performanceMode ? '#ED0C0C' : '#334155',
                                     transition: 'background 0.2s ease',
                                 }}
                             >

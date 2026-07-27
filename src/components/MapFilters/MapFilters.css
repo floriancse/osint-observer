@@ -1,7 +1,7 @@
 .map-floating-filters {
   position: absolute;
-  top: 15px;
-  right: 15px;
+  top: 10px;
+  right: 10px;
   z-index: 100;
   width: 220px;
   background: #0a0e1a;
@@ -58,7 +58,7 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 11px;
+  font-size: .6rem;
   margin-bottom: 6px;
   white-space: nowrap;
 }
@@ -101,7 +101,7 @@
 
 .tree-branch {
   display: flex;
-  font-size: 11px;
+  font-size: .7rem;
   padding: 2px 0;
 }
 
@@ -118,7 +118,7 @@
   border: none;
   padding: 3px 0;
   font-family: inherit;
-  font-size: 11px;
+  font-size: .6rem;
   color: #62778a;
   cursor: pointer;
   text-align: left;

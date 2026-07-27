@@ -17,7 +17,7 @@
   border: none;
   color: #e2e8f0;
   cursor: pointer;
-  font-size: 11px;
+  font-size: .6rem;
 }
 
 .events-chart__toggle:hover {
@@ -32,11 +32,11 @@
 .events-chart__active-range {
   margin-left: auto;
   color: #9aa0a6;
-  font-size: 11px;
+  font-size: .6rem;
 }
 
 .events-chart__body {
-  padding: 6px 12px 10px;
+  padding: 6px 12px 0px;
 }
 
 .events-chart__controls {
@@ -88,7 +88,7 @@
 }
 
 .events-chart__loading {
-  height: 160px;
+  height: 80;
   display: flex;
   align-items: center;
   justify-content: center;
