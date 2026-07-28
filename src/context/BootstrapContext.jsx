@@ -33,14 +33,9 @@ export function BootstrapProvider({ children }) {
 
     const end = new Date();
     const start = new Date(end);
-    start.setHours(start.getHours() - 36);
+    start.setHours(start.getHours() - 24);
 
-    const params = new URLSearchParams({
-      start_date: start.toISOString(),
-      end_date: end.toISOString(),
-    });
-
-    fetch(`${API}/bootstrap?${params}`)
+    fetch(`${API}/bootstrap?`)
       .then((r) => r.json())
       .then((json) => {
         setData(json);
@@ -88,3 +83,6 @@ export const useWorldAreas      = () => useBootstrap().data?.world_areas      ??
 export const useTopicsLocation  = () => useBootstrap().data?.topics_location  ?? emptyGeoJSON;
 export const useTopicsAreas     = () => useBootstrap().data?.topics_areas     ?? emptyGeoJSON;
 export const useLastUpdate     = () => useBootstrap().data?.last_update     ?? emptyGeoJSON;
+export const useMilitaryLines     = () => useBootstrap().data?.military_lines     ?? emptyGeoJSON;
+export const useTweets   = () => useBootstrap().data?.tweets     ?? emptyGeoJSON;
+export const useTopics   = () => useBootstrap().data?.topics     ?? [];

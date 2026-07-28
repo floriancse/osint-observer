@@ -19,8 +19,8 @@ const API = process.env.REACT_APP_API_URL;
 // actuellement sélectionnée pour la carte) — limitée aux 30 derniers jours.
 const HISTORY_DAYS = 30;
 
-// Durée de chaque bucket du graphique : 24h, soit 1 point par jour.
-const BUCKET_HOURS = 24;
+// Durée de chaque bucket du graphique : 12h, soit 1 point par jour.
+const BUCKET_HOURS = 12;
 const BUCKET_MS = BUCKET_HOURS * 60 * 60 * 1000;
 
 const COLOR_SELECTED = "#4f9dff";
@@ -74,7 +74,7 @@ function bucketEnd(point) {
   return new Date(parseAsUTC(point.date ?? point).getTime() + BUCKET_MS - 1);
 }
 
-export default function EventsChart({ isOpen, onToggle, activeWeaponTypes, activeObjectiveTypes }) {
+export default function EventsChart({ isOpen, onToggle, activeWeaponTypes, activeObjectiveTypes, activeLabel }) {
   const { timeRange, setRange } = useTime();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -107,11 +107,10 @@ export default function EventsChart({ isOpen, onToggle, activeWeaponTypes, activ
     const { start, end } = anchorRef.current;
 
     const params = new URLSearchParams({
-      start_date: start.toISOString(),
-      end_date: end.toISOString(),
     });
     activeWeaponTypes.forEach((t) => params.append('weapon_type', t));
     activeObjectiveTypes.forEach((t) => params.append('objective_type', t));
+    if (activeLabel) params.append('label', activeLabel);
 
     fetch(`${API}/graph_events?${params.toString()}`)
       .then((r) => r.json())
@@ -121,7 +120,7 @@ export default function EventsChart({ isOpen, onToggle, activeWeaponTypes, activ
         setLoading(false);
         hasLoadedOnce.current = true;
       });
-  }, [isOpen, activeWeaponTypes, activeObjectiveTypes]);
+  }, [isOpen, activeWeaponTypes, activeObjectiveTypes, activeLabel]);
 
   // Garde les 2 champs de dates synchronisés avec la plage active (carte + graphique)
   useEffect(() => {

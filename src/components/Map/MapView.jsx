@@ -63,16 +63,19 @@ const buildEnrichedTweets = (allCollection, timeRange, activeWeaponTypes, active
             .filter(Boolean)
     )].sort();
 
-    // 3. Liste complète des types d'armes pour la période (sans filtre armes)
+    // 3. Liste complète des types d'armes sur tout l'historique chargé (30j),
+    //    indépendante de la période sélectionnée : les boutons de filtre
+    //    restent affichés en permanence, même si aucun événement du type
+    //    n'apparaît dans la fenêtre temporelle courante.
     const allWeaponTypes = [...new Set(
-        timeOnlyFiltered.features
+        (allCollection?.features || [])
             .map(f => f.properties?.weapon_type)
             .filter(Boolean)
     )].sort();
 
-    // 3bis. Liste complète des types d'objectifs pour la période (sans filtre objectifs)
+    // 3bis. Idem pour les types d'objectifs
     const allObjectiveTypes = [...new Set(
-        timeOnlyFiltered.features
+        (allCollection?.features || [])
             .map(f => f.properties?.objective_type)
             .filter(Boolean)
     )].sort();
@@ -101,7 +104,7 @@ const buildEnrichedTweets = (allCollection, timeRange, activeWeaponTypes, active
 /* ─── Theater popup helpers ─── */
 const getTheaterFreshness = (isoDate) => {
     if (!isoDate) return "stale";
-    const diffH = (Date.now() - new Date(isoDate).getTime()) / 36e5;
+    const diffH = (Date.now() - new Date(isoDate).getTime()) /36e5;
     if (diffH < 6) return "hot";
     if (diffH < 24) return "warm";
     if (diffH < 72) return "cool";
@@ -292,6 +295,8 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
     const [dataTweets, setDataTweets] = useState(null);
     const allTweetsRef = useRef(null); // jeu complet des 30 derniers jours, filtré côté client
     const allMilitaryLinesRef = useRef(null); // idem pour les lignes militaires
+    const topicsRef = useRef(null); // liste des topics "importants", fournie par /bootstrap
+    const topicSummariesRef = useRef(null); // résumés par topic_id, fournis par /bootstrap
     const onTweetsLoadedRef = useRef(onTweetsLoaded);
     const isFirstRender = useRef(true);
     const pinnedPopupRef = useRef(null);
@@ -318,58 +323,12 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
         }
     }, [activeWeaponTypes, activeObjectiveTypes, timeRange]);
 
-    // Charge au lancement les 30 derniers jours (fetchs séparés, indépendants du
-    // bootstrap) : cette fenêtre doit rester alignée sur HISTORY_DAYS côté
-    // EventsChart, sans quoi le sidepanel (filtré côté client sur ce cache)
-    // affichera moins d'events que le graphique dès qu'on sélectionne une
-    // plage plus ancienne que la fenêtre chargée ici.
-    const loadHistoryInBackground = (map) => {
-        const end = new Date();
-        const start = new Date(end);
-        start.setDate(start.getDate() - 30);
-
-        fetch(`${API}/tweets.geojson?start_date=${start.toISOString()}&end_date=${end.toISOString()}`)
-            .then((r) => r.json())
-            .then((allTweets) => {
-                allTweetsRef.current = allTweets;
-                const filtered = buildEnrichedTweets(
-                    allTweets,
-                    timeRangeRef.current,
-                    activeWeaponTypesRef.current,
-                    activeObjectiveTypesRef.current,
-                    activeLabelRef.current
-                );
-                setDataTweets(filtered);
-                if (onTweetsLoaded) onTweetsLoaded(filtered);
-                if (onTweetsLoadedRef.current) onTweetsLoadedRef.current(filtered);
-
-                const tweetSource = map.getSource("tweets");
-                if (tweetSource) tweetSource.setData(filtered);
-            })
-            .catch((err) => console.error("Erreur chargement historique 30 jours :", err));
-
-        fetch(`${API}/military_lines.geojson?start_date=${start.toISOString()}&end_date=${end.toISOString()}`)
-            .then((r) => r.json())
-            .then((allMilitaryLines) => {
-                allMilitaryLinesRef.current = allMilitaryLines;
-                const filtered = filterTweets(
-                    allMilitaryLines,
-                    timeRangeRef.current,
-                    activeWeaponTypesRef.current,
-                    activeObjectiveTypesRef.current,
-                    activeLabelRef.current
-                );
-                const militaryLinesSource = map.getSource("military-lines");
-                if (militaryLinesSource) militaryLinesSource.setData(filtered);
-            })
-            .catch((err) => console.error("Erreur chargement historique 30 jours (military_lines) :", err));
-    };
-
     // Initialise les sources "statiques" de la carte à partir des données déjà
     // chargées par BootstrapProvider (aucun fetch ici : on attend juste que
     // le contexte ait fini son unique requête /bootstrap, via la Promise
-    // exposée par bootstrapReadyRef). tweets et military_lines sont chargés
-    // séparément par loadHistoryInBackground (voir plus bas).
+    // exposée par bootstrapReadyRef). tweets et military_lines viennent tous
+    // les deux directement du bootstrap (30 jours), sans requête HTTP
+    // supplémentaire.
     const loadAllData = async (map) => {
         try {
             const bootstrap = await bootstrapReadyRef.current.promise;
@@ -383,14 +342,51 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                 world_areas: dataWorldAreas,
                 topics_location: dataTopicsLocations,
                 topics_areas: dataTopicsAreas,
+                military_lines: dataMilitaryLines,
+                tweets: dataTweetsBootstrap,
+                topics: dataTopics,
+                topic_summaries: dataTopicSummaries
             } = bootstrap;
 
             const emptyGeoJSON = { type: "FeatureCollection", features: [] };
 
-            // Initialisation des sources tweets et military-lines à vide
-            // (remplies par loadHistoryInBackground juste après)
-            map.addSource("tweets", { type: "geojson", data: emptyGeoJSON });
-            map.addSource("military-lines", { type: "geojson", data: emptyGeoJSON, lineMetrics: true });
+            // Liste des topics "importants", fournie par /bootstrap : évite un
+            // fetch séparé sur /topics à chaque clic sur un theater (voir le
+            // handler de clic "topics-areas-fill" plus bas).
+            topicsRef.current = dataTopics ?? [];
+
+            // Résumés par topic_id (15 max chacun), fournis par /bootstrap :
+            // évite un fetch séparé sur /topics/{topic_id} à chaque clic.
+            topicSummariesRef.current = dataTopicSummaries ?? {};
+
+            // Cache complet (30 jours) pour re-filtrage client sur timeRange/armes/objectifs/label
+            allMilitaryLinesRef.current = dataMilitaryLines ?? emptyGeoJSON;
+            const filteredMilitaryLines = filterTweets(
+                allMilitaryLinesRef.current,
+                timeRangeRef.current,
+                activeWeaponTypesRef.current,
+                activeObjectiveTypesRef.current,
+                activeLabelRef.current
+            );
+
+            // Cache complet (30 jours) des tweets, désormais fourni directement
+            // par /bootstrap (plus de fetch séparé vers /tweets.geojson).
+            allTweetsRef.current = dataTweetsBootstrap ?? emptyGeoJSON;
+            const filteredTweets = buildEnrichedTweets(
+                allTweetsRef.current,
+                timeRangeRef.current,
+                activeWeaponTypesRef.current,
+                activeObjectiveTypesRef.current,
+                activeLabelRef.current
+            );
+            setDataTweets(filteredTweets);
+            if (onTweetsLoaded) onTweetsLoaded(filteredTweets);
+            if (onTweetsLoadedRef.current) onTweetsLoadedRef.current(filteredTweets);
+
+            // tweets et military-lines sont alimentées immédiatement avec les
+            // données du bootstrap (plus besoin d'attendre un fetch séparé).
+            map.addSource("tweets", { type: "geojson", data: filteredTweets });
+            map.addSource("military-lines", { type: "geojson", data: filteredMilitaryLines, lineMetrics: true });
 
             // Ajout des autres sources
             map.addSource("shipping-lanes", { type: "geojson", data: dataShipping });
@@ -402,10 +398,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
             map.addSource("topics-locations", { type: "geojson", data: dataTopicsLocations });
             map.addSource("topics-areas", { type: "geojson", data: dataTopicsAreas });
 
-            // On lance immédiatement le chargement de l'historique complet (30 jours)
-            loadHistoryInBackground(map);
-
-            return emptyGeoJSON;
+            return filteredTweets;
         } catch (err) {
             console.error("Erreur chargement données initiales (bootstrap) :", err);
             return { type: "FeatureCollection", features: [] };
@@ -736,15 +729,11 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                 });
 
                 try {
-                    const [topicsRes, tweetsRes] = await Promise.all([
-                        fetch(`${API}/topics`),
-                        fetch(`${API}/topics/${topicId}`),
-                    ]);
-                    const topicsData = await topicsRes.json();
-                    const tweetsData = await tweetsRes.json();
-
-                    const topic = (topicsData.topics || []).find(t => t.TOPIC_ID === topicId) || {};
-                    const tweets = (tweetsData.tweets || []).sort(
+                    // Topics et résumés viennent désormais tous les deux de
+                    // /bootstrap (topicsRef / topicSummariesRef, chargés une
+                    // seule fois au montage) : plus aucun fetch réseau ici.
+                    const topic = (topicsRef.current || []).find(t => t.TOPIC_ID === topicId) || {};
+                    const tweets = (topicSummariesRef.current?.[topicId] || []).slice().sort(
                         (a, b) => new Date(b.created_at) - new Date(a.created_at)
                     );
 
@@ -752,7 +741,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                         theaterPopup.setHTML(getTheaterHTML(topic, tweets));
                     }
                 } catch (err) {
-                    console.error("Erreur fetch theater popup:", err);
+                    console.error("Erreur affichage theater popup:", err);
                     if (theaterPopup.isOpen()) {
                         theaterPopup.setHTML(getTheaterErrorHTML());
                     }

@@ -209,6 +209,7 @@ export default function App() {
               <EventsChart
                 activeWeaponTypes={activeWeaponTypes}
                 activeObjectiveTypes={activeObjectiveTypes}
+                activeLabel={activeLabel}
                 isOpen={chartOpen}
                 onToggle={() => {
                   setChartOpen(v => !v);
