@@ -54,15 +54,16 @@ function tagsHTML(props) {
   const tags = [];
 
   if (props.conflict_typology) {
-    tags.push(`<span class="tweet-card-tag conflict_typology">${props.conflict_typology}</span>`);
-  }
-
-  if (props.weapon_type) {
-    tags.push(`<span class="tweet-card-tag weapon-type">${props.weapon_type}</span>`);
+    const typology = { 'MIL': 'Military', 'POL': 'Politics', 'MOVE': 'Movement', 'OTHER': 'Other',}
+    tags.push(`<span class="tweet-card-tag conflict_typology">${typology[props.conflict_typology]}</span>`);
   }
 
   if (props.target) {
     tags.push(`<span class="tweet-card-tag aggressor">${props.aggressor}</span>`);
+  }
+
+  if (props.weapon_type) {
+    tags.push(`<span class="tweet-card-tag weapon-type">${props.weapon_type}</span>`);
   }
 
   if (props.aggressor) {

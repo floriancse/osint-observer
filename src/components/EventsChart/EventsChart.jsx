@@ -56,9 +56,7 @@ function formatDateShort(iso) {
 }
 function formatDateLong(iso) {
   const d = parseAsUTC(iso);
-  const day = d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
-  const time = d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
-  return `${day} ${time}`;
+  return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 function toInputDate(iso) {
   return new Date(iso).toISOString().slice(0, 16); // yyyy-mm-ddTHH:mm pour <input type="datetime-local">
@@ -74,7 +72,7 @@ function bucketEnd(point) {
   return new Date(parseAsUTC(point.date ?? point).getTime() + BUCKET_MS - 1);
 }
 
-export default function EventsChart({ isOpen, onToggle, activeWeaponTypes, activeObjectiveTypes, activeLabel }) {
+export default function EventsChart({ isOpen, onToggle, activeWeaponTypes, activeObjectiveTypes, activeLabel, searchText }) {
   const { timeRange, setRange } = useTime();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -111,6 +109,7 @@ export default function EventsChart({ isOpen, onToggle, activeWeaponTypes, activ
     activeWeaponTypes.forEach((t) => params.append('weapon_type', t));
     activeObjectiveTypes.forEach((t) => params.append('objective_type', t));
     if (activeLabel) params.append('label', activeLabel);
+    if (searchText?.trim()) params.append('search', searchText.trim());
 
     fetch(`${API}/graph_events?${params.toString()}`)
       .then((r) => r.json())
@@ -120,7 +119,7 @@ export default function EventsChart({ isOpen, onToggle, activeWeaponTypes, activ
         setLoading(false);
         hasLoadedOnce.current = true;
       });
-  }, [isOpen, activeWeaponTypes, activeObjectiveTypes, activeLabel]);
+  }, [isOpen, activeWeaponTypes, activeObjectiveTypes, activeLabel, searchText]);
 
   // Garde les 2 champs de dates synchronisés avec la plage active (carte + graphique)
   useEffect(() => {

@@ -13,10 +13,11 @@ const MAPTILER_API_KEY = process.env.REACT_APP_MAPTILER_API_KEY;
 const STYLE_URL = `https://api.maptiler.com/maps/019e947a-cdc7-7112-be5f-b04019239e3c/style.json?key=${MAPTILER_API_KEY}`;
 const API = process.env.REACT_APP_API_URL;
 // Filtre côté client un FeatureCollection de tweets déjà chargé, selon une plage
-const filterTweets = (collection, { start, end }, activeWeaponTypes, activeObjectiveTypes, activeLabel) => {
+const filterTweets = (collection, { start, end }, activeWeaponTypes, activeObjectiveTypes, activeLabel, searchText) => {
     if (!collection?.features) return { type: "FeatureCollection", features: [] };
     const startTs = new Date(start).getTime();
     const endTs = new Date(end).getTime();
+    const normalizedSearch = (searchText || "").trim().toLowerCase();
 
     return {
         type: "FeatureCollection",
@@ -45,15 +46,21 @@ const filterTweets = (collection, { start, end }, activeWeaponTypes, activeObjec
                 if (label !== activeLabel) return false;
             }
 
+            // 4. Filtre texte libre sur le contenu du tweet
+            if (normalizedSearch) {
+                const text = (f.properties?.text || "").toLowerCase();
+                if (!text.includes(normalizedSearch)) return false;
+            }
+
             return true;
         }),
     };
 };
 
 // Filtre un FeatureCollection complet et y attache les métadonnées utiles aux filtres
-const buildEnrichedTweets = (allCollection, timeRange, activeWeaponTypes, activeObjectiveTypes, activeLabel) => {
-    // 1. Toutes les features de la période, sans aucun filtre arme/objectif/topic
-    const timeOnlyFiltered = filterTweets(allCollection, timeRange, [], [], null);
+const buildEnrichedTweets = (allCollection, timeRange, activeWeaponTypes, activeObjectiveTypes, activeLabel, searchText) => {
+    // 1. Toutes les features de la période, sans aucun filtre arme/objectif/topic/texte
+    const timeOnlyFiltered = filterTweets(allCollection, timeRange, [], [], null, null);
     const totalOnPeriod = timeOnlyFiltered.features.length;
 
     // 2. Liste complète des labels pour la période (sans filtre armes/objectifs)
@@ -80,16 +87,16 @@ const buildEnrichedTweets = (allCollection, timeRange, activeWeaponTypes, active
             .filter(Boolean)
     )].sort();
 
-    // 4. Labels encore disponibles une fois les filtres armes/objectifs appliqués (sans le topic)
-    const filteredByFiltersAndTime = filterTweets(allCollection, timeRange, activeWeaponTypes, activeObjectiveTypes, null);
+    // 4. Labels encore disponibles une fois les filtres armes/objectifs/texte appliqués (sans le topic)
+    const filteredByFiltersAndTime = filterTweets(allCollection, timeRange, activeWeaponTypes, activeObjectiveTypes, null, searchText);
     const availableLabels = [...new Set(
         filteredByFiltersAndTime.features
             .map(f => f.properties.label)
             .filter(Boolean)
     )].sort();
 
-    // 5. Le jeu de données réellement affiché (filtre armes + filtre objectifs + filtre topic)
-    const filteredTweets = filterTweets(allCollection, timeRange, activeWeaponTypes, activeObjectiveTypes, activeLabel);
+    // 5. Le jeu de données réellement affiché (filtre armes + filtre objectifs + filtre topic + filtre texte)
+    const filteredTweets = filterTweets(allCollection, timeRange, activeWeaponTypes, activeObjectiveTypes, activeLabel, searchText);
 
     filteredTweets.totalCountForTimeRange = totalOnPeriod;
     filteredTweets.allLabelsForTimeRange = allLabels;
@@ -197,8 +204,32 @@ const getTheaterHTML = (topic, tweets) => {
     `;
 };
 
-const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activeWeaponTypes, activeObjectiveTypes }, ref) {
+const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activeWeaponTypes, activeObjectiveTypes, searchText, onSearchTextChange }, ref) {
     const { timeRange } = useTime();
+
+    // ── Debounce de la recherche texte ──
+    // L'input affiche une valeur locale (mise à jour immédiatement, pour que
+    // la saisie reste fluide), mais on ne remonte la valeur au parent
+    // (onSearchTextChange -> searchText) qu'après 300ms sans frappe. Comme
+    // searchText déclenche le filtrage de la carte (coûteux : rebuild des
+    // features + setData sur les layers MapLibre) ET le fetch réseau du
+    // chart (EventsChart), débouncer ici évite de refaire ce travail à
+    // chaque caractère tapé.
+    const [localSearchText, setLocalSearchText] = useState(searchText || "");
+    useEffect(() => {
+        // Garde l'input synchronisé si le parent change searchText de
+        // l'extérieur (ex: reset programmatique ailleurs dans l'app).
+        setLocalSearchText(searchText || "");
+    }, [searchText]);
+    useEffect(() => {
+        const timeoutId = setTimeout(() => {
+            if (onSearchTextChange && localSearchText !== searchText) {
+                onSearchTextChange(localSearchText);
+            }
+        }, 300);
+        return () => clearTimeout(timeoutId);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [localSearchText]);
     const { data: bootstrapData, error: bootstrapError } = useBootstrap();
 
     // Le fetch de /bootstrap est déclenché une seule fois dans BootstrapProvider,
@@ -233,6 +264,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
     const activeLabelRef = useRef(activeLabel);
     const activeWeaponTypesRef = useRef(activeWeaponTypes);
     const activeObjectiveTypesRef = useRef(activeObjectiveTypes);
+    const searchTextRef = useRef(searchText);
     useEffect(() => {
         activeLabelRef.current = activeLabel;
     }, [activeLabel]);
@@ -242,6 +274,9 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
     useEffect(() => {
         activeObjectiveTypesRef.current = activeObjectiveTypes;
     }, [activeObjectiveTypes]);
+    useEffect(() => {
+        searchTextRef.current = searchText;
+    }, [searchText]);
     const mapRef = useRef(null);
     useImperativeHandle(ref, () => ({
         flyTo: (options) => {
@@ -314,14 +349,14 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
         const map = mapRef.current;
         if (!map || !map.isStyleLoaded() || !allTweetsRef.current) return;
 
-        const filtered = filterTweets(allTweetsRef.current, timeRange, activeWeaponTypes, activeObjectiveTypes);
+        const filtered = filterTweets(allTweetsRef.current, timeRange, activeWeaponTypes, activeObjectiveTypes, undefined, searchText);
         const tweetSource = map.getSource("tweets");
         if (tweetSource) {
             tweetSource.setData(filtered);
             setDataTweets(filtered);
             if (onTweetsLoaded) onTweetsLoaded(filtered); // Met à jour le SidePanel !
         }
-    }, [activeWeaponTypes, activeObjectiveTypes, timeRange]);
+    }, [activeWeaponTypes, activeObjectiveTypes, searchText, timeRange]);
 
     // Initialise les sources "statiques" de la carte à partir des données déjà
     // chargées par BootstrapProvider (aucun fetch ici : on attend juste que
@@ -366,7 +401,8 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                 timeRangeRef.current,
                 activeWeaponTypesRef.current,
                 activeObjectiveTypesRef.current,
-                activeLabelRef.current
+                activeLabelRef.current,
+                searchTextRef.current
             );
 
             // Cache complet (30 jours) des tweets, désormais fourni directement
@@ -377,7 +413,8 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                 timeRangeRef.current,
                 activeWeaponTypesRef.current,
                 activeObjectiveTypesRef.current,
-                activeLabelRef.current
+                activeLabelRef.current,
+                searchTextRef.current
             );
             setDataTweets(filteredTweets);
             if (onTweetsLoaded) onTweetsLoaded(filteredTweets);
@@ -1115,7 +1152,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
         const map = mapRef.current;
 
         if (allTweetsRef.current) {
-            const filteredTweets = buildEnrichedTweets(allTweetsRef.current, timeRange, activeWeaponTypes, activeObjectiveTypes, activeLabel);
+            const filteredTweets = buildEnrichedTweets(allTweetsRef.current, timeRange, activeWeaponTypes, activeObjectiveTypes, activeLabel, searchText);
 
             const tweetSource = map.getSource("tweets");
             if (tweetSource) {
@@ -1126,7 +1163,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
 
             // 7. Idem pour les lignes militaires (mêmes filtres armes/objectifs + période)
             if (allMilitaryLinesRef.current) {
-                const filteredLines = filterTweets(allMilitaryLinesRef.current, timeRange, activeWeaponTypes, activeObjectiveTypes, activeLabel);
+                const filteredLines = filterTweets(allMilitaryLinesRef.current, timeRange, activeWeaponTypes, activeObjectiveTypes, activeLabel, searchText);
                 const militaryLinesSource = map.getSource("military-lines");
                 if (militaryLinesSource) militaryLinesSource.setData(filteredLines);
             }
@@ -1151,7 +1188,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                 : null;
             map.setFilter("topics-locations-layer", locationsFilter);
         }
-    }, [timeRange.start, timeRange.end, activeWeaponTypes, activeObjectiveTypes, activeLabel]);
+    }, [timeRange.start, timeRange.end, activeWeaponTypes, activeObjectiveTypes, activeLabel, searchText]);
 
     // ── Téléchargement de la sélection actuelle (dataTweets) au format GeoJSON ──
     const handleDownloadGeoJSON = () => {
@@ -1185,7 +1222,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                 ref={containerRef}
                 className="map-container"
             />
-            {tweetCount > 0 && (
+            {(tweetCount > 0 || onSearchTextChange) && (
                 <div
                     style={{
                         position: 'absolute',
@@ -1197,91 +1234,119 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                         gap: 8,
                     }}
                 >
-                    {/* ── Bouton de téléchargement de la sélection en GeoJSON ── */}
-                    <button
-                        title="Export data"
-                        onClick={handleDownloadGeoJSON}
-                        style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            width: 30,
-                            height: 30,
-                            borderRadius: '50%',
-                            border: 'transparent',
-                            background: 'rgba(15,21,36,1)',
-                            backdropFilter: 'blur(4px)',
-                            color: '#94a3b8',
-                            cursor: 'pointer',
-                            padding: 0,
-                            transition: 'border-color 0.15s ease, color 0.15s ease, background 0.15s ease',
-                        }}
-                        onMouseEnter={e => {
-                            e.currentTarget.style.borderColor = '#ffffff';
-                            e.currentTarget.style.color = '#ffffff';
-                        }}
-                        onMouseLeave={e => {
-                            e.currentTarget.style.borderColor = '#334155';
-                            e.currentTarget.style.color = '#94a3b8';
-                        }}
-                    >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                            <polyline points="7 10 12 15 17 10" />
-                            <line x1="12" y1="15" x2="12" y2="3" />
-                        </svg>
-                    </button>
+                    {/* ── Recherche texte libre dans les tweets ── */}
+                    {onSearchTextChange && (
+                        <input
+                            type="text"
+                            value={localSearchText}
+                            onChange={(e) => setLocalSearchText(e.target.value)}
+                            placeholder="Filter by keyword (e.g: Wildberries)"
+                            style={{
+                                height: 30,
+                                borderRadius: 15,
+                                border: '1px solid #334155',
+                                background: 'rgba(15,21,36,1)',
+                                backdropFilter: 'blur(4px)',
+                                color: '#e2e8f0',
+                                fontFamily: 'sans-serif',
+                                fontSize: '.7rem',
+                                padding: '0 12px',
+                                width: 250,
+                                outline: 'none',
+                            }}
+                        />
+                    )}
 
-                    <div
-                            title={performanceMode}
-                            onClick={() => setPerformanceMode(v => !v)}
+                    {/* ── Bouton de téléchargement de la sélection en GeoJSON (seulement s'il y a des résultats) ── */}
+                    {tweetCount > 0 && (
+                        <button
+                            title="Export data"
+                            onClick={handleDownloadGeoJSON}
                             style={{
                                 display: 'flex',
                                 alignItems: 'center',
-                                gap: 8,
-                                padding: '6px 10px',
-                                borderRadius: 20,
-                                border: `transparent`,
+                                justifyContent: 'center',
+                                width: 30,
+                                height: 30,
+                                borderRadius: '50%',
+                                border: 'transparent',
                                 background: 'rgba(15,21,36,1)',
                                 backdropFilter: 'blur(4px)',
-                                fontFamily: 'sans-serif',
-                                fontSize: ".6rem",
-                                fontWeight: 600,
-                                letterSpacing: '0.02em',
-                                color: performanceMode ? '#ED0C0C' : '#94a3b8',
+                                color: '#94a3b8',
                                 cursor: 'pointer',
-                                userSelect: 'none',
-                                transition: 'border-color 0.15s ease, color 0.15s ease',
+                                padding: 0,
+                                transition: 'border-color 0.15s ease, color 0.15s ease, background 0.15s ease',
+                            }}
+                            onMouseEnter={e => {
+                                e.currentTarget.style.borderColor = '#ffffff';
+                                e.currentTarget.style.color = '#ffffff';
+                            }}
+                            onMouseLeave={e => {
+                                e.currentTarget.style.borderColor = '#334155';
+                                e.currentTarget.style.color = '#94a3b8';
                             }}
                         >
-                            <span>Performance mode</span>
-                            {/* ── Switch ── */}
-                            <span
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                <polyline points="7 10 12 15 17 10" />
+                                <line x1="12" y1="15" x2="12" y2="3" />
+                            </svg>
+                        </button>
+                    )}
+
+                    {/* ── Toggle performance mode (seulement s'il y a des résultats à animer) ── */}
+                    {tweetCount > 0 && (
+                        <div
+                                title={performanceMode}
+                                onClick={() => setPerformanceMode(v => !v)}
                                 style={{
-                                    position: 'relative',
-                                    width: 32,
-                                    height: 18,
-                                    borderRadius: 999,
-                                    flexShrink: 0,
-                                    background: performanceMode ? '#ED0C0C' : '#334155',
-                                    transition: 'background 0.2s ease',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 8,
+                                    padding: '6px 10px',
+                                    borderRadius: 20,
+                                    border: `transparent`,
+                                    background: 'rgba(15,21,36,1)',
+                                    backdropFilter: 'blur(4px)',
+                                    fontFamily: 'sans-serif',
+                                    fontSize: ".6rem",
+                                    fontWeight: 600,
+                                    letterSpacing: '0.02em',
+                                    color: performanceMode ? '#ED0C0C' : '#94a3b8',
+                                    cursor: 'pointer',
+                                    userSelect: 'none',
+                                    transition: 'border-color 0.15s ease, color 0.15s ease',
                                 }}
                             >
+                                <span>Performance mode</span>
+                                {/* ── Switch ── */}
                                 <span
                                     style={{
-                                        position: 'absolute',
-                                        top: 2,
-                                        left: performanceMode ? 16 : 2,
-                                        width: 14,
-                                        height: 14,
-                                        borderRadius: '50%',
-                                        background: '#f8fafc',
-                                        boxShadow: '0 1px 3px rgba(0,0,0,0.4)',
-                                        transition: 'left 0.2s ease',
+                                        position: 'relative',
+                                        width: 32,
+                                        height: 18,
+                                        borderRadius: 999,
+                                        flexShrink: 0,
+                                        background: performanceMode ? '#ED0C0C' : '#334155',
+                                        transition: 'background 0.2s ease',
                                     }}
-                                />
-                            </span>
-                        </div>
+                                >
+                                    <span
+                                        style={{
+                                            position: 'absolute',
+                                            top: 2,
+                                            left: performanceMode ? 16 : 2,
+                                            width: 14,
+                                            height: 14,
+                                            borderRadius: '50%',
+                                            background: '#f8fafc',
+                                            boxShadow: '0 1px 3px rgba(0,0,0,0.4)',
+                                            transition: 'left 0.2s ease',
+                                        }}
+                                    />
+                                </span>
+                            </div>
+                    )}
                 </div>
             )}
         </div>

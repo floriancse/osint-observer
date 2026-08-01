@@ -44,6 +44,8 @@ const SkeletonLoader = () => (
     </div>
 );
 
+const PAGE_SIZE = 15;
+
 export default function SidePanel({ tweets, collapsed, activeLabel, onLabelChange, onTweetClick, onToggle }) {
     const isLoading = !tweets;
 
@@ -60,6 +62,8 @@ export default function SidePanel({ tweets, collapsed, activeLabel, onLabelChang
     const dropdownRef = useRef(null);
     const sortDropdownRef = useRef(null);
     const [allUniqueLabels, setAllUniqueLabels] = useState([]);
+    const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+    const sentinelRef = useRef(null);
 
     // Mémorise le dernier compte connu par label. Comme `tweets` peut arriver
     // déjà filtré par activeLabel (fetch côté parent), on ne veut jamais
@@ -106,6 +110,12 @@ export default function SidePanel({ tweets, collapsed, activeLabel, onLabelChang
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
+    // Réinitialise la pagination quand on change de filtre, de tri, ou que
+    // de nouvelles données arrivent (sinon on garde un compte obsolète).
+    useEffect(() => {
+        setVisibleCount(PAGE_SIZE);
+    }, [activeLabel, sortConfig.key, sortConfig.direction, tweets]);
+
     const labelCounts = tweetFeatures.reduce((acc, f) => {
         const label = f.properties.label;
         if (label) acc[label] = (acc[label] || 0) + 1;
@@ -143,6 +153,25 @@ export default function SidePanel({ tweets, collapsed, activeLabel, onLabelChang
     });
     const currentCount = sortedTweets.length;
     const totalOnPeriod = tweets?.totalCountForTimeRange || (tweets?.features ? tweets.features.length : 0);
+    const visibleTweets = sortedTweets.slice(0, visibleCount);
+    const hasMore = visibleCount < sortedTweets.length;
+
+    // Observe la sentinelle en bas de liste : quand elle devient visible,
+    // on affiche PAGE_SIZE tweets de plus.
+    useEffect(() => {
+        const node = sentinelRef.current;
+        if (!node || !hasMore) return;
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0].isIntersecting) {
+                    setVisibleCount(c => c + PAGE_SIZE);
+                }
+            },
+            { root: node.closest('.sidepanel-content'), rootMargin: '200px' }
+        );
+        observer.observe(node);
+        return () => observer.disconnect();
+    }, [hasMore, sortedTweets.length]);
     return (
         <div className={`sidepanel${collapsed ? " sidepanel--collapsed" : ""}`}>
             <div className="sidepanel-header">
@@ -243,7 +272,7 @@ export default function SidePanel({ tweets, collapsed, activeLabel, onLabelChang
                     <SkeletonLoader />
                 ) : sortedTweets.length > 0 ? (
                     <div className="osint-tweet-list">
-                        {sortedTweets.map((feature, i) => (
+                        {visibleTweets.map((feature, i) => (
                             <div
                                 key={feature.properties.id ?? i}
                                 className="osint-tweet-card-wrapper"
@@ -257,6 +286,9 @@ export default function SidePanel({ tweets, collapsed, activeLabel, onLabelChang
                                 }}
                             />
                         ))}
+                        {hasMore && (
+                            <div ref={sentinelRef} className="osint-tweet-list-sentinel" style={{ height: 1 }} />
+                        )}
                     </div>
                 ) : (
                     <div className="no-data"></div>

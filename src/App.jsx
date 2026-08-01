@@ -22,6 +22,11 @@ export default function App() {
   const [chartOpen, setChartOpen] = useState(true);
   const [activeWeaponTypes, setActiveWeaponTypes] = useState([]);
   const [activeObjectiveTypes, setActiveObjectiveTypes] = useState([]);
+  // searchText est débouncé (300ms) à la source, directement dans MapView
+  // (l'input local n'y remonte la valeur qu'après une pause de frappe). Donc
+  // ici, App reçoit déjà une valeur "stable" : pas besoin d'un second
+  // debounce avant de la transmettre à EventsChart.
+  const [searchText, setSearchText] = useState("");
 
   const handleTweetClick = (feature) => {
     if (mapRef.current) {
@@ -32,11 +37,14 @@ export default function App() {
   const [availableObjectiveTypes, setAvailableObjectiveTypes] = useState([]);
   const togglePanel = (panel) => setOpenPanel((current) => (current === panel ? null : panel));
 
+
+
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth <= 768);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
   useEffect(() => {
     if (!tweets) return;
     // Priorité à la liste calculée par MapView pour la période courante
@@ -87,7 +95,7 @@ export default function App() {
               <div className="app-mobile__map">
                 <TopBar togglePanel={togglePanel} openPanel={openPanel} />
                 <div style={{ flex: 1, position: 'relative' }}>
-                  <MapView ref={mapRef} onTweetsLoaded={setTweets} activeLabel={activeLabel} />
+                  <MapView ref={mapRef} onTweetsLoaded={setTweets} activeLabel={activeLabel} searchText={searchText} onSearchTextChange={setSearchText} />
                 </div>
                 <StatusBar />
               </div>
@@ -203,6 +211,8 @@ export default function App() {
                   activeLabel={activeLabel}
                   activeWeaponTypes={activeWeaponTypes}
                   activeObjectiveTypes={activeObjectiveTypes}
+                  searchText={searchText}
+                  onSearchTextChange={setSearchText}
                 />
               </div>
               <ContentPanel isOpen={contentPanelOpen} onToggle={() => setContentPanelOpen(v => !v)} />
@@ -210,6 +220,7 @@ export default function App() {
                 activeWeaponTypes={activeWeaponTypes}
                 activeObjectiveTypes={activeObjectiveTypes}
                 activeLabel={activeLabel}
+                searchText={searchText}
                 isOpen={chartOpen}
                 onToggle={() => {
                   setChartOpen(v => !v);
