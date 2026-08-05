@@ -9,6 +9,7 @@ import { loadChokepointImages } from "../../utils/chokepointIcons";
 import { loadTopicImages } from "../../utils/topicIcons";
 import { useBootstrap } from "../../context/BootstrapContext";
 
+console.log("MapLibre version =", maplibregl.version);
 const MAPTILER_API_KEY = process.env.REACT_APP_MAPTILER_API_KEY;
 const STYLE_URL = `https://api.maptiler.com/maps/019e947a-cdc7-7112-be5f-b04019239e3c/style.json?key=${MAPTILER_API_KEY}`;
 const API = process.env.REACT_APP_API_URL;
