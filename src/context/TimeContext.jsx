@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useMemo, useEffect, useCallback } from "react";
+import { createContext, useContext, useState, useMemo, useCallback } from "react";
 
 const TimeContext = createContext();
 
@@ -15,19 +15,14 @@ function endOfDay(d) {
 }
 
 export function TimeProvider({ children }) {
+  // "24h" sert de placeholder initial le temps qu'EventsChart charge ses
+  // données : le useMemo ci-dessous calcule déjà "maintenant - 24h → maintenant"
+  // pour ce cas, donc pas besoin d'un effet séparé pour le poser au montage.
+  // C'est EventsChart qui, une fois son premier chargement terminé, appelle
+  // setRange(...) pour aligner précisément la sélection sur les 2 derniers
+  // buckets (12h+12h) réellement renvoyés par le backend.
   const [selectedPeriod, setSelectedPeriod] = useState("24h");
   const [customRange, setCustomRange] = useState(null);
-
-  // Premier chargement → on force les dernières 24h GLISSANTES (maintenant - 24h → maintenant),
-  // pas le jour calendaire (qui ne couvrait que depuis minuit, donc parfois
-  // seulement quelques minutes de données juste après minuit).
-  useEffect(() => {
-    const now = new Date();
-    const yesterday = new Date(now);
-    yesterday.setHours(yesterday.getHours() - 24);
-
-    setRange(yesterday.toISOString(), now.toISOString());
-  }, []); // une seule fois
 
   const timeRange = useMemo(() => {
     if (selectedPeriod === "custom" && customRange) {

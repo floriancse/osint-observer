@@ -277,6 +277,15 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
     useEffect(() => {
         searchTextRef.current = searchText;
     }, [searchText]);
+    // timeRangeRef doit rester synchronisé comme les refs ci-dessus : sinon,
+    // si /bootstrap répond APRÈS qu'EventsChart ait déjà sélectionné les 2
+    // derniers buckets via setRange() (voir TimeContext), loadAllData
+    // utiliserait encore la plage par défaut figée au montage au lieu de la
+    // vraie sélection — la carte et le graphique afficheraient alors des
+    // périodes différentes au premier chargement.
+    useEffect(() => {
+        timeRangeRef.current = timeRange;
+    }, [timeRange]);
     const mapRef = useRef(null);
     useImperativeHandle(ref, () => ({
         flyTo: (options) => {
@@ -1222,41 +1231,49 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                 ref={containerRef}
                 className="map-container"
             />
-            {(tweetCount > 0 || onSearchTextChange) && (
+            {onSearchTextChange && (
                 <div
                     style={{
                         position: 'absolute',
-                        bottom: 10,
+                        top: 5,
                         left: 10,
+                        zIndex: 999,
+                    }}
+                >
+                    {/* ── Recherche texte libre dans les tweets ── */}
+                    <input
+                        type="text"
+                        value={localSearchText}
+                        onChange={(e) => setLocalSearchText(e.target.value)}
+                        placeholder="Filter by keyword (e.g: Wildberries)"
+                        style={{
+                            height: 30,
+                            borderRadius: 15,
+                            border: '1px solid rgb(51, 65, 85)',
+                            background: 'rgba(15,21,36,1)',
+                            backdropFilter: 'blur(4px)',
+                            color: '#e2e8f0',
+                            fontFamily: 'sans-serif',
+                            fontSize: '.7rem',
+                            padding: '0 12px',
+                            width: 250,
+                            outline: 'none',
+                        }}
+                    />
+                </div>
+            )}
+            {tweetCount > 0 && (
+                <div
+                    style={{
+                        position: 'absolute',
+                        bottom: 5,
+                        left: 5,
                         zIndex: 999,
                         display: 'flex',
                         alignItems: 'center',
                         gap: 8,
                     }}
                 >
-                    {/* ── Recherche texte libre dans les tweets ── */}
-                    {onSearchTextChange && (
-                        <input
-                            type="text"
-                            value={localSearchText}
-                            onChange={(e) => setLocalSearchText(e.target.value)}
-                            placeholder="Filter by keyword (e.g: Wildberries)"
-                            style={{
-                                height: 30,
-                                borderRadius: 15,
-                                border: '1px solid #334155',
-                                background: 'rgba(15,21,36,1)',
-                                backdropFilter: 'blur(4px)',
-                                color: '#e2e8f0',
-                                fontFamily: 'sans-serif',
-                                fontSize: '.7rem',
-                                padding: '0 12px',
-                                width: 250,
-                                outline: 'none',
-                            }}
-                        />
-                    )}
-
                     {/* ── Bouton de téléchargement de la sélection en GeoJSON (seulement s'il y a des résultats) ── */}
                     {tweetCount > 0 && (
                         <button
@@ -1269,7 +1286,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                                 width: 30,
                                 height: 30,
                                 borderRadius: '50%',
-                                border: 'transparent',
+                                border: '1px solid rgb(51, 65, 85)',
                                 background: 'rgba(15,21,36,1)',
                                 backdropFilter: 'blur(4px)',
                                 color: '#94a3b8',
@@ -1305,7 +1322,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                                     gap: 8,
                                     padding: '6px 10px',
                                     borderRadius: 20,
-                                    border: `transparent`,
+                                    border: `1px solid rgb(51, 65, 85)`,
                                     background: 'rgba(15,21,36,1)',
                                     backdropFilter: 'blur(4px)',
                                     fontFamily: 'sans-serif',

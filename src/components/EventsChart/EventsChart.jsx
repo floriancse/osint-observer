@@ -99,6 +99,11 @@ export default function EventsChart({ isOpen, onToggle, activeWeaponTypes, activ
   // Chargement de l'historique du graphique (zero-filled côté backend par bucket
   // de 24h, donc tous les jours sont présents)
   const hasLoadedOnce = useRef(false);
+  // Garantit qu'on ne positionne la sélection par défaut sur les 2 derniers
+  // buckets (12h+12h) qu'une seule fois, au tout premier chargement des
+  // données — pas à chaque changement de filtre, sinon on écraserait une
+  // sélection déjà choisie par l'utilisateur.
+  const initialSelectionDone = useRef(false);
   useEffect(() => {
     if (!isOpen) return;
     if (!hasLoadedOnce.current) setLoading(true);
@@ -113,13 +118,29 @@ export default function EventsChart({ isOpen, onToggle, activeWeaponTypes, activ
 
     fetch(`${API}/graph_events?${params.toString()}`)
       .then((r) => r.json())
-      .then((json) => setData(json.events || []))
+      .then((json) => {
+        const events = json.events || [];
+        setData(events);
+
+        // Premier chargement uniquement : sélectionne les 2 derniers buckets
+        // (12h+12h) réellement renvoyés par le backend, plutôt que de garder
+        // la plage "maintenant - 24h" posée par défaut par TimeContext — qui
+        // peut ne pas correspondre aux vraies données si celles-ci s'arrêtent
+        // plus tôt (série tronquée côté backend).
+        if (!initialSelectionDone.current && events.length > 0) {
+          initialSelectionDone.current = true;
+          const lastTwo = events.slice(-2);
+          const start = bucketStart(lastTwo[0].date);
+          const end = bucketEnd(lastTwo[lastTwo.length - 1]);
+          setRange(start.toISOString(), end.toISOString());
+        }
+      })
       .catch((err) => console.error("Erreur chargement graph_events :", err))
       .finally(() => {
         setLoading(false);
         hasLoadedOnce.current = true;
       });
-  }, [isOpen, activeWeaponTypes, activeObjectiveTypes, activeLabel, searchText]);
+  }, [isOpen, activeWeaponTypes, activeObjectiveTypes, activeLabel, searchText, setRange]);
 
   // Garde les 2 champs de dates synchronisés avec la plage active (carte + graphique)
   useEffect(() => {
