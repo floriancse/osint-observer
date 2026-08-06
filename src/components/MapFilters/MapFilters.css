@@ -9,6 +9,7 @@
   overflow: hidden;
   font-family: 'Roboto Mono', monospace;
   color: #e2e8f0;
+  border: 1px solid rgb(38, 48, 61);;
 }
 
 /* ── Barre de titre type terminal ─────────────────── */

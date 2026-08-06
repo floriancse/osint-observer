@@ -464,7 +464,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
         });
 
         mapRef.current = map;
-
+        map.on('error', (e) => console.error('MapLibre error:', e.error, e));
         map.on("load", async () => {
             map.setProjection({ type: 'globe' });
             const dataTweets = await loadAllData(map);
@@ -1250,7 +1250,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                         style={{
                             height: 30,
                             borderRadius: 15,
-                            border: '1px solid rgb(51, 65, 85)',
+                            border: '1px solid rgb(38, 48, 61)',
                             background: 'rgba(15,21,36,1)',
                             backdropFilter: 'blur(4px)',
                             color: '#e2e8f0',
@@ -1287,7 +1287,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                                 width: 30,
                                 height: 30,
                                 borderRadius: '50%',
-                                border: '1px solid rgb(51, 65, 85)',
+                                border: '1px solid rgb(38, 48, 61)',
                                 background: 'rgba(15,21,36,1)',
                                 backdropFilter: 'blur(4px)',
                                 color: '#94a3b8',
@@ -1323,7 +1323,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                                     gap: 8,
                                     padding: '6px 10px',
                                     borderRadius: 20,
-                                    border: `1px solid rgb(51, 65, 85)`,
+                                    border: `1px solid rgb(38, 48, 61)`,
                                     background: 'rgba(15,21,36,1)',
                                     backdropFilter: 'blur(4px)',
                                     fontFamily: 'sans-serif',
