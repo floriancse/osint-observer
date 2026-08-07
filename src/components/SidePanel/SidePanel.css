@@ -68,7 +68,7 @@
 
 /* ── Header ─────────────────────────────────────── */
 .sidepanel-header {
-  padding: 5px 10px 5px 10px;
+  padding: 5px 10px 0px 10px;
   background: #0f1524;
   border-bottom: 1px solid #111927;
   display: flex;
@@ -100,6 +100,7 @@
   font-size: .8rem;
   font-weight: 600;
   color: #d1d6dd;
+  padding-left: 8px;
   text-transform: uppercase;
   margin: 0;
   line-height: 1;
@@ -164,7 +165,7 @@
 
 /* ── Content ─────────────────────────────────────── */
 .sidepanel-content {
-  padding: 5px 5px 5px 10px;
+  padding: 0px 5px 5px 10px;
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
