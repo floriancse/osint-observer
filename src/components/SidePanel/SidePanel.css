@@ -52,7 +52,7 @@
 }
 
 .sidepanel-toggle:hover {
-  background: rgba(255, 255, 255, 0.03);
+  background: #1b2436;
   border-color: #2e4a6a;
   color: #d1d6dd;
 }
@@ -101,7 +101,6 @@
   font-weight: 600;
   color: #d1d6dd;
   padding-left: 8px;
-  text-transform: uppercase;
   margin: 0;
   line-height: 1;
   letter-spacing: .08rem;
@@ -117,7 +116,6 @@
 .last-update-text {
   font-size: .55rem;
   color: #8b949e;
-  letter-spacing: 0.03em;
   margin-top: 3px;
 }
 
@@ -165,7 +163,7 @@
 
 /* ── Content ─────────────────────────────────────── */
 .sidepanel-content {
-  padding: 0px 5px 5px 10px;
+  padding: 2px 5px 5px 5px;
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
@@ -176,16 +174,15 @@
 .osint-tweet-card-wrapper {
   background: #0f1524;
   border-radius: 8px;
-  margin-bottom: 12px;
+  margin-bottom: 4px;
 }
 
 .osint-tweet-card-wrapper:hover {
-  background: rgba(255, 255, 255, 0.03);
+  background: #1b2436;
 }
 
 .osint-tweet-card-wrapper:has(.tweet-card.important-tweet) {
   border-radius: 10px;
-  box-shadow: 0 0 0 2px rgba(237, 63, 63, 1);
 }
 
 .no-data {
@@ -224,10 +221,8 @@
   border: none;
   border-radius: 9999px;
   color: #62778a;
-  font-size: .55rem;
+  font-size: .6rem;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
   cursor: pointer;
   transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
   text-align: left;
@@ -253,7 +248,7 @@
 }
 
 .label-dropdown-trigger--active {
-  color: #a8b8c8;
+  color: #e1e1e1;
 }
 
 .label-dropdown-trigger-text {
@@ -322,10 +317,8 @@
   border: none;
   border-bottom: 1px solid #111d2e;
   color: #62778a;
-  font-size: .55rem;
+  font-size: .6rem;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
   padding: 7px 10px;
   cursor: pointer;
   white-space: nowrap;
@@ -342,7 +335,6 @@
 
 .sort-dropdown-item:hover,
 .label-dropdown-item:hover {
-  background: #1d273a;
   color: #d1d6dd;
 }
 
@@ -354,12 +346,11 @@
 
 .sort-dropdown-item.active:hover,
 .label-dropdown-item--active:hover {
-  background: #262b36;
+  background: #1d273a;
   color: #d1d6dd;
 }
 
 /* Legacy aliases — keeps existing JSX class names working */
-.sort-dropdown-wrapper .label-dropdown-trigger { }
 .sort-dropdown-chevron {
   width: 11px;
   height: 11px;

@@ -1,9 +1,11 @@
 import React from 'react';
+import { MdClose } from 'react-icons/md';
 import './MapFilters.css';
 
 export default function MapFilters({
     activeWeaponTypes, setActiveWeaponTypes, availableWeaponTypes,
     activeObjectiveTypes, setActiveObjectiveTypes, availableObjectiveTypes,
+    onClose,
 }) {
     const toggleWeaponType = (typeId) => {
         setActiveWeaponTypes(prev =>
@@ -40,6 +42,7 @@ export default function MapFilters({
 
     return (
         <div className="map-floating-filters">
+            
             <div className="terminal-body">
                 <div className="filter-tree">
                     <div className="tree-branch">

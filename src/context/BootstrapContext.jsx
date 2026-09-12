@@ -78,11 +78,11 @@ export const useShippingLanes   = () => useBootstrap().data?.shipping_lanes   ??
 export const useChokepoints     = () => useBootstrap().data?.chokepoints     ?? emptyGeoJSON;
 export const useConflictBorders = () => useBootstrap().data?.conflict_borders ?? emptyGeoJSON;
 export const useConflictTheaters= () => useBootstrap().data?.conflict_theaters ?? emptyGeoJSON;
-export const useConflictAreas   = () => useBootstrap().data?.conflict_areas   ?? emptyGeoJSON;
 export const useWorldAreas      = () => useBootstrap().data?.world_areas      ?? emptyGeoJSON;
 export const useTopicsLocation  = () => useBootstrap().data?.topics_location  ?? emptyGeoJSON;
 export const useTopicsAreas     = () => useBootstrap().data?.topics_areas     ?? emptyGeoJSON;
 export const useLastUpdate     = () => useBootstrap().data?.last_update     ?? emptyGeoJSON;
+export const useKeywords     = () => useBootstrap().data?.keywords     ?? [];
 export const useMilitaryLines     = () => useBootstrap().data?.military_lines     ?? emptyGeoJSON;
 export const useTweets   = () => useBootstrap().data?.tweets     ?? emptyGeoJSON;
 export const useTopics   = () => useBootstrap().data?.topics     ?? [];

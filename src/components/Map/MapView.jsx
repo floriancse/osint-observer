@@ -7,14 +7,44 @@ import { useTime } from "../../context/TimeContext";
 import { createPopupHTML } from "../../utils/popupUtils";
 import { loadChokepointImages } from "../../utils/chokepointIcons";
 import { loadTopicImages } from "../../utils/topicIcons";
-import { useBootstrap } from "../../context/BootstrapContext";
+import { useBootstrap, useKeywords } from "../../context/BootstrapContext";
+import { MdOutlineDraw, MdTrendingUp, MdClose } from "react-icons/md";
+import { CgPerformance } from "react-icons/cg";
+import { FaFilter } from "react-icons/fa";
+import { FaRegPenToSquare } from "react-icons/fa6";
 
-console.log("MapLibre version =", maplibregl.version);
 const MAPTILER_API_KEY = process.env.REACT_APP_MAPTILER_API_KEY;
 const STYLE_URL = `https://api.maptiler.com/maps/019e947a-cdc7-7112-be5f-b04019239e3c/style.json?key=${MAPTILER_API_KEY}`;
+export { STYLE_URL };
 const API = process.env.REACT_APP_API_URL;
+// Calcule la bbox (min/max lng/lat) d'une feature rectangle tracée à la main
+// (Polygon fermé à 5 points, cf. buildRectangleFeature) et indique si un point
+// donné [lng, lat] tombe dedans. Retourne toujours true si aucun rectangle
+// n'est actif (pas de filtre spatial appliqué).
+const isPointInsideRectangle = (lng, lat, rectangleFeature) => {
+    const ring = rectangleFeature?.geometry?.coordinates?.[0];
+    if (!ring || ring.length < 4) return true;
+    const lngs = ring.map((c) => c[0]);
+    const lats = ring.map((c) => c[1]);
+    const minLng = Math.min(...lngs), maxLng = Math.max(...lngs);
+    const minLat = Math.min(...lats), maxLat = Math.max(...lats);
+    return lng >= minLng && lng <= maxLng && lat >= minLat && lat <= maxLat;
+};
+
+// Calcule le niveau de zoom permettant d'afficher le globe (projection
+// "globe" de MapLibre) entièrement dans un conteneur de taille donnée.
+// Avec un tileSize de 512px, la circonférence du globe à l'écran vaut
+// 512 * 2^zoom pixels ; son diamètre vaut donc (512 * 2^zoom) / π.
+// On résout zoom pour que ce diamètre tienne dans la plus petite dimension
+// du conteneur (avec une marge "factor" pour ne pas coller aux bords).
+const getFitGlobeZoom = (width, height, factor = 0.92, tileSize = 512) => {
+    const minDim = Math.min(width, height);
+    if (!minDim || minDim <= 0) return 1.8; // fallback si le conteneur n'est pas encore mesurable
+    return Math.log2((minDim * factor * Math.PI) / tileSize);
+};
+
 // Filtre côté client un FeatureCollection de tweets déjà chargé, selon une plage
-const filterTweets = (collection, { start, end }, activeWeaponTypes, activeObjectiveTypes, activeLabel, searchText) => {
+const filterTweets = (collection, { start, end }, activeWeaponTypes, activeObjectiveTypes, activeLabel, searchText, spatialRectangle) => {
     if (!collection?.features) return { type: "FeatureCollection", features: [] };
     const startTs = new Date(start).getTime();
     const endTs = new Date(end).getTime();
@@ -53,15 +83,39 @@ const filterTweets = (collection, { start, end }, activeWeaponTypes, activeObjec
                 if (!text.includes(normalizedSearch)) return false;
             }
 
+            // 5. Filtre spatial : ne garder que les features à l'intérieur du
+            // rectangle tracé sur la carte (si un rectangle est actif).
+            // - Point (tweets) : le point lui-même doit être dans le rectangle.
+            // - LineString / MultiLineString (military-lines) : on garde la
+            //   ligne uniquement si son POINT DE FIN (dernier sommet) tombe
+            //   dans le rectangle — le point de départ n'est pas pris en compte.
+            if (spatialRectangle) {
+                const geom = f.geometry;
+                if (geom?.type === "Point") {
+                    const [lng, lat] = geom.coordinates;
+                    if (!isPointInsideRectangle(lng, lat, spatialRectangle)) return false;
+                } else if (geom?.type === "LineString") {
+                    const coords = geom.coordinates;
+                    const [lng, lat] = coords[coords.length - 1] || [];
+                    if (lng === undefined || !isPointInsideRectangle(lng, lat, spatialRectangle)) return false;
+                } else if (geom?.type === "MultiLineString") {
+                    const lines = geom.coordinates;
+                    const lastLine = lines[lines.length - 1] || [];
+                    const [lng, lat] = lastLine[lastLine.length - 1] || [];
+                    if (lng === undefined || !isPointInsideRectangle(lng, lat, spatialRectangle)) return false;
+                }
+            }
+
             return true;
         }),
     };
 };
 
 // Filtre un FeatureCollection complet et y attache les métadonnées utiles aux filtres
-const buildEnrichedTweets = (allCollection, timeRange, activeWeaponTypes, activeObjectiveTypes, activeLabel, searchText) => {
-    // 1. Toutes les features de la période, sans aucun filtre arme/objectif/topic/texte
-    const timeOnlyFiltered = filterTweets(allCollection, timeRange, [], [], null, null);
+const buildEnrichedTweets = (allCollection, timeRange, activeWeaponTypes, activeObjectiveTypes, activeLabel, searchText, spatialRectangle) => {
+    // 1. Toutes les features de la période (et du rectangle si actif), sans
+    // aucun filtre arme/objectif/topic/texte
+    const timeOnlyFiltered = filterTweets(allCollection, timeRange, [], [], null, null, spatialRectangle);
     const totalOnPeriod = timeOnlyFiltered.features.length;
 
     // 2. Liste complète des labels pour la période (sans filtre armes/objectifs)
@@ -88,16 +142,16 @@ const buildEnrichedTweets = (allCollection, timeRange, activeWeaponTypes, active
             .filter(Boolean)
     )].sort();
 
-    // 4. Labels encore disponibles une fois les filtres armes/objectifs/texte appliqués (sans le topic)
-    const filteredByFiltersAndTime = filterTweets(allCollection, timeRange, activeWeaponTypes, activeObjectiveTypes, null, searchText);
+    // 4. Labels encore disponibles une fois les filtres armes/objectifs/texte/rectangle appliqués (sans le topic)
+    const filteredByFiltersAndTime = filterTweets(allCollection, timeRange, activeWeaponTypes, activeObjectiveTypes, null, searchText, spatialRectangle);
     const availableLabels = [...new Set(
         filteredByFiltersAndTime.features
             .map(f => f.properties.label)
             .filter(Boolean)
     )].sort();
 
-    // 5. Le jeu de données réellement affiché (filtre armes + filtre objectifs + filtre topic + filtre texte)
-    const filteredTweets = filterTweets(allCollection, timeRange, activeWeaponTypes, activeObjectiveTypes, activeLabel, searchText);
+    // 5. Le jeu de données réellement affiché (filtre armes + filtre objectifs + filtre topic + filtre texte + filtre spatial)
+    const filteredTweets = filterTweets(allCollection, timeRange, activeWeaponTypes, activeObjectiveTypes, activeLabel, searchText, spatialRectangle);
 
     filteredTweets.totalCountForTimeRange = totalOnPeriod;
     filteredTweets.allLabelsForTimeRange = allLabels;
@@ -108,11 +162,10 @@ const buildEnrichedTweets = (allCollection, timeRange, activeWeaponTypes, active
     return filteredTweets;
 };
 
-
 /* ─── Theater popup helpers ─── */
 const getTheaterFreshness = (isoDate) => {
     if (!isoDate) return "stale";
-    const diffH = (Date.now() - new Date(isoDate).getTime()) /36e5;
+    const diffH = (Date.now() - new Date(isoDate).getTime()) / 36e5;
     if (diffH < 6) return "hot";
     if (diffH < 24) return "warm";
     if (diffH < 72) return "cool";
@@ -205,7 +258,7 @@ const getTheaterHTML = (topic, tweets) => {
     `;
 };
 
-const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activeWeaponTypes, activeObjectiveTypes, searchText, onSearchTextChange }, ref) {
+const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activeWeaponTypes, activeObjectiveTypes, searchText, onSearchTextChange, searchBarLeftOffset = 5, filtersOpen = false, onToggleFilters, onRectangleDrawn, onLoadingChange }, ref) {
     const { timeRange } = useTime();
 
     // ── Debounce de la recherche texte ──
@@ -232,6 +285,58 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [localSearchText]);
     const { data: bootstrapData, error: bootstrapError } = useBootstrap();
+
+    // ── Suggestions "Trending" (façon Reddit) au-dessus de la search bar ──
+    // useKeywords() renvoie désormais des paires {term, context} issues de
+    // KW1/KW1_CTX .. KW5/KW5_CTX. On garde un fallback tolérant au cas où
+    // le backend renverrait encore de simples strings (ancien format).
+    const rawKeywords = useKeywords(); // [{term, context}, ...] ou ["kw1", ...] (legacy) ou []
+    const trendingKeywords = (rawKeywords || [])
+        .map((kw) => {
+            if (kw && typeof kw === "object") {
+                const term = kw.term ?? kw.kw ?? "";
+                const context = kw.context ?? kw.ctx ?? "";
+                return term ? { term, context } : null;
+            }
+            // legacy: simple string, pas de contexte disponible
+            return kw ? { term: kw, context: "" } : null;
+        })
+        .filter(Boolean);
+    const [showSuggestions, setShowSuggestions] = useState(false);
+    // Les tendances restent affichées en permanence, indépendamment du texte
+    // tapé dans l'input (pas de filtrage "façon autocomplete" ici).
+    const filteredKeywords = trendingKeywords;
+
+    const handleSelectKeyword = (kw) => {
+        // Le filtrage/recherche se fait toujours sur le terme brut (kw.term),
+        // jamais sur le libellé contextuel affiché.
+        setLocalSearchText(kw.term);
+        setShowSuggestions(false);
+        // Remonte immédiatement au parent, sans attendre les 300ms de debounce
+        if (onSearchTextChange) onSearchTextChange(kw.term);
+    };
+
+    const handleClearSearch = () => {
+        setLocalSearchText("");
+        if (onSearchTextChange) onSearchTextChange("");
+    };
+
+    // Ferme le dropdown "Trending" uniquement sur un clic en dehors du bloc
+    // recherche (input + dropdown) — pas sur un simple onBlur de l'input,
+    // qui se déclenchait à tort au survol d'un tweet sur la carte (popup
+    // MapLibre volant le focus) et fermait le dropdown alors qu'on n'avait
+    // rien cliqué.
+    const searchContainerRef = useRef(null);
+    useEffect(() => {
+        if (!showSuggestions) return;
+        const handleClickOutside = (e) => {
+            if (searchContainerRef.current && !searchContainerRef.current.contains(e.target)) {
+                setShowSuggestions(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, [showSuggestions]);
 
     // Le fetch de /bootstrap est déclenché une seule fois dans BootstrapProvider,
     // en amont dans l'arbre React. Il peut ne pas être terminé au moment où la
@@ -340,33 +445,69 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
     const [dataTweets, setDataTweets] = useState(null);
     const allTweetsRef = useRef(null); // jeu complet des 30 derniers jours, filtré côté client
     const allMilitaryLinesRef = useRef(null); // idem pour les lignes militaires
+    const allTopicsAreasRef = useRef(null); // polygones topics_areas (bootstrap), pour calculer la bbox au clic SidePanel
     const topicsRef = useRef(null); // liste des topics "importants", fournie par /bootstrap
     const topicSummariesRef = useRef(null); // résumés par topic_id, fournis par /bootstrap
+    const prevActiveLabelRef = useRef(activeLabel); // détecte un VRAI changement de topic sélectionné, pour ne pan la carte que dans ce cas
     const onTweetsLoadedRef = useRef(onTweetsLoaded);
+    const onLoadingChangeRef = useRef(onLoadingChange);
+    useEffect(() => { onLoadingChangeRef.current = onLoadingChange; }, [onLoadingChange]);
     const isFirstRender = useRef(true);
     const pinnedPopupRef = useRef(null);
-
+    const [isDrawing, setIsDrawing] = useState(false);
+    const [quadrilateralCoords, setQuadrilateralCoords] = useState([]);
+    const [drawnQuadrilateral, setDrawnQuadrilateral] = useState(null);
+    // ── Outil "rectangle" (bouton FaRegPenToSquare) : 1er clic = coin de départ, 2nd clic = coin final ──
+    const isDrawModeRef = useRef(false); // reflète isDrawing dans les handlers maplibre (closures figées au "load")
+    const rectPointRef = useRef({ start: null }); // coin de départ posé, en attente du second clic
+    const onRectangleDrawnRef = useRef(onRectangleDrawn);
+    useEffect(() => { onRectangleDrawnRef.current = onRectangleDrawn; }, [onRectangleDrawn]);
+    // Efface le rectangle tracé (source maplibre + état + notification au parent),
+    // utilisée à la fois par le bouton (nouveau tracé) et par la croix de suppression.
+    const clearDrawnRectangle = () => {
+        const source = mapRef.current?.getSource("draw-rectangle");
+        if (source) source.setData({ type: "FeatureCollection", features: [] });
+        setDrawnQuadrilateral(null);
+        if (onRectangleDrawnRef.current) onRectangleDrawnRef.current(null);
+    };
     // ── Performance mode (désactive les pulses quand trop de tweets sont chargés) ──
     const [performanceMode, setPerformanceMode] = useState(false);
     const performanceModeRef = useRef(false);
     const militaryPulseFrameRef = useRef(null);
     const resumeAnimationsRef = useRef(null);
     const tweetCount = dataTweets?.features?.length || 0;
-    const PERFORMANCE_MODE_THRESHOLD = 0;
+    const PERFORMANCE_MODE_THRESHOLD = 150;
 
     useEffect(() => { onTweetsLoadedRef.current = onTweetsLoaded; }, [onTweetsLoaded]);
+
+    // Active/désactive le mode "tracer un rectangle" : curseur en croix, et
+    // nettoyage de la prévisualisation si le mode est quitté avant le second
+    // clic (annulation en cours de tracé). Ne touche jamais aux closures
+    // figées des handlers maplibre (qui relisent isDrawModeRef à chaque événement).
+    useEffect(() => {
+        isDrawModeRef.current = isDrawing;
+        const map = mapRef.current;
+        if (!map) return;
+        map.getCanvas().style.cursor = isDrawing ? "crosshair" : "";
+        if (!isDrawing && rectPointRef.current.start) {
+            // Tracé annulé avant le second clic : on efface la prévisualisation en cours
+            rectPointRef.current.start = null;
+            const source = map.getSource("draw-rectangle");
+            if (source) source.setData({ type: "FeatureCollection", features: [] });
+        }
+    }, [isDrawing]);
     useEffect(() => {
         const map = mapRef.current;
         if (!map || !map.isStyleLoaded() || !allTweetsRef.current) return;
 
-        const filtered = filterTweets(allTweetsRef.current, timeRange, activeWeaponTypes, activeObjectiveTypes, undefined, searchText);
+        const filtered = filterTweets(allTweetsRef.current, timeRange, activeWeaponTypes, activeObjectiveTypes, undefined, searchText, drawnQuadrilateral);
         const tweetSource = map.getSource("tweets");
         if (tweetSource) {
             tweetSource.setData(filtered);
             setDataTweets(filtered);
             if (onTweetsLoaded) onTweetsLoaded(filtered); // Met à jour le SidePanel !
         }
-    }, [activeWeaponTypes, activeObjectiveTypes, searchText, timeRange]);
+    }, [activeWeaponTypes, activeObjectiveTypes, searchText, timeRange, drawnQuadrilateral]);
 
     // Initialise les sources "statiques" de la carte à partir des données déjà
     // chargées par BootstrapProvider (aucun fetch ici : on attend juste que
@@ -383,7 +524,6 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                 chokepoints: dataChokepoints,
                 conflict_borders: dataBorders,
                 conflict_theaters: dataBordersTheaters,
-                conflict_areas: dataMilitaryAreas,
                 world_areas: dataWorldAreas,
                 topics_location: dataTopicsLocations,
                 topics_areas: dataTopicsAreas,
@@ -418,6 +558,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
             // Cache complet (30 jours) des tweets, désormais fourni directement
             // par /bootstrap (plus de fetch séparé vers /tweets.geojson).
             allTweetsRef.current = dataTweetsBootstrap ?? emptyGeoJSON;
+            window.__debugTweets = allTweetsRef.current;
             const filteredTweets = buildEnrichedTweets(
                 allTweetsRef.current,
                 timeRangeRef.current,
@@ -440,31 +581,64 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
             map.addSource("chokepoints", { type: "geojson", data: dataChokepoints });
             map.addSource("conflict-borders", { type: "geojson", data: dataBorders });
             map.addSource("conflict-theaters", { type: "geojson", data: dataBordersTheaters });
-            map.addSource("conflict-areas", { type: "geojson", data: dataMilitaryAreas });
             map.addSource("world-areas", { type: "geojson", data: dataWorldAreas, generateId: true });
             map.addSource("topics-locations", { type: "geojson", data: dataTopicsLocations });
             map.addSource("topics-areas", { type: "geojson", data: dataTopicsAreas });
+
+            // Cache des polygones topics_areas, pour calculer la bbox du topic
+            // sélectionné (SidePanel) sans dépendre de querySourceFeatures
+            // (qui ne renvoie que les features des tuiles déjà rendues).
+            allTopicsAreasRef.current = dataTopicsAreas ?? emptyGeoJSON;
 
             return filteredTweets;
         } catch (err) {
             console.error("Erreur chargement données initiales (bootstrap) :", err);
             return { type: "FeatureCollection", features: [] };
+        } finally {
+            if (onLoadingChangeRef.current) onLoadingChangeRef.current(false);
         }
     };
 
     useEffect(() => {
         if (mapRef.current) return;
 
+        // Zoom initial calculé à partir de la taille réelle du conteneur au
+        // moment du montage, pour que le globe soit entièrement visible dès
+        // le premier chargement, quelle que soit la taille de la fenêtre.
+        const { width, height } = containerRef.current.getBoundingClientRect();
+        const initialZoom = getFitGlobeZoom(width, height);
+
         const map = new maplibregl.Map({
             container: containerRef.current,
             style: STYLE_URL,
-            center: [40, 40],
-            zoom: 2,
+            center: [37, 37],
+            zoom: initialZoom,
             projection: "globe",
         });
 
         mapRef.current = map;
-        map.on('error', (e) => console.error('MapLibre error:', e.error, e));
+
+        // Tant que la page est encore sur l'écran de chargement (le globe
+        // "flotte" sans que l'utilisateur ait interagi), on recale le zoom
+        // à chaque redimensionnement de fenêtre pour garder le globe entier
+        // visible (ex: fenêtre redimensionnée juste après le rechargement).
+        let userInteracted = false;
+        const markInteracted = () => { userInteracted = true; };
+        map.on("dragstart", markInteracted);
+        map.on("zoomstart", (e) => {
+            // Ignore les zooms déclenchés par notre propre resize (pas d'event
+            // "originalEvent" venant de l'utilisateur dans ce cas).
+            if (e.originalEvent) markInteracted();
+        });
+
+        const handleResize = () => {
+            if (userInteracted || !mapRef.current) return;
+            const rect = containerRef.current.getBoundingClientRect();
+            mapRef.current.setZoom(getFitGlobeZoom(rect.width, rect.height));
+        };
+        window.addEventListener("resize", handleResize);
+        map.once("remove", () => window.removeEventListener("resize", handleResize));
+
         map.on("load", async () => {
             map.setProjection({ type: 'globe' });
             const dataTweets = await loadAllData(map);
@@ -526,26 +700,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                     'fill-opacity': 0.2
                 }
             });
-            map.addLayer({
-                id: 'conflict-areas-fill',
-                type: 'fill',
-                source: 'conflict-areas',
-                paint: {
-                    'fill-color': '#f7a816',
-                    'fill-opacity': 0.3
-                }
-            });
-            map.addLayer({
-                id: 'conflict-areas-outline',
-                type: 'line',
-                source: 'conflict-areas',
-                paint: {
-                    'line-color': '#f7a816',
-                    'line-width': 1,
-                    'line-opacity': .5,
-                    'line-dasharray': [4, 2]
-                }
-            });
+
             map.addLayer({
                 id: 'conflict-borders',
                 type: 'line',
@@ -585,7 +740,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                     'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 0, 1, 9, 3],
                     'heatmap-color': ['interpolate', ['linear'], ['heatmap-density'],
                         0, 'rgba(0,0,0,0)', 0.2, 'rgb(78, 152, 241)', 1, '#9fc5f4'],
-                    'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 0, 5, 7, 13],
+                    'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 0, 3, 5, 10],
                     'heatmap-opacity': ['interpolate', ['linear'], ['zoom'], 7, 1, 9, 0.8],
                 },
             });
@@ -700,6 +855,73 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                     "line-dasharray": [2, 2],
                 },
             });
+            // ── Outil "rectangle" : source + couches du rectangle bleu tracé à la volée ──
+            map.addSource("draw-rectangle", {
+                type: "geojson",
+                data: { type: "FeatureCollection", features: [] },
+            });
+            map.addLayer({
+                id: "draw-rectangle-fill",
+                type: "fill",
+                source: "draw-rectangle",
+                paint: { "fill-color": "#2f6fed", "fill-opacity": 0.15 },
+            });
+            map.addLayer({
+                id: "draw-rectangle-outline",
+                type: "line",
+                source: "draw-rectangle",
+                paint: { "line-color": "#2f6fed", "line-width": 2 },
+            });
+
+            const buildRectangleFeature = (start, end) => {
+                const [lng1, lat1] = start;
+                const [lng2, lat2] = end;
+                const minLng = Math.min(lng1, lng2), maxLng = Math.max(lng1, lng2);
+                const minLat = Math.min(lat1, lat2), maxLat = Math.max(lat1, lat2);
+                return {
+                    type: "Feature",
+                    properties: {},
+                    geometry: {
+                        type: "Polygon",
+                        coordinates: [[
+                            [minLng, minLat],
+                            [maxLng, minLat],
+                            [maxLng, maxLat],
+                            [minLng, maxLat],
+                            [minLng, minLat],
+                        ]],
+                    },
+                };
+            };
+
+            const updateRectangleSource = (feature) => {
+                const source = map.getSource("draw-rectangle");
+                if (source) source.setData({ type: "FeatureCollection", features: feature ? [feature] : [] });
+            };
+
+            map.on("click", (e) => {
+                if (!isDrawModeRef.current) return;
+                if (!rectPointRef.current.start) {
+                    // 1er clic : on pose le coin de départ et on prévisualise au fil de la souris
+                    rectPointRef.current.start = [e.lngLat.lng, e.lngLat.lat];
+                    return;
+                }
+                // 2nd clic : on pose le coin final et on termine le tracé
+                const feature = buildRectangleFeature(rectPointRef.current.start, [e.lngLat.lng, e.lngLat.lat]);
+                updateRectangleSource(feature);
+                rectPointRef.current.start = null;
+                setDrawnQuadrilateral(feature);
+                if (onRectangleDrawnRef.current) onRectangleDrawnRef.current(feature);
+                // Le tracé est terminé : on ressort automatiquement du mode dessin.
+                setIsDrawing(false);
+            });
+
+            map.on("mousemove", (e) => {
+                if (!isDrawModeRef.current || !rectPointRef.current.start) return;
+                const feature = buildRectangleFeature(rectPointRef.current.start, [e.lngLat.lng, e.lngLat.lat]);
+                updateRectangleSource(feature);
+            });
+
             //MOUSE BEHAVIOR
             let pinnedTopicId = null;
             const emptyTopicFilter = ['==', ['get', 'topic_id'], ''];
@@ -711,7 +933,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
 
             map.on("mouseenter", "topics-locations-layer", (e) => {
                 if (!e.features.length) return;
-                map.getCanvas().style.cursor = "pointer";
+                if (!isDrawModeRef.current) map.getCanvas().style.cursor = "pointer";
                 isHoveringTopic = true;
 
                 // Topics take priority: dismiss any active tweet / conflict hover popup
@@ -729,7 +951,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
             });
 
             map.on("mouseleave", "topics-locations-layer", () => {
-                map.getCanvas().style.cursor = "";
+                if (!isDrawModeRef.current) map.getCanvas().style.cursor = "";
                 isHoveringTopic = false;
                 // Ne garde le contour de hover que si un topic est épinglé (clic).
                 // La sélection du SidePanel vit désormais sur sa propre couche
@@ -801,9 +1023,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                 className: "conflict-popup",
                 anchor: "bottom",
             });
-            const isOverConflictArea = (point) => {
-                return map.queryRenderedFeatures(point, { layers: ["conflict-areas-fill"] }).length > 0;
-            };
+
             let isHoveringTweet = false;
             let isHoveringTopic = false;
             let pinnedPopup = null;
@@ -831,11 +1051,11 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                     </div>
                     <div style="border-top:1px solid rgba(255,255,255,0.08); padding-top:8px; display:flex; flex-direction:column; gap:5px;">
                         <div style="display:flex; align-items:center; gap:6px;">
-                        <span style="font-size:9px; color:${labelColor}; text-transform:uppercase; letter-spacing:0.06em; ">Activities</span>
+                        <span style="font-size:9px; color:${labelColor}; letter-spacing:0.06em; ">Activities</span>
                         <span style="font-size:10px; color:#e0e0e0; font-weight:bold;">${props.count}</span>
                         </div>
                         <div style="display:flex; align-items:center; gap:6px;">
-                        <span style="font-size:9px; color:${labelColor}; text-transform:uppercase; letter-spacing:0.06em;">Date</span>
+                        <span style="font-size:9px; color:${labelColor};letter-spacing:0.06em;">Date</span>
                         <span style="font-size:10px; color:#aaa;">${today}</span>
                         </div>
                     </div>
@@ -856,7 +1076,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                     currentHoverPopup = 'tweet';
                 }
 
-                map.getCanvas().style.cursor = 'pointer';
+                if (!isDrawModeRef.current) map.getCanvas().style.cursor = 'pointer';
 
                 const features = map.queryRenderedFeatures(e.point, { layers: ["tweets-hover-area"] })
                     .sort((a, b) => (b.properties.importance_score || 0) - (a.properties.importance_score || 0));
@@ -873,46 +1093,14 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                     .addTo(map);
             });
 
-            map.on("mousemove", "conflict-areas-fill", (e) => {
-                if (pinnedPopup || isHoveringTweet) return;
-                isHoveringConflictArea = true;
-                isHoveringTweet = false;
-
-                if (currentHoverPopup !== 'conflict') {
-                    popup.remove();
-                    currentHoverPopup = 'conflict';
-                }
-
-                map.getCanvas().style.cursor = "pointer";
-
-                const props = e.features[0].properties;
-
-                conflictPopup
-                    .setLngLat([e.lngLat.lng, e.lngLat.lat])
-                    .setHTML(getConflictHTML(props))
-                    .addTo(map);
-            });
-
             map.on("mouseleave", "tweets-hover-area", () => {
                 isHoveringTweet = false;
-                map.getCanvas().style.cursor = '';
+                if (!isDrawModeRef.current) map.getCanvas().style.cursor = '';
 
                 setTimeout(() => {
                     if (!isHoveringConflictArea && !pinnedPopup) {
                         popup.remove();
                         if (currentHoverPopup === 'tweet') currentHoverPopup = null;
-                    }
-                }, 20);
-            });
-
-            map.on("mouseleave", "conflict-areas-fill", () => {
-                isHoveringConflictArea = false;
-                map.getCanvas().style.cursor = "";
-
-                setTimeout(() => {
-                    if (!isHoveringTweet && !pinnedPopup) {
-                        conflictPopup.remove();
-                        if (currentHoverPopup === 'conflict') currentHoverPopup = null;
                     }
                 }, 20);
             });
@@ -961,7 +1149,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
 
             map.on("mouseenter", "chokepoints", (e) => {
                 if (!e.features.length) return;
-                map.getCanvas().style.cursor = "pointer";
+                if (!isDrawModeRef.current) map.getCanvas().style.cursor = "pointer";
 
                 const props = e.features[0].properties;
                 const coords = e.features[0].geometry.coordinates.slice();
@@ -994,7 +1182,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                                 ${props.reason}
                                 ${props.STATE_DURATION != null ? `
                             <div style="color: #ccc; font-size: 10px; margin-top: 6px;">
-                                ${props.status.charAt(0).toUpperCase() + props.status.slice(1).toLowerCase()} for <span style="color: #fff">${props.STATE_DURATION} day${props.STATE_DURATION > 1 ? 's' : ''}.</span>
+                                ${props.status.charAt(0) + props.status.slice(1).toLowerCase()} for <span style="color: #fff">${props.STATE_DURATION} day${props.STATE_DURATION > 1 ? 's' : ''}.</span>
                             </div>` : ""}
                             </div>` : ""}
                         </div>
@@ -1003,30 +1191,30 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
             });
 
             map.on("mouseleave", "chokepoints", () => {
-                map.getCanvas().style.cursor = "";
+                if (!isDrawModeRef.current) map.getCanvas().style.cursor = "";
                 if (!pinnedPopup) popup.remove();
             });
 
             let hoveredWorldAreaId = null;
 
-            map.on('mousemove', 'world-areas', (e) => {
-                if (!e.features.length) return;
-                const id = e.features[0].id;
-                if (hoveredWorldAreaId !== null && hoveredWorldAreaId !== id) {
-                    map.setFeatureState({ source: 'world-areas', id: hoveredWorldAreaId }, { hover: false });
-                }
-                if (hoveredWorldAreaId !== id) {
-                    hoveredWorldAreaId = id;
-                    map.setFeatureState({ source: 'world-areas', id }, { hover: true });
-                }
-            });
+            // map.on('mousemove', 'world-areas', (e) => {
+            //     if (!e.features.length) return;
+            //     const id = e.features[0].id;
+            //     if (hoveredWorldAreaId !== null && hoveredWorldAreaId !== id) {
+            //         map.setFeatureState({ source: 'world-areas', id: hoveredWorldAreaId }, { hover: false });
+            //     }
+            //     if (hoveredWorldAreaId !== id) {
+            //         hoveredWorldAreaId = id;
+            //         map.setFeatureState({ source: 'world-areas', id }, { hover: true });
+            //     }
+            // });
 
-            map.on('mouseleave', 'world-areas', () => {
-                if (hoveredWorldAreaId !== null) {
-                    map.setFeatureState({ source: 'world-areas', id: hoveredWorldAreaId }, { hover: false });
-                    hoveredWorldAreaId = null;
-                }
-            });
+            // map.on('mouseleave', 'world-areas', () => {
+            //     if (hoveredWorldAreaId !== null) {
+            //         map.setFeatureState({ source: 'world-areas', id: hoveredWorldAreaId }, { hover: false });
+            //         hoveredWorldAreaId = null;
+            //     }
+            // });
 
             //PULSE
             // PULSE - Military Lines
@@ -1162,7 +1350,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
         const map = mapRef.current;
 
         if (allTweetsRef.current) {
-            const filteredTweets = buildEnrichedTweets(allTweetsRef.current, timeRange, activeWeaponTypes, activeObjectiveTypes, activeLabel, searchText);
+            const filteredTweets = buildEnrichedTweets(allTweetsRef.current, timeRange, activeWeaponTypes, activeObjectiveTypes, activeLabel, searchText, drawnQuadrilateral);
 
             const tweetSource = map.getSource("tweets");
             if (tweetSource) {
@@ -1173,7 +1361,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
 
             // 7. Idem pour les lignes militaires (mêmes filtres armes/objectifs + période)
             if (allMilitaryLinesRef.current) {
-                const filteredLines = filterTweets(allMilitaryLinesRef.current, timeRange, activeWeaponTypes, activeObjectiveTypes, activeLabel, searchText);
+                const filteredLines = filterTweets(allMilitaryLinesRef.current, timeRange, activeWeaponTypes, activeObjectiveTypes, activeLabel, searchText, drawnQuadrilateral);
                 const militaryLinesSource = map.getSource("military-lines");
                 if (militaryLinesSource) militaryLinesSource.setData(filteredLines);
             }
@@ -1198,7 +1386,9 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                 : null;
             map.setFilter("topics-locations-layer", locationsFilter);
         }
-    }, [timeRange.start, timeRange.end, activeWeaponTypes, activeObjectiveTypes, activeLabel, searchText]);
+
+        prevActiveLabelRef.current = activeLabel;
+    }, [timeRange.start, timeRange.end, activeWeaponTypes, activeObjectiveTypes, activeLabel, searchText, drawnQuadrilateral]);
 
     // ── Téléchargement de la sélection actuelle (dataTweets) au format GeoJSON ──
     const handleDownloadGeoJSON = () => {
@@ -1228,41 +1418,148 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
 
     return (
         <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-            <div
-                ref={containerRef}
-                className="map-container"
-            />
+            {/* Conteneur principal de la carte */}
+            <div ref={containerRef} className="map-container" />
+
+            {/* Barre de recherche (si applicable) */}
             {onSearchTextChange && (
                 <div
+                    ref={searchContainerRef}
                     style={{
                         position: 'absolute',
                         top: 5,
-                        left: 10,
+                        left: searchBarLeftOffset,
+                        width: 320,
                         zIndex: 999,
                     }}
                 >
-                    {/* ── Recherche texte libre dans les tweets ── */}
-                    <input
-                        type="text"
-                        value={localSearchText}
-                        onChange={(e) => setLocalSearchText(e.target.value)}
-                        placeholder="Filter by keyword (e.g: Wildberries)"
-                        style={{
-                            height: 30,
-                            borderRadius: 15,
-                            border: '1px solid rgb(38, 48, 61)',
-                            background: 'rgba(15,21,36,1)',
-                            backdropFilter: 'blur(4px)',
-                            color: '#e2e8f0',
-                            fontFamily: 'sans-serif',
-                            fontSize: '.7rem',
-                            padding: '0 12px',
-                            width: 250,
-                            outline: 'none',
-                        }}
-                    />
+                    <div style={{ position: 'relative', width: '100%' }}>
+                        <input
+                            type="text"
+                            className="map-search-input"
+                            value={localSearchText}
+                            onChange={(e) => setLocalSearchText(e.target.value)}
+                            onFocus={() => setShowSuggestions(true)}
+                            placeholder="Search OSINT Observer"
+                            style={{
+                                height: 30,
+                                borderRadius: 15,
+                                border: '1px solid rgb(38, 48, 61)',
+                                background: 'rgba(15,21,36,1)',
+                                backdropFilter: 'blur(4px)',
+                                color: '#e1e1e1',
+                                fontFamily: 'sans-serif',
+                                fontSize: '.7rem',
+                                padding: localSearchText ? '0 28px 0 12px' : '0 12px',
+                                width: "100%",
+                                outline: 'none',
+                                boxSizing: 'border-box',
+                            }}
+                        />
+                        {localSearchText && (
+                            <button
+                                type="button"
+                                onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    handleClearSearch();
+                                }}
+                                aria-label="Effacer la recherche"
+                                style={{
+                                    position: 'absolute',
+                                    top: '50%',
+                                    right: 8,
+                                    transform: 'translateY(-50%)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    width: 18,
+                                    height: 18,
+                                    padding: 0,
+                                    border: 'none',
+                                    borderRadius: '50%',
+                                    background: 'transparent',
+                                    color: '#8b949e',
+                                    cursor: 'pointer',
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.background = 'rgba(139,148,158,0.15)';
+                                    e.currentTarget.style.color = '#e2e8f0';
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.background = 'transparent';
+                                    e.currentTarget.style.color = '#8b949e';
+                                }}
+                            >
+                                <MdClose size={14} />
+                            </button>
+                        )}
+                    </div>
+
+                    {showSuggestions && filteredKeywords.length > 0 && (
+                        <div
+                            style={{
+                                marginTop: 4,
+                                borderRadius: 10,
+                                border: '1px solid rgb(38, 48, 61)',
+                                background: 'rgba(15,21,36,0.97)',
+                                backdropFilter: 'blur(4px)',
+                                overflow: 'hidden',
+                                boxShadow: '0 12px 30px rgba(0,0,0,0.5)',
+                            }}
+                        >
+                            <div
+                                style={{
+                                    padding: '8px 12px 4px',
+                                    fontSize: '.6rem',
+                                    fontWeight: 700,
+                                    letterSpacing: '0.06em',
+                                    color: '#4f9dff',
+                                    fontFamily: 'sans-serif',
+                                }}
+                            >
+                                TRENDING LAST 3 DAYS
+                            </div>
+                            {filteredKeywords.map((kw, i) => (
+                                <div
+                                    key={`${kw.term}-${i}`}
+                                    onMouseDown={() => handleSelectKeyword(kw)}
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 8,
+                                        padding: '7px 12px',
+                                        cursor: 'pointer',
+                                        color: '#e2e8f0',
+                                        fontFamily: 'sans-serif',
+                                        fontSize: '.6rem',
+
+                                    }}
+                                    onMouseEnter={(e) => (e.currentTarget.style.background = '#1b2436')}
+                                    onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                                >
+                                    <MdTrendingUp size={14} color="#4f9dff" />
+                                    {/* On affiche le libellé contextuel (autonome et lisible),
+                                        avec repli sur le terme brut si le contexte est vide.
+                                        Si un contexte est affiché, on ajoute le mot-clé brut à la suite,
+                                        en gris discret, pour référence. */}
+                                    {kw.context && kw.context.trim() ? (
+                                        <span>
+                                            {kw.context}
+                                            <span style={{ color: '#6b7280', marginLeft: 6 }}>
+                                                {kw.term}
+                                            </span>
+                                        </span>
+                                    ) : (
+                                        <span>{kw.term}</span>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
             )}
+
+            {/* 🔹 Barre d'outils en bas à gauche : Bouton de dessin + Export + Performance */}
             {tweetCount > 0 && (
                 <div
                     style={{
@@ -1272,99 +1569,176 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                         zIndex: 999,
                         display: 'flex',
                         alignItems: 'center',
-                        gap: 8,
+                        gap: 5,
                     }}
                 >
-                    {/* ── Bouton de téléchargement de la sélection en GeoJSON (seulement s'il y a des résultats) ── */}
-                    {tweetCount > 0 && (
+                    {/* 1. Tracer un rectangle bleu sur la carte */}
+                    <div style={{ position: 'relative' }}>
                         <button
-                            title="Export data"
-                            onClick={handleDownloadGeoJSON}
+                            title={isDrawing ? "Cancel rectangle" : "Draw area"}
+                            onClick={() => {
+                                const turningOn = !isDrawing;
+                                if (turningOn && drawnQuadrilateral) {
+                                    // On active un nouveau tracé : le rectangle précédent est supprimé
+                                    // immédiatement, sans attendre le premier clic du nouveau tracé.
+                                    clearDrawnRectangle();
+                                }
+                                setIsDrawing(turningOn);
+                            }}
                             style={{
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 width: 30,
                                 height: 30,
-                                borderRadius: '50%',
-                                border: '1px solid rgb(38, 48, 61)',
+                                borderRadius: '15px',
+                                border: `1px solid ${isDrawing ? '#4f9dff' : 'rgb(38, 48, 61)'}`,
                                 background: 'rgba(15,21,36,1)',
                                 backdropFilter: 'blur(4px)',
-                                color: '#94a3b8',
+                                color: isDrawing ? '#4f9dff' : 'rgb(139, 148, 158)',
                                 cursor: 'pointer',
-                                padding: 0,
-                                transition: 'border-color 0.15s ease, color 0.15s ease, background 0.15s ease',
                             }}
                             onMouseEnter={e => {
-                                e.currentTarget.style.borderColor = '#ffffff';
-                                e.currentTarget.style.color = '#ffffff';
+                                e.currentTarget.style.borderColor = '#4f9dff';
+                                e.currentTarget.style.color = '#4f9dff';
                             }}
                             onMouseLeave={e => {
-                                e.currentTarget.style.borderColor = '#334155';
-                                e.currentTarget.style.color = '#94a3b8';
+                                e.currentTarget.style.borderColor = isDrawing ? '#4f9dff' : 'rgb(38, 48, 61)';
+                                e.currentTarget.style.color = isDrawing ? '#4f9dff' : 'rgb(139, 148, 158)';
                             }}
                         >
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                                <polyline points="7 10 12 15 17 10" />
-                                <line x1="12" y1="15" x2="12" y2="3" />
-                            </svg>
+                            <FaRegPenToSquare size={13} />
                         </button>
-                    )}
 
-                    {/* ── Toggle performance mode (seulement s'il y a des résultats à animer) ── */}
-                    {tweetCount > 0 && (
-                        <div
-                                title={performanceMode}
-                                onClick={() => setPerformanceMode(v => !v)}
+                        {/* Croix de suppression : visible uniquement si un rectangle est tracé */}
+                        {drawnQuadrilateral && (
+                            <button
+                                title="Delete rectangle"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    clearDrawnRectangle();
+                                }}
                                 style={{
+                                    position: 'absolute',
+                                    top: -2,
+                                    right: -2,
+                                    width: 12,
+                                    height: 12,
+                                    padding: 0,
+                                    borderRadius: '50%',
+                                    border: '1px solid rgb(36, 30, 15)',
+                                    background: '#ED0C0C',
+                                    color: '#fff',
                                     display: 'flex',
                                     alignItems: 'center',
-                                    gap: 8,
-                                    padding: '6px 10px',
-                                    borderRadius: 20,
-                                    border: `1px solid rgb(38, 48, 61)`,
-                                    background: 'rgba(15,21,36,1)',
-                                    backdropFilter: 'blur(4px)',
-                                    fontFamily: 'sans-serif',
-                                    fontSize: ".6rem",
-                                    fontWeight: 600,
-                                    letterSpacing: '0.02em',
-                                    color: performanceMode ? '#ED0C0C' : '#94a3b8',
+                                    justifyContent: 'center',
                                     cursor: 'pointer',
-                                    userSelect: 'none',
-                                    transition: 'border-color 0.15s ease, color 0.15s ease',
+                                    lineHeight: 0,
                                 }}
                             >
-                                <span>Performance mode</span>
-                                {/* ── Switch ── */}
-                                <span
-                                    style={{
-                                        position: 'relative',
-                                        width: 32,
-                                        height: 18,
-                                        borderRadius: 999,
-                                        flexShrink: 0,
-                                        background: performanceMode ? '#ED0C0C' : '#334155',
-                                        transition: 'background 0.2s ease',
-                                    }}
-                                >
-                                    <span
-                                        style={{
-                                            position: 'absolute',
-                                            top: 2,
-                                            left: performanceMode ? 16 : 2,
-                                            width: 14,
-                                            height: 14,
-                                            borderRadius: '50%',
-                                            background: '#f8fafc',
-                                            boxShadow: '0 1px 3px rgba(0,0,0,0.4)',
-                                            transition: 'left 0.2s ease',
-                                        }}
-                                    />
-                                </span>
-                            </div>
-                    )}
+                                <MdClose size={10} />
+                            </button>
+                        )}
+                    </div>
+
+                    {/* 2. Toggle du panneau de filtres (armes / objectifs) */}
+                    <button
+                        title={filtersOpen ? "Hide filters" : "Filter data"}
+                        onClick={() => onToggleFilters && onToggleFilters()}
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: 30,
+                            height: 30,
+                            borderRadius: '15px',
+                            border: `1px solid ${filtersOpen ? '#4f9dff' : 'rgb(38, 48, 61)'}`,
+                            background: 'rgba(15,21,36,1)',
+                            backdropFilter: 'blur(4px)',
+                            color: filtersOpen ? '#4f9dff' : 'rgb(139, 148, 158)',
+                            cursor: 'pointer',
+                        }}
+                        onMouseEnter={e => {
+                            e.currentTarget.style.borderColor = '#4f9dff';
+                            e.currentTarget.style.color = '#4f9dff';
+                        }}
+                        onMouseLeave={e => {
+                            e.currentTarget.style.borderColor = filtersOpen ? '#4f9dff' : 'rgb(38, 48, 61)';
+                            e.currentTarget.style.color = filtersOpen ? '#4f9dff' : 'rgb(139, 148, 158)';
+                        }}
+                    >
+                        <FaFilter size={13} style={{ position: 'relative', left: -0.5, top: 1 }} />
+                    </button>
+
+                    {/* 3. Bouton d'export GeoJSON */}
+                    <button
+                        title="Export data"
+                        onClick={handleDownloadGeoJSON}
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: 30,
+                            height: 30,
+                            borderRadius: '15px',
+                            border: '1px solid rgb(38, 48, 61)',
+                            background: 'rgba(15,21,36,1)',
+                            backdropFilter: 'blur(4px)',
+                            color: 'rgb(139, 148, 158)',
+                            cursor: 'pointer',
+                        }}
+                        onMouseEnter={e => {
+                            e.currentTarget.style.borderColor = '#4f9dff';
+                            e.currentTarget.style.color = '#4f9dff';
+                        }}
+                        onMouseLeave={e => {
+                            e.currentTarget.style.borderColor = 'rgb(38, 48, 61)';
+                            e.currentTarget.style.color = 'rgb(139, 148, 158)';
+                        }}
+                    >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                            <polyline points="7 10 12 15 17 10" />
+                            <line x1="12" y1="15" x2="12" y2="3" />
+                        </svg>
+                    </button>
+
+                    {/* 4. Toggle Performance Mode */}
+                    <div
+                        title={performanceMode ? "Disable performance mode" : "Enable performance mode"}
+                        onClick={() => setPerformanceMode(v => !v)}
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: 29,
+                            height: 29,
+                            borderRadius: '15px',
+                            border: `1px solid ${isDrawing
+                                    ? '#e1e1e1'
+                                    : performanceMode
+                                        ? '#4f9dff'
+                                        : 'rgb(38, 48, 61)'
+                                }`,
+                            background: 'rgba(15,21,36,1)',
+                            backdropFilter: 'blur(4px)',
+                            cursor: 'pointer',
+                            userSelect: 'none',
+                        }}
+                        onMouseEnter={e => {
+                            e.currentTarget.style.borderColor = '#4f9dff';
+                            e.currentTarget.style.color = '#4f9dff';
+                        }}
+                        onMouseLeave={e => {
+                            e.currentTarget.style.borderColor = performanceMode ? '#4f9dff' : 'rgb(38, 48, 61)';
+                            e.currentTarget.style.color = performanceMode ? '#4f9dff' : 'rgb(139, 148, 158)';
+                        }}
+                    >
+                        <CgPerformance
+                            size={16}
+                            color={performanceMode ? '#4f9dff' : 'rgb(139, 148, 158)'}
+                        />
+                    </div>
                 </div>
             )}
         </div>

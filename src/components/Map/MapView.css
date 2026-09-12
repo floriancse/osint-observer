@@ -7,6 +7,10 @@
       #0f1524 70%);
 }
 
+.map-search-input::placeholder {
+  color: #8b949e;
+}
+
 .tweet-popup:has(.chokepoint-popup-inner) .maplibregl-popup-content {
   width: max-content !important;
   max-width: 250px !important;
@@ -107,9 +111,8 @@
 .theater-popup-title {
   font-size: .7rem;
   font-weight: 700;
-  color: #e6edf3;
+  color: #e7e9ea;
   letter-spacing: 0.06em;
-  text-transform: uppercase;
   flex: 1;
 }
 
@@ -187,7 +190,6 @@
   font-size: .55rem;
   font-weight: 600;
   letter-spacing: 0.05em;
-  text-transform: uppercase;
   color: #64748b;
   background: rgba(100, 116, 139, 0.1);
   border: 1px solid rgba(100, 116, 139, 0.2);
@@ -243,7 +245,6 @@
   font-size: .7rem;
   font-weight: 700;
   letter-spacing: 0.08em;
-  text-transform: uppercase;
   color: #4f9dff;
   margin-bottom: 7px;
 }
@@ -271,14 +272,13 @@
   content: "";
   flex: 1;
   height: 1px;
-  background: #2d333c;
+  background: rgb(38, 48, 61);
 }
 
 .theater-popup-divider span {
-  font-size: 9px;
+  font-size: .6rem;
   font-weight: 700;
   letter-spacing: 0.08em;
-  text-transform: uppercase;
   color: #8b949e;
   white-space: nowrap;
 }
@@ -309,7 +309,7 @@
 .theater-popup-event-title {
   font-size: .7rem;
   font-weight: 600;
-  color: #e6edf3;
+  color: #e7e9ea;
   line-height: 1.4;
   margin: 0 0 4px;
   letter-spacing: 0.01em;
@@ -318,7 +318,7 @@
 
 .theater-popup-event-summary {
   font-size: .6rem;
-  color: #c9d1d9;
+  color: #e1e1e1;
   line-height: 1.6;
   margin: 0;
   font-style: italic;

@@ -49,10 +49,10 @@ const PAGE_SIZE = 15;
 export default function SidePanel({ tweets, collapsed, activeLabel, onLabelChange, onTweetClick, onToggle }) {
     const isLoading = !tweets;
 
-    const tweetFeatures = (tweets?.features || []).filter(f => Boolean(f.properties.label));
+    const tweetFeatures = tweets?.features || [];
     const { data: bootstrapData } = useBootstrap();
     const lastUpdate = bootstrapData?.last_update
-        ? new Date(bootstrapData.last_update).toLocaleString('fr-FR', {
+        ? new Date(bootstrapData.last_update).toLocaleString('en-UK', {
             day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
         })
         : null;
@@ -225,7 +225,7 @@ export default function SidePanel({ tweets, collapsed, activeLabel, onLabelChang
                             </div>
 
                             {/* Remplacez uniqueLabels.length par allUniqueLabels.length */}
-                            {!isLoading && allUniqueLabels.length > 0 && (
+                            {!isLoading && (
                                 <div className="label-dropdown-wrapper" ref={dropdownRef}>
                                     <button
                                         className={`label-dropdown-trigger label-dropdown-trigger--active${dropdownOpen ? ' label-dropdown-trigger--open' : ''}`}
@@ -295,7 +295,7 @@ export default function SidePanel({ tweets, collapsed, activeLabel, onLabelChang
                 )}
             </div>
             <div className="sidepanel-footer">
-                <span className="header-subtitle">Twitter/X stream</span>
+                <span className="header-subtitle">Twitter / X stream</span>
                 {lastUpdate && (
                     <div className="last-update-text">
                         Last update: {lastUpdate}

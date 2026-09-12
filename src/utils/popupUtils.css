@@ -1,6 +1,6 @@
 .tweet-popup .maplibregl-popup-content {
     background: #0f1524;
-    border: 1px solid #1e2d3d;
+    border: 1px solid #0f1524;
     border-radius: 12px;
     padding: 0;
     box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
@@ -10,28 +10,28 @@
 }
 
 .tweet-popup.maplibregl-popup-anchor-bottom .maplibregl-popup-tip {
-    border-top-color: #1e2d3d !important;
+    border-top-color: #0f1524 !important;
     border-bottom-color: transparent !important;
     border-left-color: transparent !important;
     border-right-color: transparent !important;
 }
 
 .tweet-popup.maplibregl-popup-anchor-top .maplibregl-popup-tip {
-    border-bottom-color: #1e2d3d !important;
+    border-bottom-color: #0f1524 !important;
     border-top-color: transparent !important;
     border-left-color: transparent !important;
     border-right-color: transparent !important;
 }
 
 .tweet-popup.maplibregl-popup-anchor-left .maplibregl-popup-tip {
-    border-right-color: #1e2d3d !important;
+    border-right-color: #0f1524 !important;
     border-top-color: transparent !important;
     border-bottom-color: transparent !important;
     border-left-color: transparent !important;
 }
 
 .tweet-popup.maplibregl-popup-anchor-right .maplibregl-popup-tip {
-    border-left-color: #1e2d3d !important;
+    border-left-color: #0f1524 !important;
     border-top-color: transparent !important;
     border-bottom-color: transparent !important;
     border-right-color: transparent !important;
@@ -59,7 +59,7 @@
 }
 
 .tweet-popup .maplibregl-popup-tip {
-    border-top-color: #1e2d3d;
+    border-top-color: #0f1524;
 }
 
 .tweet-card {
@@ -79,7 +79,7 @@
     width: 28px;
     height: 28px;
     border-radius: 50%;
-    background: #1e2d3d;
+    background: #0f1524;
     overflow: hidden;
     flex-shrink: 0;
 }
@@ -121,7 +121,7 @@
 
 .close-btn:hover {
     color: #f1f1f1;
-    background: #111623;
+    background: #1b2436;
 }
 
 /* Text */
@@ -330,12 +330,12 @@
 }
 
 .tweet-card-nav-btn:hover {
-    background: #111623;
+    background: #1b2436;
     color: #e6e6e6
 }
 
 .tweet-card-nav-btn.disabled {
-    color: #1e2d3d;
+    color: #0f1524;
     cursor: default;
 }
 
@@ -347,7 +347,6 @@
 .tweet-card.important-tweet {
     border: 2px solid #ed3f3f;
     border-radius: 10px;
-    box-shadow: 0 0 0 3px rgba(237, 63, 63, 0.25);
     overflow: hidden;
 }
 
@@ -384,4 +383,10 @@
     font-size: inherit !important;
     font-family: inherit !important;
     font: inherit !important
+}
+
+.tweet-card-tag.weapon-type {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }

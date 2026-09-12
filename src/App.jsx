@@ -1,7 +1,6 @@
 import MapView from "./components/Map/MapView";
-import TopBar from "./components/TopBar/TopBar";
+import LoadingGlobe from "./components/Map/LoadingGlobe";
 import SidePanel from "./components/SidePanel/SidePanel";
-import StatusBar from "./components/StatusBar/StatusBar";
 import ContentPanel from "./components/ContentPanel/ContentPanel";
 import { TimeProvider } from "./context/TimeContext";
 import { LayerProvider } from "./context/LayerContext";
@@ -16,17 +15,24 @@ export default function App() {
   const [contentPanelOpen, setContentPanelOpen] = useState(true);
   const [openPanel, setOpenPanel] = useState(null);
   const [sidePanelCollapsed, setSidePanelCollapsed] = useState(false);
-  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const mapRef = useRef(null);
   const [activeLabel, setActiveLabel] = useState(null);
-  const [chartOpen, setChartOpen] = useState(true);
+  const [chartOpen, setChartOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [activeWeaponTypes, setActiveWeaponTypes] = useState([]);
   const [activeObjectiveTypes, setActiveObjectiveTypes] = useState([]);
+  const [dotCount, setDotCount] = useState(0);
   // searchText est débouncé (300ms) à la source, directement dans MapView
   // (l'input local n'y remonte la valeur qu'après une pause de frappe). Donc
   // ici, App reçoit déjà une valeur "stable" : pas besoin d'un second
   // debounce avant de la transmettre à EventsChart.
   const [searchText, setSearchText] = useState("");
+  // Rectangle spatial tracé sur la carte (cf. MapView "Draw area"), levé ici
+  // pour pouvoir aussi filtrer le graphique EventsChart en plus de la carte.
+  const [spatialRectangle, setSpatialRectangle] = useState(null);
+  // Écran de chargement plein page : reste affiché tant que MapView n'a pas
+  // fini de charger les données (bootstrap + sources MapLibre).
+  const [appLoading, setAppLoading] = useState(true);
 
   const handleTweetClick = (feature) => {
     if (mapRef.current) {
@@ -37,12 +43,40 @@ export default function App() {
   const [availableObjectiveTypes, setAvailableObjectiveTypes] = useState([]);
   const togglePanel = (panel) => setOpenPanel((current) => (current === panel ? null : panel));
 
+  // Overlay plein page affiché tant que appLoading est true. En "fixed" avec
+  // un zIndex élevé, il masque tout le reste de l'UI (carte, panneaux,
+  // barres) quel que soit le layout (mobile ou desktop) en dessous.
+  const loadingOverlay = (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 9999,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 16,
+        background: '#0f1524',
+        opacity: appLoading ? 1 : 0,
+        pointerEvents: appLoading ? 'auto' : 'none',
+        transition: 'opacity 0.4s ease',
+      }}
+    >
+      <LoadingGlobe size="clamp(200px, 40vmin, 480px)" />
+      <span style={{ color: '#e1e1e1', fontSize: 14, letterSpacing: 0.3, minWidth: '110px', textAlign: 'center' }}>
+        Loading OSINT Observer{'.'.repeat(dotCount)}
+      </span>
+    </div>
+  );
+
 
 
   useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth <= 768);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    const interval = setInterval(() => {
+      setDotCount(d => (d + 1) % 4);
+    }, 400);
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -86,47 +120,11 @@ export default function App() {
       setAvailableObjectiveTypes(uniqueTypes);
     }
   }, [tweets]);
-  if (isMobile) {
-    return (
-      <BootstrapProvider>
-        <TimeProvider>
-          <LayerProvider>
-            <div className="app-mobile">
-              <div className="app-mobile__map">
-                <TopBar togglePanel={togglePanel} openPanel={openPanel} />
-                <div style={{ flex: 1, position: 'relative' }}>
-                  <MapView ref={mapRef} onTweetsLoaded={setTweets} activeLabel={activeLabel} searchText={searchText} onSearchTextChange={setSearchText} />
-                </div>
-                <StatusBar />
-              </div>
-              <div className={`app-mobile__sidepanel ${sidePanelCollapsed ? 'app-mobile__sidepanel--hidden' : ''}`}>
-                <button
-                  className="app-mobile__toggle"
-                  onClick={() => setSidePanelCollapsed(v => !v)}
-                >
-                  <svg
-                    style={{ transform: sidePanelCollapsed ? 'rotate(180deg)' : 'rotate(0deg)' }}
-                    width="14" height="14" viewBox="0 0 14 14"
-                    fill="none" xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path d="M2 5L7 10L12 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                  <span>{sidePanelCollapsed}</span>
-                </button>
-                <SidePanel tweets={tweets} collapsed={sidePanelCollapsed} activeLabel={activeLabel} onLabelChange={setActiveLabel} onTweetClick={handleTweetClick} />
-              </div>
-            </div>
-          </LayerProvider>
-        </TimeProvider>
-      </BootstrapProvider>
-    );
-  }
-
-  // Layout desktop
   return (
     <BootstrapProvider>
       <TimeProvider>
         <LayerProvider>
+          {loadingOverlay}
           <div style={{ display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden' }}>
 
             {/* 1. SidePanel — le bouton toggle est à l'intérieur quand il est ouvert */}
@@ -197,14 +195,17 @@ export default function App() {
               sidePanelCollapsed={sidePanelCollapsed}
             /> */}
               <div style={{ flex: 1, position: 'relative' }}>
-                <MapFilters
-                  activeWeaponTypes={activeWeaponTypes}
-                  setActiveWeaponTypes={setActiveWeaponTypes}
-                  availableWeaponTypes={availableWeaponTypes}
-                  activeObjectiveTypes={activeObjectiveTypes}
-                  setActiveObjectiveTypes={setActiveObjectiveTypes}
-                  availableObjectiveTypes={availableObjectiveTypes}
-                />
+                {filtersOpen && (
+                  <MapFilters
+                    activeWeaponTypes={activeWeaponTypes}
+                    setActiveWeaponTypes={setActiveWeaponTypes}
+                    availableWeaponTypes={availableWeaponTypes}
+                    activeObjectiveTypes={activeObjectiveTypes}
+                    setActiveObjectiveTypes={setActiveObjectiveTypes}
+                    availableObjectiveTypes={availableObjectiveTypes}
+                    onClose={() => setFiltersOpen(false)}
+                  />
+                )}
                 <MapView
                   ref={mapRef}
                   onTweetsLoaded={setTweets}
@@ -213,6 +214,11 @@ export default function App() {
                   activeObjectiveTypes={activeObjectiveTypes}
                   searchText={searchText}
                   onSearchTextChange={setSearchText}
+                  searchBarLeftOffset={sidePanelCollapsed && openPanel !== "topics" ? 44 : 5}
+                  filtersOpen={filtersOpen}
+                  onToggleFilters={() => setFiltersOpen(v => !v)}
+                  onRectangleDrawn={setSpatialRectangle}
+                  onLoadingChange={setAppLoading}
                 />
               </div>
               <ContentPanel isOpen={contentPanelOpen} onToggle={() => setContentPanelOpen(v => !v)} />
@@ -221,6 +227,7 @@ export default function App() {
                 activeObjectiveTypes={activeObjectiveTypes}
                 activeLabel={activeLabel}
                 searchText={searchText}
+                spatialRectangle={spatialRectangle}
                 isOpen={chartOpen}
                 onToggle={() => {
                   setChartOpen(v => !v);

@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import {
   ResponsiveContainer,
-  BarChart,
-  Bar,
-  Cell,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   Tooltip,
@@ -19,19 +18,23 @@ const API = process.env.REACT_APP_API_URL;
 // actuellement sélectionnée pour la carte) — limitée aux 30 derniers jours.
 const HISTORY_DAYS = 30;
 
+// Nombre minimum d'entités visées sur la carte au premier chargement.
+// On remonte bucket par bucket (12h) depuis le plus récent jusqu'à
+// atteindre ce total (ou jusqu'à épuiser les HISTORY_DAYS disponibles).
+const MIN_ENTITIES = 200;
+
 // Durée de chaque bucket du graphique : 12h, soit 1 point par jour.
 const BUCKET_HOURS = 12;
 const BUCKET_MS = BUCKET_HOURS * 60 * 60 * 1000;
 
 const COLOR_SELECTED = "#4f9dff";
-const COLOR_UNSELECTED = "#3a3d42";
 
 function CustomTooltip({ active, payload, label }) {
   if (!active || !payload || !payload.length) return null;
   const date = payload[0]?.payload?.date;
   const count = payload[0]?.value;
   return (
-    <div style={{ background: "#0f1524", border: "1px solid #41444a", fontSize: ".6rem", padding: "6px 10px" }}>
+    <div style={{ background: "#0f1524", border: "1px solid #1e2d45", borderRadius: 8, boxShadow: "0 8px 24px rgba(0, 0, 0, 0.5)", fontSize: ".6rem", padding: "6px 10px" }}>
       <div style={{ color: "#e2e8f0" }}>{date ? formatDateLong(date) : label}</div>
       <div style={{ color: "#e2e8f0" }}>{count} events</div>
     </div>
@@ -72,10 +75,25 @@ function bucketEnd(point) {
   return new Date(parseAsUTC(point.date ?? point).getTime() + BUCKET_MS - 1);
 }
 
-export default function EventsChart({ isOpen, onToggle, activeWeaponTypes, activeObjectiveTypes, activeLabel, searchText }) {
+// Convertit le rectangle (polygone fermé à 5 points) tracé sur la carte en
+// bbox min/max lng/lat, exactement comme isPointInsideRectangle côté MapView.
+// Retourne null si aucun rectangle n'est actif.
+function rectangleToBBox(rectangleFeature) {
+  const ring = rectangleFeature?.geometry?.coordinates?.[0];
+  if (!ring || ring.length < 4) return null;
+  const lngs = ring.map((c) => c[0]);
+  const lats = ring.map((c) => c[1]);
+  return {
+    minLng: Math.min(...lngs),
+    maxLng: Math.max(...lngs),
+    minLat: Math.min(...lats),
+    maxLat: Math.max(...lats),
+  };
+}
+
+export default function EventsChart({ isOpen, onToggle, activeWeaponTypes, activeObjectiveTypes, activeLabel, searchText, spatialRectangle }) {
   const { timeRange, setRange } = useTime();
   const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [draftStart, setDraftStart] = useState("");
   const [draftEnd, setDraftEnd] = useState("");
   const anchorRef = useRef(null);
@@ -85,36 +103,39 @@ export default function EventsChart({ isOpen, onToggle, activeWeaponTypes, activ
     start.setDate(start.getDate() - HISTORY_DAYS);
     anchorRef.current = { start, end };
   }
-  // Sélection en cours (glisser-déposer directement sur les barres).
-  // dragStateRef est la source de vérité "temps réel" (lue/écrite dans les
-  // handlers mousedown/mousemove/mouseup) : elle évite tout souci de closure
-  // React périmée sur un clic très rapide (mousedown immédiatement suivi de
-  // mouseup). Les states ci-dessous ne servent qu'à piloter le rendu visuel
-  // (couleur des barres, ReferenceArea).
+  
   const dragStateRef = useRef({ isDragging: false, left: null, right: null });
   const [dragLeft, setDragLeft] = useState(null);
   const [dragRight, setDragRight] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
 
-  // Chargement de l'historique du graphique (zero-filled côté backend par bucket
-  // de 24h, donc tous les jours sont présents)
-  const hasLoadedOnce = useRef(false);
-  // Garantit qu'on ne positionne la sélection par défaut sur les 2 derniers
-  // buckets (12h+12h) qu'une seule fois, au tout premier chargement des
-  // données — pas à chaque changement de filtre, sinon on écraserait une
-  // sélection déjà choisie par l'utilisateur.
   const initialSelectionDone = useRef(false);
   useEffect(() => {
-    if (!isOpen) return;
-    if (!hasLoadedOnce.current) setLoading(true);
+    // NOTE : ce fetch (et surtout le calcul de la plage initiale basé sur
+    // MIN_ENTITIES ci-dessous) ne doit PAS dépendre de `isOpen`. EventsChart
+    // est monté dès le chargement de l'app (juste masqué visuellement tant
+    // que le panneau est fermé) — si on bloque cet effet sur `isOpen`, le
+    // SidePanel affiche d'abord un compteur basé sur le timeRange par
+    // défaut, puis "saute" au bon chiffre seulement quand l'utilisateur
+    // ouvre le panneau. En laissant l'effet tourner dès le montage, la
+    // bonne période (et donc le bon compteur partout) est déjà en place au
+    // tout premier rendu. Seul l'affichage du graphique lui-même reste
+    // conditionné par `isOpen` (voir le JSX plus bas).
     const { start, end } = anchorRef.current;
 
-    const params = new URLSearchParams({
-    });
+    const params = new URLSearchParams({});
     activeWeaponTypes.forEach((t) => params.append('weapon_type', t));
     activeObjectiveTypes.forEach((t) => params.append('objective_type', t));
     if (activeLabel) params.append('label', activeLabel);
     if (searchText?.trim()) params.append('search', searchText.trim());
+
+    const bbox = rectangleToBBox(spatialRectangle);
+    if (bbox) {
+      params.append('min_lng', bbox.minLng);
+      params.append('min_lat', bbox.minLat);
+      params.append('max_lng', bbox.maxLng);
+      params.append('max_lat', bbox.maxLat);
+    }
 
     fetch(`${API}/graph_events?${params.toString()}`)
       .then((r) => r.json())
@@ -122,27 +143,25 @@ export default function EventsChart({ isOpen, onToggle, activeWeaponTypes, activ
         const events = json.events || [];
         setData(events);
 
-        // Premier chargement uniquement : sélectionne les 2 derniers buckets
-        // (12h+12h) réellement renvoyés par le backend, plutôt que de garder
-        // la plage "maintenant - 24h" posée par défaut par TimeContext — qui
-        // peut ne pas correspondre aux vraies données si celles-ci s'arrêtent
-        // plus tôt (série tronquée côté backend).
         if (!initialSelectionDone.current && events.length > 0) {
           initialSelectionDone.current = true;
-          const lastTwo = events.slice(-2);
-          const start = bucketStart(lastTwo[0].date);
-          const end = bucketEnd(lastTwo[lastTwo.length - 1]);
+
+          let total = 0;
+          let fromIdx = events.length - 1;
+          for (let i = events.length - 1; i >= 0; i--) {
+            total += events[i].count || 0;
+            fromIdx = i;
+            if (total >= MIN_ENTITIES) break;
+          }
+
+          const start = bucketStart(events[fromIdx].date);
+          const end = bucketEnd(events[events.length - 1]);
           setRange(start.toISOString(), end.toISOString());
         }
       })
-      .catch((err) => console.error("Erreur chargement graph_events :", err))
-      .finally(() => {
-        setLoading(false);
-        hasLoadedOnce.current = true;
-      });
-  }, [isOpen, activeWeaponTypes, activeObjectiveTypes, activeLabel, searchText, setRange]);
+      .catch((err) => console.error("Erreur chargement graph_events :", err));
+  }, [activeWeaponTypes, activeObjectiveTypes, activeLabel, searchText, spatialRectangle, setRange]);
 
-  // Garde les 2 champs de dates synchronisés avec la plage active (carte + graphique)
   useEffect(() => {
     setDraftStart(toInputDate(timeRange.start));
     setDraftEnd(toInputDate(timeRange.end));
@@ -152,17 +171,12 @@ export default function EventsChart({ isOpen, onToggle, activeWeaponTypes, activ
     () =>
       data.map((d) => ({
         date: d.date,
-        endDate: d.endDate, // fin exacte du bucket 24h, si fournie par le backend
+        endDate: d.endDate,
         count: d.count,
       })),
     [data]
   );
 
-  // Un bucket (24h) est "sélectionné" (coloré) s'il CHEVAUCHE la plage active du
-  // contexte — et pas seulement si son timestamp de *début* tombe dedans. Sans ça,
-  // une plage active plus étroite que 24h (ex: "1h" ou "6h")
-  // ne matcherait jamais le début d'aucun bucket, même si ce bucket couvre bien
-  // toute la plage sélectionnée.
   const isBucketSelected = useCallback(
     (point) => {
       const bStart = bucketStart(point.date).getTime();
@@ -174,10 +188,6 @@ export default function EventsChart({ isOpen, onToggle, activeWeaponTypes, activ
     [timeRange.start, timeRange.end]
   );
 
-  // --- Sélection par glisser-déposer directement sur les barres ---
-  // Un simple clic (mousedown puis mouseup sur la même barre, sans déplacement)
-  // sélectionne le jour cliqué. Un drag (mousedown, déplacement, mouseup)
-  // sélectionne la plage de jours parcourue.
   const handleMouseDown = (e) => {
     if (!e || e.activeLabel == null) return;
     dragStateRef.current = { isDragging: true, left: e.activeLabel, right: e.activeLabel };
@@ -210,17 +220,14 @@ export default function EventsChart({ isOpen, onToggle, activeWeaponTypes, activ
     setRange(start.toISOString(), end.toISOString());
   }, [chartData, setRange]);
 
-  // Sélection par saisie directe des 2 dates
   const applyManualRange = () => {
     if (!draftStart || !draftEnd) return;
-    // draftStart/draftEnd sont au format "yyyy-mm-ddTHH:mm" (datetime-local)
     const start = new Date(draftStart);
     const end = new Date(draftEnd);
     if (start > end) return;
     setRange(start.toISOString(), end.toISOString());
   };
 
-  // Bornes des champs de dates : alignées sur les 30 jours affichés dans le graphique
   const todayInput = toInputDate(new Date().toISOString());
   const minInput = useMemo(() => {
     const d = new Date();
@@ -228,24 +235,31 @@ export default function EventsChart({ isOpen, onToggle, activeWeaponTypes, activ
     return toInputDate(d.toISOString());
   }, []);
 
-  // Couleur de chaque barre : bleu (sélectionné) ou gris (non sélectionné).
-  // Priorité à la plage en cours de glisser-déposer (drag), sinon la plage active.
-  const barColors = useMemo(() => {
+  const selectionBounds = useMemo(() => {
     if (isDragging && dragLeft != null && dragRight != null) {
-      const leftIdx = chartData.findIndex((d) => d.date === dragLeft);
-      const rightIdx = chartData.findIndex((d) => d.date === dragRight);
-      if (leftIdx === -1 || rightIdx === -1) return chartData.map(() => COLOR_UNSELECTED);
-      const [fromIdx, toIdx] = leftIdx <= rightIdx ? [leftIdx, rightIdx] : [rightIdx, leftIdx];
-      return chartData.map((_, i) => (i >= fromIdx && i <= toIdx ? COLOR_SELECTED : COLOR_UNSELECTED));
+      return { x1: dragLeft, x2: dragRight };
     }
-
-    return chartData.map((d) => (isBucketSelected(d) ? COLOR_SELECTED : COLOR_UNSELECTED));
+    const selectedIdx = chartData.reduce((acc, d, i) => {
+      if (isBucketSelected(d)) acc.push(i);
+      return acc;
+    }, []);
+    if (selectedIdx.length === 0) return null;
+    return {
+      x1: chartData[selectedIdx[0]].date,
+      x2: chartData[selectedIdx[selectedIdx.length - 1]].date,
+    };
   }, [chartData, isBucketSelected, isDragging, dragLeft, dragRight]);
 
-  // Espacement des ticks de l'axe X pour rester lisible : avec un pas de 24h,
-  // on a 1 point par jour. Diviseur à 10 pour n'afficher qu'environ 10 ticks
-  // au total (ajuster ce nombre pour plus/moins de ticks).
   const tickInterval = Math.max(0, Math.ceil(chartData.length / 10) - 1);
+
+  // Total d'événements pour la période actuellement sélectionnée (timeRange),
+  // et non pour toute la fenêtre de 30 jours chargée par /graph_events.
+  // C'est ce chiffre qu'il faut comparer au compteur du SidePanel / de la
+  // carte, pas la somme de toutes les barres du graphique.
+  const selectedTotal = useMemo(
+    () => chartData.reduce((sum, d) => (isBucketSelected(d) ? sum + (d.count || 0) : sum), 0),
+    [chartData, isBucketSelected]
+  );
 
   return (
     <div className={`events-chart ${isOpen ? "events-chart--open" : "events-chart--closed"}`}>
@@ -256,7 +270,7 @@ export default function EventsChart({ isOpen, onToggle, activeWeaponTypes, activ
         >
           <path d="M2 5L7 10L12 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
-        <span>Events timeline</span>
+        <span>Timeline</span>
         <span className="events-chart__active-range">
           {formatDateLong(timeRange.start)} → {formatDateLong(timeRange.end)}
         </span>
@@ -264,53 +278,61 @@ export default function EventsChart({ isOpen, onToggle, activeWeaponTypes, activ
 
       {isOpen && (
         <div className="events-chart__body">
-
           <div className="events-chart__graph">
-            {loading ? (
-              <div className="events-chart__loading" style={{ height: 80 }}></div>
-            ) : (
-              <ResponsiveContainer width="100%" height={80}>
-                <BarChart
-                  data={chartData}
-                  margin={{ top: 0, right: 0, left: 0, bottom: 0 }}
-                  onMouseDown={handleMouseDown}
-                  onMouseMove={handleMouseMove}
-                  onMouseUp={finishDrag}
-                  onMouseLeave={finishDrag}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
-                  <XAxis
-                    dataKey="date"
-                    tickFormatter={formatDateShort}
-                    tick={{ fill: "#9aa0a6", fontSize: ".55rem" }}
-                    interval={tickInterval}
-                    textAnchor="middle"
-                    angle={0}
-                    height={34}
+            <ResponsiveContainer width="100%" height={80}>
+              <AreaChart
+                data={chartData}
+                margin={{ top: 4, right: 0, left: 0, bottom: 0 }}
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={finishDrag}
+                onMouseLeave={finishDrag}
+              >
+                <defs>
+                  <linearGradient id="eventsChartFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={COLOR_SELECTED} stopOpacity={0.35} />
+                    <stop offset="95%" stopColor={COLOR_SELECTED} stopOpacity={0.02} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
+                <XAxis
+                  dataKey="date"
+                  tickFormatter={formatDateShort}
+                  tick={{ fill: "#8b949e", fontSize: ".55rem" }}
+                  interval={tickInterval}
+                  textAnchor="middle"
+                  angle={0}
+                  height={34}
+                />
+                <YAxis tick={{ fill: "#8b949e", fontSize: ".55rem" }} width={30} allowDecimals={false} />
+                <Tooltip
+                  content={<CustomTooltip />}
+                  cursor={{ stroke: COLOR_SELECTED, strokeWidth: 1, strokeDasharray: "3 3" }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="count"
+                  isAnimationActive={false}
+                  stroke={COLOR_SELECTED}
+                  strokeWidth={1.5}
+                  fill="url(#eventsChartFill)"
+                  dot={false}
+                  activeDot={{ r: 3, fill: COLOR_SELECTED, stroke: "#0f1524", strokeWidth: 1 }}
+                />
+                {selectionBounds && (
+                  <ReferenceArea
+                    key={`${selectionBounds.x1}__${selectionBounds.x2}`}
+                    x1={selectionBounds.x1}
+                    x2={selectionBounds.x2}
+                    ifOverflow="visible"
+                    strokeOpacity={0.5}
+                    stroke="#4f9dff"
+                    fill="#4f9dff"
+                    fillOpacity={0.18}
                   />
-                  <YAxis tick={{ fill: "#9aa0a6", fontSize: ".55rem" }} width={30} allowDecimals={false} />
-                  <Tooltip
-                    content={<CustomTooltip />}
-                    cursor={{ fill: "#4f9dff", fillOpacity: 0.1 }}
-                  />
-                  <Bar dataKey="count" isAnimationActive={false}>
-                    {chartData.map((d, i) => (
-                      <Cell key={d.date ?? i} fill={barColors[i] ?? COLOR_UNSELECTED} />
-                    ))}
-                  </Bar>
-                  {isDragging && dragLeft != null && dragRight != null && (
-                    <ReferenceArea
-                      x1={dragLeft}
-                      x2={dragRight}
-                      strokeOpacity={0.4}
-                      stroke="#4f9dff"
-                      fill="#4f9dff"
-                      fillOpacity={0.15}
-                    />
-                  )}
-                </BarChart>
-              </ResponsiveContainer>
-            )}
+                )}
+              </AreaChart>
+            </ResponsiveContainer>
           </div>
         </div>
       )}

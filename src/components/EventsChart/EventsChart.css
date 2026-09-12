@@ -1,10 +1,31 @@
 .events-chart {
-  background: #0f1524;
-  border-top:1px solid rgb(38, 48, 61);
-  color: #e2e8f0;
+  --evc-bg: #0f1524;
+  --evc-border: #1e2d45;
+  --evc-border-soft: rgb(38, 48, 61);
+  --evc-text: #e2e8f0;
+  --evc-text-muted: #8b949e;
+  --evc-accent: #4f9dff;
+  --evc-accent-soft: rgba(79, 157, 255, 0.12);
+
+  position: relative;
+  background: var(--evc-bg);
+  border-top: 1px solid var(--evc-border-soft);
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.35);
+  color: var(--evc-text);
   font-family: sans-serif;
   flex-shrink: 0;
   z-index: 150;
+}
+
+/* Fine accent line signalling "this controls the map's time range" */
+.events-chart::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: 0;
+  right: 0;
+  height: 1px;
+  pointer-events: none;
 }
 
 .events-chart__toggle {
@@ -12,31 +33,47 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 12px;
+  padding: 3px 12px;
   background: transparent;
   border: none;
-  color: #e2e8f0;
+  color: var(--evc-text);
   cursor: pointer;
-  font-size: .6rem;
+  font-family: 'Roboto Mono', monospace;
+  font-size: .62rem;
+  letter-spacing: 0.03em;
+  transition: background 0.15s ease;
 }
 
 .events-chart__toggle:hover {
-  background: #1d273a;
+  background: #161e2c;
 }
 
 .events-chart__toggle svg {
   transition: transform 0.2s ease;
   flex-shrink: 0;
+  color: var(--evc-text-muted);
+}
+
+.events-chart__toggle:hover svg {
+  color: var(--evc-text);
 }
 
 .events-chart__active-range {
   margin-left: auto;
-  color: #9aa0a6;
-  font-size: .6rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: rgb(139, 148, 158);
+  border-radius: 12px;
+  padding: 3px ;
+  font-family: sans-serif;
+  font-size: .58rem;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
 }
 
 .events-chart__body {
-  padding: 6px 12px 0px;
+  padding: 4px 12px;
 }
 
 .events-chart__controls {
@@ -52,28 +89,29 @@
   align-items: center;
   gap: 6px;
   font-size: 11px;
-  color: #9aa0a6;
+  color: var(--evc-text-muted);
 }
 
 .events-chart__controls input[type="date"] {
-  background: #22252a;
-  border: 1px solid #41444a;
-  color: #9aa0a6;
-  border-radius: 4px;
+  background: #161e2c;
+  border: 1px solid var(--evc-border);
+  color: var(--evc-text-muted);
+  border-radius: 6px;
   padding: 3px 6px;
   font-size: 11px;
   color-scheme: dark;
 }
 
 .events-chart__apply {
-  background: #4f9dff;
+  background: var(--evc-accent);
   border: none;
   color: #0b0c0e;
   font-weight: 600;
-  border-radius: 4px;
+  border-radius: 6px;
   padding: 4px 10px;
   font-size: 11px;
   cursor: pointer;
+  transition: background 0.15s ease;
 }
 
 .events-chart__apply:hover {
@@ -88,12 +126,43 @@
 }
 
 .events-chart__loading {
-  height: 80;
+  height: 80px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #9aa0a6;
-  font-size: 12px;
+  gap: 6px;
+}
+
+.events-chart__loading-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--evc-accent);
+  opacity: 0.4;
+  animation: events-chart-dot-pulse 1.2s ease-in-out infinite;
+}
+
+.events-chart__loading-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.events-chart__loading-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes events-chart-dot-pulse {
+
+  0%,
+  80%,
+  100% {
+    opacity: 0.25;
+    transform: scale(0.8);
+  }
+
+  40% {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .events-chart__graph {
