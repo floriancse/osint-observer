@@ -1,13 +1,13 @@
 {
   "files": {
-    "main.css": "/osint-observer/static/css/main.4acb8f80.css",
-    "main.js": "/osint-observer/static/js/main.58a26fb6.js",
+    "main.css": "/osint-observer/static/css/main.94004e36.css",
+    "main.js": "/osint-observer/static/js/main.9628e8ff.js",
     "index.html": "/osint-observer/index.html",
-    "main.4acb8f80.css.map": "/osint-observer/static/css/main.4acb8f80.css.map",
-    "main.58a26fb6.js.map": "/osint-observer/static/js/main.58a26fb6.js.map"
+    "main.94004e36.css.map": "/osint-observer/static/css/main.94004e36.css.map",
+    "main.9628e8ff.js.map": "/osint-observer/static/js/main.9628e8ff.js.map"
   },
   "entrypoints": [
-    "static/css/main.4acb8f80.css",
-    "static/js/main.58a26fb6.js"
+    "static/css/main.94004e36.css",
+    "static/js/main.9628e8ff.js"
   ]
 }
