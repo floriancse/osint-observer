@@ -1,8 +1,8 @@
 {
   "files": {
-    "main.css": "/static/css/main.9421c2a6.css",
-    "main.js": "/static/js/main.721d7a2f.js",
-    "static/css/297.db0f313d.chunk.css": "/static/css/297.db0f313d.chunk.css",
+    "main.css": "/static/css/main.72976797.css",
+    "main.js": "/static/js/main.3e704f0d.js",
+    "static/css/297.4e199d46.chunk.css": "/static/css/297.4e199d46.chunk.css",
     "static/js/297.faccf727.chunk.js": "/static/js/297.faccf727.chunk.js",
     "static/css/230.00f81dfd.chunk.css": "/static/css/230.00f81dfd.chunk.css",
     "static/js/230.892436af.chunk.js": "/static/js/230.892436af.chunk.js",
@@ -15,6 +15,7 @@
     "static/css/819.c5911590.chunk.css": "/static/css/819.c5911590.chunk.css",
     "static/js/819.439c75c7.chunk.js": "/static/js/819.439c75c7.chunk.js",
     "static/js/394.1f6cfcf3.chunk.js": "/static/js/394.1f6cfcf3.chunk.js",
+    "static/media/sora-latin-wght-normal.woff2": "/static/media/sora-latin-wght-normal.7010882fd278e4c9a84e.woff2",
     "static/media/hanken-grotesk-latin-700-normal.woff": "/static/media/hanken-grotesk-latin-700-normal.00dee441f4c06aa550a8.woff",
     "static/media/hanken-grotesk-latin-500-normal.woff": "/static/media/hanken-grotesk-latin-500-normal.7a1533fdae6368d55bab.woff",
     "static/media/hanken-grotesk-latin-600-normal.woff": "/static/media/hanken-grotesk-latin-600-normal.2a087ff6e346bdc4170c.woff",
@@ -22,6 +23,7 @@
     "static/media/roboto-mono-latin-500-normal.woff": "/static/media/roboto-mono-latin-500-normal.79248d1063ead9ef2ee5.woff",
     "static/media/roboto-mono-latin-700-normal.woff": "/static/media/roboto-mono-latin-700-normal.3c44d324a5404c4f4d1b.woff",
     "static/media/roboto-mono-latin-400-normal.woff": "/static/media/roboto-mono-latin-400-normal.bc5f7b85a778935537d5.woff",
+    "static/media/sora-latin-ext-wght-normal.woff2": "/static/media/sora-latin-ext-wght-normal.dc9376f9b36afb592591.woff2",
     "static/media/hanken-grotesk-latin-700-normal.woff2": "/static/media/hanken-grotesk-latin-700-normal.47466b1694ff703b46ec.woff2",
     "static/media/hanken-grotesk-latin-500-normal.woff2": "/static/media/hanken-grotesk-latin-500-normal.731555fcd7a8850f43bb.woff2",
     "static/media/hanken-grotesk-latin-600-normal.woff2": "/static/media/hanken-grotesk-latin-600-normal.4e8b7b98fc5a95df419c.woff2",
@@ -30,9 +32,9 @@
     "static/media/roboto-mono-latin-700-normal.woff2": "/static/media/roboto-mono-latin-700-normal.2ce87fa79bdaacfcc895.woff2",
     "static/media/roboto-mono-latin-400-normal.woff2": "/static/media/roboto-mono-latin-400-normal.77efd891ec5156e8bd47.woff2",
     "index.html": "/index.html",
-    "main.9421c2a6.css.map": "/static/css/main.9421c2a6.css.map",
-    "main.721d7a2f.js.map": "/static/js/main.721d7a2f.js.map",
-    "297.db0f313d.chunk.css.map": "/static/css/297.db0f313d.chunk.css.map",
+    "main.72976797.css.map": "/static/css/main.72976797.css.map",
+    "main.3e704f0d.js.map": "/static/js/main.3e704f0d.js.map",
+    "297.4e199d46.chunk.css.map": "/static/css/297.4e199d46.chunk.css.map",
     "297.faccf727.chunk.js.map": "/static/js/297.faccf727.chunk.js.map",
     "230.00f81dfd.chunk.css.map": "/static/css/230.00f81dfd.chunk.css.map",
     "230.892436af.chunk.js.map": "/static/js/230.892436af.chunk.js.map",
@@ -47,7 +49,7 @@
     "394.1f6cfcf3.chunk.js.map": "/static/js/394.1f6cfcf3.chunk.js.map"
   },
   "entrypoints": [
-    "static/css/main.9421c2a6.css",
-    "static/js/main.721d7a2f.js"
+    "static/css/main.72976797.css",
+    "static/js/main.3e704f0d.js"
   ]
 }
