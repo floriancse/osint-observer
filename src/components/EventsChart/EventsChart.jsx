@@ -10,33 +10,45 @@ import {
   ReferenceArea,
 } from "recharts";
 import { useTime } from "../../context/TimeContext";
+import { useLang } from "../../context/LangContext";
+import { hasUrlTimeRange } from "../../utils/urlState";
 import "./EventsChart.css";
 
 const API = process.env.REACT_APP_API_URL;
 
-// Fenêtre d'historique chargée pour le graphique (indépendante de la plage
-// actuellement sélectionnée pour la carte) — limitée aux 30 derniers jours.
-const HISTORY_DAYS = 30;
-
 // Nombre minimum d'entités visées sur la carte au premier chargement.
 // On remonte bucket par bucket (12h) depuis le plus récent jusqu'à
-// atteindre ce total (ou jusqu'à épuiser les HISTORY_DAYS disponibles).
-const MIN_ENTITIES = 200;
+// atteindre ce total (ou jusqu'à épuiser les données disponibles).
+const MIN_ENTITIES = 100;
 
 // Durée de chaque bucket du graphique : 12h, soit 1 point par jour.
 const BUCKET_HOURS = 12;
 const BUCKET_MS = BUCKET_HOURS * 60 * 60 * 1000;
 
-const COLOR_SELECTED = "#4f9dff";
+const COLOR_SELECTED = "#5aa2ff";   // = --ox-accent (popupUtils.css)
+const COLOR_MUTED = "#8392a7";      // = --ox-muted
+const COLOR_GRID = "rgba(255, 255, 255, 0.06)";
+
+// Largeur de l'axe Y : sert aussi à calculer la zone de tracé pour convertir
+// la position du doigt/souris en index de bucket (voir indexFromClientX).
+const Y_AXIS_WIDTH = 30;
+
+const MOBILE_QUERY = "(max-width: 768px)";
+
+// Sur mobile, on n'affiche que les 7 derniers jours : buckets plus larges,
+// donc plus faciles à sélectionner au doigt.
+const MOBILE_DAYS = 14;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 function CustomTooltip({ active, payload, label }) {
+  const { t, dateLocale } = useLang();
   if (!active || !payload || !payload.length) return null;
   const date = payload[0]?.payload?.date;
   const count = payload[0]?.value;
   return (
-    <div style={{ background: "#0f1524", border: "1px solid #1e2d45", borderRadius: 8, boxShadow: "0 8px 24px rgba(0, 0, 0, 0.5)", fontSize: ".6rem", padding: "6px 10px" }}>
-      <div style={{ color: "#e2e8f0" }}>{date ? formatDateLong(date) : label}</div>
-      <div style={{ color: "#e2e8f0" }}>{count} events</div>
+    <div className="events-chart__tooltip">
+      <div className="events-chart__tooltip-date">{date ? formatDateLong(date, dateLocale) : label}</div>
+      <div className="events-chart__tooltip-count">{t.eventsCount(count)}</div>
     </div>
   );
 }
@@ -53,16 +65,13 @@ function parseAsUTC(input) {
   }
   return new Date(input);
 }
-function formatDateShort(iso) {
+function formatDateShort(iso, locale = "fr-FR") {
   const d = parseAsUTC(iso);
-  return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" });
+  return d.toLocaleDateString(locale, { day: "2-digit", month: "2-digit" });
 }
-function formatDateLong(iso) {
+function formatDateLong(iso, locale = "fr-FR") {
   const d = parseAsUTC(iso);
-  return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
-}
-function toInputDate(iso) {
-  return new Date(iso).toISOString().slice(0, 16); // yyyy-mm-ddTHH:mm pour <input type="datetime-local">
+  return d.toLocaleDateString(locale, { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 // Début exact d'un bucket (utilise la date telle quelle, sans forcer minuit)
 function bucketStart(d) {
@@ -91,25 +100,35 @@ function rectangleToBBox(rectangleFeature) {
   };
 }
 
-export default function EventsChart({ isOpen, onToggle, activeWeaponTypes, activeObjectiveTypes, activeLabel, searchText, spatialRectangle }) {
-  const { timeRange, setRange } = useTime();
+export default function EventsChart({ isOpen, onToggle, activeWeaponTypes, activeObjectiveTypes, activeLabel, searchText, spatialRectangle, selectedCountry }) {
+  const { timeRange, setRange, markRangeReady } = useTime();
+  const { t, dateLocale, lang } = useLang();
+  // La langue n'influence le résultat que s'il y a une recherche active :
+  // sans ça, changer de langue ne relance pas de fetch inutile.
+  const searchLang = searchText?.trim() ? lang : null;
   const [data, setData] = useState([]);
-  const [draftStart, setDraftStart] = useState("");
-  const [draftEnd, setDraftEnd] = useState("");
-  const anchorRef = useRef(null);
-  if (anchorRef.current === null) {
-    const end = new Date();
-    const start = new Date(end);
-    start.setDate(start.getDate() - HISTORY_DAYS);
-    anchorRef.current = { start, end };
-  }
-  
   const dragStateRef = useRef({ isDragging: false, left: null, right: null });
   const [dragLeft, setDragLeft] = useState(null);
   const [dragRight, setDragRight] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
+  const graphRef = useRef(null);
 
-  const initialSelectionDone = useRef(false);
+  // Mobile : graphique plus haut (cible plus grande pour le doigt) et limité
+  // aux MOBILE_DAYS derniers jours.
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== "undefined" && window.matchMedia(MOBILE_QUERY).matches
+  );
+  useEffect(() => {
+    const mql = window.matchMedia(MOBILE_QUERY);
+    const onChange = () => setIsMobile(mql.matches);
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
+  }, []);
+  const chartHeight = isMobile ? 110 : 80;
+
+  // Si l'URL fournit déjà une période (permalink), on saute la sélection
+  // automatique "MIN_ENTITIES" : UrlStateSync applique la période de l'URL.
+  const initialSelectionDone = useRef(hasUrlTimeRange());
   useEffect(() => {
     // NOTE : ce fetch (et surtout le calcul de la plage initiale basé sur
     // MIN_ENTITIES ci-dessous) ne doit PAS dépendre de `isOpen`. EventsChart
@@ -121,13 +140,19 @@ export default function EventsChart({ isOpen, onToggle, activeWeaponTypes, activ
     // bonne période (et donc le bon compteur partout) est déjà en place au
     // tout premier rendu. Seul l'affichage du graphique lui-même reste
     // conditionné par `isOpen` (voir le JSX plus bas).
-    const { start, end } = anchorRef.current;
-
     const params = new URLSearchParams({});
     activeWeaponTypes.forEach((t) => params.append('weapon_type', t));
     activeObjectiveTypes.forEach((t) => params.append('objective_type', t));
     if (activeLabel) params.append('label', activeLabel);
-    if (searchText?.trim()) params.append('search', searchText.trim());
+    if (searchText?.trim()) {
+      params.append('search', searchText.trim());
+      // La carte cherche dans la traduction de la langue active + le texte
+      // d'origine ; on transmet la langue pour que le graphique fasse pareil.
+      params.append('lang', lang);
+    }
+
+    // Pays isolé sur la carte (clic sur un pays) : filtré côté serveur sur sa géométrie
+    if (selectedCountry) params.append('country', selectedCountry);
 
     const bbox = rectangleToBBox(spatialRectangle);
     if (bbox) {
@@ -146,9 +171,16 @@ export default function EventsChart({ isOpen, onToggle, activeWeaponTypes, activ
         if (!initialSelectionDone.current && events.length > 0) {
           initialSelectionDone.current = true;
 
+          // Sur mobile, on ne remonte pas au-delà de la fenêtre affichée.
+          const mobile = window.matchMedia(MOBILE_QUERY).matches;
+          const minTime = mobile
+            ? bucketEnd(events[events.length - 1]).getTime() - MOBILE_DAYS * DAY_MS
+            : -Infinity;
+
           let total = 0;
           let fromIdx = events.length - 1;
           for (let i = events.length - 1; i >= 0; i--) {
+            if (bucketStart(events[i].date).getTime() < minTime) break;
             total += events[i].count || 0;
             fromIdx = i;
             if (total >= MIN_ENTITIES) break;
@@ -157,25 +189,31 @@ export default function EventsChart({ isOpen, onToggle, activeWeaponTypes, activ
           const start = bucketStart(events[fromIdx].date);
           const end = bucketEnd(events[events.length - 1]);
           setRange(start.toISOString(), end.toISOString());
+        } else {
+          // Rien à poser (période déjà fixée par l'URL, ou aucun événement) : la
+          // période en cours est définitive, le compteur peut s'afficher.
+          markRangeReady();
         }
       })
-      .catch((err) => console.error("Erreur chargement graph_events :", err));
-  }, [activeWeaponTypes, activeObjectiveTypes, activeLabel, searchText, spatialRectangle, setRange]);
+      .catch((err) => {
+        console.error("Erreur chargement graph_events :", err);
+        markRangeReady(); // on garde la période par défaut plutôt que de masquer le compteur
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeWeaponTypes, activeObjectiveTypes, activeLabel, searchText, searchLang, spatialRectangle, selectedCountry, setRange]);
 
-  useEffect(() => {
-    setDraftStart(toInputDate(timeRange.start));
-    setDraftEnd(toInputDate(timeRange.end));
-  }, [timeRange.start, timeRange.end]);
+  const chartData = useMemo(() => {
+    const points = data.map((d) => ({
+      date: d.date,
+      endDate: d.endDate,
+      count: d.count,
+    }));
+    if (!isMobile || points.length === 0) return points;
 
-  const chartData = useMemo(
-    () =>
-      data.map((d) => ({
-        date: d.date,
-        endDate: d.endDate,
-        count: d.count,
-      })),
-    [data]
-  );
+    const lastEnd = bucketEnd(points[points.length - 1]).getTime();
+    const cutoff = lastEnd - MOBILE_DAYS * DAY_MS;
+    return points.filter((p) => bucketEnd(p).getTime() > cutoff);
+  }, [data, isMobile]);
 
   const isBucketSelected = useCallback(
     (point) => {
@@ -187,20 +225,6 @@ export default function EventsChart({ isOpen, onToggle, activeWeaponTypes, activ
     },
     [timeRange.start, timeRange.end]
   );
-
-  const handleMouseDown = (e) => {
-    if (!e || e.activeLabel == null) return;
-    dragStateRef.current = { isDragging: true, left: e.activeLabel, right: e.activeLabel };
-    setIsDragging(true);
-    setDragLeft(e.activeLabel);
-    setDragRight(e.activeLabel);
-  };
-
-  const handleMouseMove = (e) => {
-    if (!dragStateRef.current.isDragging || !e || e.activeLabel == null) return;
-    dragStateRef.current.right = e.activeLabel;
-    setDragRight(e.activeLabel);
-  };
 
   const finishDrag = useCallback(() => {
     const { isDragging: wasDragging, left, right } = dragStateRef.current;
@@ -220,20 +244,63 @@ export default function EventsChart({ isOpen, onToggle, activeWeaponTypes, activ
     setRange(start.toISOString(), end.toISOString());
   }, [chartData, setRange]);
 
-  const applyManualRange = () => {
-    if (!draftStart || !draftEnd) return;
-    const start = new Date(draftStart);
-    const end = new Date(draftEnd);
-    if (start > end) return;
-    setRange(start.toISOString(), end.toISOString());
+  // ── Tracé de la sélection : Pointer Events (souris + tactile + stylet) ──
+  // On convertit la position X du pointeur en index de bucket nous-mêmes,
+  // au lieu de dépendre des événements souris de Recharts (qui ne gèrent pas
+  // bien le tactile et annulent le tracé dès que le curseur quitte le graphe).
+  // Le graphique est un AreaChart : le 1er point est au bord gauche de la zone
+  // de tracé et le dernier au bord droit.
+  const indexFromClientX = (clientX) => {
+    const el = graphRef.current;
+    const n = chartData.length;
+    if (!el || n === 0) return null;
+    if (n === 1) return 0;
+    const rect = el.getBoundingClientRect();
+    const plotWidth = rect.width - Y_AXIS_WIDTH;
+    if (plotWidth <= 0) return null;
+    const ratio = (clientX - (rect.left + Y_AXIS_WIDTH)) / plotWidth;
+    return Math.min(n - 1, Math.max(0, Math.round(ratio * (n - 1))));
   };
 
-  const todayInput = toInputDate(new Date().toISOString());
-  const minInput = useMemo(() => {
-    const d = new Date();
-    d.setDate(d.getDate() - HISTORY_DAYS);
-    return toInputDate(d.toISOString());
-  }, []);
+  const cancelDrag = () => {
+    dragStateRef.current = { isDragging: false, left: null, right: null };
+    setIsDragging(false);
+    setDragLeft(null);
+    setDragRight(null);
+  };
+
+  const handlePointerDown = (e) => {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    const idx = indexFromClientX(e.clientX);
+    if (idx == null) return;
+    // Capture : le tracé continue même si le doigt/curseur sort du graphique
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    const date = chartData[idx].date;
+    dragStateRef.current = { isDragging: true, left: date, right: date };
+    setIsDragging(true);
+    setDragLeft(date);
+    setDragRight(date);
+  };
+
+  const handlePointerMove = (e) => {
+    if (!dragStateRef.current.isDragging) return;
+    const idx = indexFromClientX(e.clientX);
+    if (idx == null) return;
+    const date = chartData[idx].date;
+    if (date === dragStateRef.current.right) return; // rien à mettre à jour
+    dragStateRef.current.right = date;
+    setDragRight(date);
+  };
+
+  const handlePointerUp = (e) => {
+    e.currentTarget.releasePointerCapture?.(e.pointerId);
+    finishDrag(); // un simple tap = sélection d'un seul bucket
+  };
+
+  const handlePointerCancel = (e) => {
+    e.currentTarget.releasePointerCapture?.(e.pointerId);
+    cancelDrag(); // geste interrompu par le système : on n'applique rien
+  };
 
   const selectionBounds = useMemo(() => {
     if (isDragging && dragLeft != null && dragRight != null) {
@@ -250,74 +317,87 @@ export default function EventsChart({ isOpen, onToggle, activeWeaponTypes, activ
     };
   }, [chartData, isBucketSelected, isDragging, dragLeft, dragRight]);
 
+  // Pendant le tracé, la pastille affiche la plage en cours de sélection :
+  // le doigt masque le graphique, ce retour visuel est donc indispensable.
+  const liveRange = (() => {
+    if (!isDragging || dragLeft == null || dragRight == null) return null;
+    const a = chartData.findIndex((d) => d.date === dragLeft);
+    const b = chartData.findIndex((d) => d.date === dragRight);
+    if (a === -1 || b === -1) return null;
+    const [lo, hi] = a <= b ? [a, b] : [b, a];
+    return { start: bucketStart(chartData[lo].date), end: bucketEnd(chartData[hi]) };
+  })();
+  const shownRange = liveRange || { start: timeRange.start, end: timeRange.end };
+
   const tickInterval = Math.max(0, Math.ceil(chartData.length / 10) - 1);
 
-  // Total d'événements pour la période actuellement sélectionnée (timeRange),
-  // et non pour toute la fenêtre de 30 jours chargée par /graph_events.
-  // C'est ce chiffre qu'il faut comparer au compteur du SidePanel / de la
-  // carte, pas la somme de toutes les barres du graphique.
-  const selectedTotal = useMemo(
-    () => chartData.reduce((sum, d) => (isBucketSelected(d) ? sum + (d.count || 0) : sum), 0),
-    [chartData, isBucketSelected]
-  );
-
   return (
-    <div className={`events-chart ${isOpen ? "events-chart--open" : "events-chart--closed"}`}>
-      <button className="events-chart__toggle" onClick={onToggle}>
+    <section className={`events-chart ${isOpen ? "events-chart--open" : "events-chart--closed"}`}>
+      <h2 className="events-chart__heading">
+      <button className="events-chart__toggle" onClick={onToggle} aria-expanded={isOpen}>
+        <span className="events-chart__title">{t.timeline}</span>
+        <span className={`events-chart__active-range${liveRange ? " events-chart__active-range--live" : ""}`}>
+          <span>{formatDateLong(shownRange.start, dateLocale)} → {formatDateLong(shownRange.end, dateLocale)}</span>
+        </span>
         <svg
-          width="11" height="11" viewBox="0 0 14 14" fill="none"
-          style={{ transform: isOpen ? "rotate(0deg)" : "rotate(180deg)" }}
+          className="events-chart__chevron"
+          viewBox="0 0 14 14" fill="none" aria-hidden="true"
         >
           <path d="M2 5L7 10L12 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
-        <span>Timeline</span>
-        <span className="events-chart__active-range">
-          {formatDateLong(timeRange.start)} → {formatDateLong(timeRange.end)}
-        </span>
       </button>
+      </h2>
 
       {isOpen && (
         <div className="events-chart__body">
-          <div className="events-chart__graph">
-            <ResponsiveContainer width="100%" height={80}>
+          <div
+            className="events-chart__graph"
+            role="img"
+            aria-label={t.timeline}
+            ref={graphRef}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerCancel}
+          >
+            <ResponsiveContainer width="100%" height={chartHeight}>
               <AreaChart
                 data={chartData}
                 margin={{ top: 4, right: 0, left: 0, bottom: 0 }}
-                onMouseDown={handleMouseDown}
-                onMouseMove={handleMouseMove}
-                onMouseUp={finishDrag}
-                onMouseLeave={finishDrag}
               >
                 <defs>
                   <linearGradient id="eventsChartFill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={COLOR_SELECTED} stopOpacity={0.35} />
-                    <stop offset="95%" stopColor={COLOR_SELECTED} stopOpacity={0.02} />
+                    <stop offset="5%" stopColor={COLOR_SELECTED} stopOpacity={0.28} />
+                    <stop offset="95%" stopColor={COLOR_SELECTED} stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
+                <CartesianGrid stroke={COLOR_GRID} vertical={false} />
                 <XAxis
                   dataKey="date"
-                  tickFormatter={formatDateShort}
-                  tick={{ fill: "#8b949e", fontSize: ".55rem" }}
+                  tickFormatter={(iso) => formatDateShort(iso, dateLocale)}
+                  tick={{ fill: COLOR_MUTED, fontSize: 10 }}
+                  axisLine={false}
+                  tickLine={false}
+                  tickMargin={6}
                   interval={tickInterval}
                   textAnchor="middle"
                   angle={0}
-                  height={34}
+                  height={28}
                 />
-                <YAxis tick={{ fill: "#8b949e", fontSize: ".55rem" }} width={30} allowDecimals={false} />
+                <YAxis tick={{ fill: COLOR_MUTED, fontSize: 10 }} width={Y_AXIS_WIDTH} axisLine={false} tickLine={false} allowDecimals={false} />
                 <Tooltip
                   content={<CustomTooltip />}
-                  cursor={{ stroke: COLOR_SELECTED, strokeWidth: 1, strokeDasharray: "3 3" }}
+                  cursor={{ stroke: COLOR_SELECTED, strokeOpacity: 0.5, strokeWidth: 1, strokeDasharray: "3 3" }}
                 />
                 <Area
                   type="monotone"
                   dataKey="count"
                   isAnimationActive={false}
                   stroke={COLOR_SELECTED}
-                  strokeWidth={1.5}
+                  strokeWidth={2}
                   fill="url(#eventsChartFill)"
                   dot={false}
-                  activeDot={{ r: 3, fill: COLOR_SELECTED, stroke: "#0f1524", strokeWidth: 1 }}
+                  activeDot={{ r: 4, fill: COLOR_SELECTED, stroke: "#0d1320", strokeWidth: 2 }}
                 />
                 {selectionBounds && (
                   <ReferenceArea
@@ -325,10 +405,10 @@ export default function EventsChart({ isOpen, onToggle, activeWeaponTypes, activ
                     x1={selectionBounds.x1}
                     x2={selectionBounds.x2}
                     ifOverflow="visible"
-                    strokeOpacity={0.5}
-                    stroke="#4f9dff"
-                    fill="#4f9dff"
-                    fillOpacity={0.18}
+                    strokeOpacity={0.35}
+                    stroke={COLOR_SELECTED}
+                    fill={COLOR_SELECTED}
+                    fillOpacity={0.14}
                   />
                 )}
               </AreaChart>
@@ -336,6 +416,6 @@ export default function EventsChart({ isOpen, onToggle, activeWeaponTypes, activ
           </div>
         </div>
       )}
-    </div>
+    </section>
   );
 }

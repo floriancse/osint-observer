@@ -2,6 +2,9 @@ import { createContext, useContext, useState, useMemo, useCallback } from "react
 
 const TimeContext = createContext();
 
+// Conservés pour compatibilité avec le code qui lisait encore rangeReady / markRangeReady.
+const noop = () => {};
+
 function startOfDay(d) {
   const copy = new Date(d);
   copy.setHours(0, 0, 0, 0);
@@ -14,14 +17,31 @@ function endOfDay(d) {
   return copy;
 }
 
+// Lundi 00:00 de la semaine en cours (semaine à la française).
+function startOfWeek(d) {
+  const copy = startOfDay(d);
+  const sinceMonday = (copy.getDay() + 6) % 7; // lundi = 0 … dimanche = 6
+  copy.setDate(copy.getDate() - sinceMonday);
+  return copy;
+}
+
+// 1er du mois en cours, 00:00.
+function startOfMonth(d) {
+  const copy = startOfDay(d);
+  copy.setDate(1);
+  return copy;
+}
+
+// Périodes proposées dans le SidePanel (voir PeriodPicker). Les autres valeurs
+// gérées plus bas ("1h", "6h", "24h", "7d", "14d", "custom") restent acceptées
+// pour ne pas casser d'éventuels liens / UrlStateSync existants.
+export const PERIOD_PRESETS = ["today", "week", "month"];
+export const DEFAULT_PERIOD = "today";
+
 export function TimeProvider({ children }) {
-  // "24h" sert de placeholder initial le temps qu'EventsChart charge ses
-  // données : le useMemo ci-dessous calcule déjà "maintenant - 24h → maintenant"
-  // pour ce cas, donc pas besoin d'un effet séparé pour le poser au montage.
-  // C'est EventsChart qui, une fois son premier chargement terminé, appelle
-  // setRange(...) pour aligner précisément la sélection sur les 2 derniers
-  // buckets (12h+12h) réellement renvoyés par le backend.
-  const [selectedPeriod, setSelectedPeriod] = useState("24h");
+  // Plus de graphique : la période est définitive dès le premier rendu
+  // (avant, "24h" n'était qu'un placeholder remplacé par EventsChart).
+  const [selectedPeriod, setSelectedPeriod] = useState(DEFAULT_PERIOD);
   const [customRange, setCustomRange] = useState(null);
 
   const timeRange = useMemo(() => {
@@ -37,6 +57,16 @@ export function TimeProvider({ children }) {
     let start = new Date(now);
 
     switch (selectedPeriod) {
+      case "today":
+        // "Aujourd'hui" = les dernières 24 h glissantes (et non le jour calendaire).
+        start.setHours(start.getHours() - 24);
+        break;
+      case "week":
+        start = startOfWeek(now);
+        break;
+      case "month":
+        start = startOfMonth(now);
+        break;
       case "1h":
         start.setHours(start.getHours() - 1);
         break;
@@ -83,7 +113,7 @@ export function TimeProvider({ children }) {
   }, []);
 
   return (
-    <TimeContext.Provider value={{ timeRange, selectedPeriod, changePeriod, setRange }}>
+    <TimeContext.Provider value={{ timeRange, selectedPeriod, changePeriod, setRange, rangeReady: true, markRangeReady: noop }}>
       {children}
     </TimeContext.Provider>
   );

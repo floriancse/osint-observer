@@ -1,173 +1,199 @@
+/* Tokens (--ox-*) définis dans popupUtils.css */
+
 .map-floating-filters {
   position: absolute;
-  bottom: 45px;
-  left: 5px;
+  bottom: 56px;               /* au-dessus de la barre d'outils */
+  left: 8px;
   z-index: 998;
-  width: 220px;
-  max-height: min(60vh, 420px);
+  width: 300px;
+  max-width: calc(100vw - 16px);
+  max-height: min(60vh, 440px);
   display: flex;
   flex-direction: column;
-  background: #0f1524;
-  border-radius: 12px;
   overflow: hidden;
-  font-family: 'Roboto Mono', monospace;
-  color: #e2e8f0;
-  border: 1px solid rgb(38, 48, 61);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  background: rgba(13, 19, 32, 0.94);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  backdrop-filter: blur(16px) saturate(1.2);
+  border: 1px solid var(--ox-border);
+  border-radius: 16px;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.35);
+  color: var(--ox-text);
+  font-family: "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
-.map-floating-filters .terminal-body {
+.mf-body {
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--ox-surface-3) transparent;
 }
 
-/* ── Barre de titre type terminal ─────────────────── */
-.terminal-header {
+.mf-section {
   display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mf-section + .mf-section {
+  padding-top: 14px;
+  border-top: 1px solid var(--ox-line);
+}
+
+.mf-title {
+  margin: 0;
+  min-height: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: -0.005em;
+  color: var(--ox-text);
+}
+
+/* Nombre de filtres actifs dans la section */
+.mf-count {
+  min-width: 18px;
+  padding: 1px 6px;
+  box-sizing: border-box;
+  text-align: center;
+  font-size: 0.68rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--mf-fg);
+  background: var(--mf-bg);
+  border-radius: 9999px;
+}
+
+.mf-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* Les couleurs reprennent celles des tags des cartes :
+   arme = violet, objectif = turquoise. */
+.mf-section--weapon {
+  --mf-fg: #c7b6ff;
+  --mf-bg: rgba(167, 139, 250, 0.16);
+  --mf-bd: rgba(167, 139, 250, 0.45);
+}
+
+.mf-section--objective {
+  --mf-fg: #84e3d3;
+  --mf-bg: rgba(45, 212, 191, 0.14);
+  --mf-bd: rgba(45, 212, 191, 0.42);
+}
+
+.mf-chip {
+  display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 7px 10px;
-  background: #0f1524;
-  border-bottom: 1px solid #1a232c;
-}
-
-.terminal-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.terminal-dot--red {
-  background: #f71616;
-}
-
-.terminal-dot--amber {
-  background: #d9a441;
-}
-
-.terminal-dot--blue {
-  background: #4f9dff;
-}
-
-.terminal-title {
-  margin-left: 4px;
-  font-size: 10px;
-  color: #8b949e;
-  letter-spacing: 0.04em;
-}
-
-/* ── Corps du terminal ─────────────────────────────── */
-.terminal-body {
-  padding: 8px 10px 10px;
-}
-
-.terminal-prompt {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: .6rem;
-  margin-bottom: 6px;
-  white-space: nowrap;
-}
-
-.prompt-user {
-  color: #4f9dff;
+  max-width: 100%;
+  min-height: 28px;
+  padding: 4px 11px 4px 9px;
+  box-sizing: border-box;
+  font: inherit;
+  font-size: 0.74rem;
   font-weight: 600;
-}
-
-.prompt-sep,
-.prompt-path {
-  color: #8b949e;
-}
-
-.prompt-dollar {
-  color: #6b7076;
-  margin: 0 2px;
-}
-
-.prompt-cmd {
-  color: #e1e1e1;
-}
-
-.cursor-blink {
-  color: #4f9dff;
-  animation: cursor-blink-anim 1s step-start infinite;
-}
-
-@keyframes cursor-blink-anim {
-  50% {
-    opacity: 0;
-  }
-}
-
-/* ── Arbre de filtres ───────────────────────────────── */
-.filter-tree {
-  display: flex;
-  flex-direction: column;
-}
-
-.tree-branch {
-  display: flex;
-  font-size: .7rem;
-  padding: 2px 0;
-}
-
-.tree-dir {
-  color: #4f9dff;
-  font-weight: 600;
-}
-
-.tree-leaf {
-  display: flex;
-  align-items: center;
-  width: 100%;
-  background: transparent;
-  border: none;
-  padding: 3px 0;
-  font-family: inherit;
-  font-size: .6rem;
-  color: #8b949e;
-  cursor: pointer;
+  line-height: 1.25;
   text-align: left;
-  transition: color 0.15s ease, background 0.15s ease;
-  border-radius: 3px;
+  color: var(--ox-text-2);
+  background: var(--ox-surface-2);
+  border: 1px solid var(--ox-line);
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
-.tree-leaf:hover {
-  color: #e1e1e1;
-  background: #1b2436;
+.mf-chip:hover {
+  background: var(--ox-surface-3);
+  border-color: #2e3b55;
+  color: var(--ox-text);
 }
 
-.tree-leaf.active {
-  color: #ED0C0C;
-  font-weight: 600;
+.mf-chip[aria-pressed="true"] {
+  color: var(--mf-fg);
+  background: var(--mf-bg);
+  border-color: var(--mf-bd);
 }
 
-.tree-leaf.active:hover {
-  color: #ED0C0C;
-  background: #1b2436;
+.mf-chip:focus-visible {
+  outline: 2px solid var(--ox-accent);
+  outline-offset: 2px;
 }
 
-.tree-connector {
-  color: #8b949e;
-  white-space: pre;
+/* Pastille de sélection : toujours présente (vide quand inactive),
+   donc aucune variation de largeur quand on active / désactive un filtre. */
+.mf-box {
   flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  border: 1.5px solid rgba(131, 146, 167, 0.55);
+  border-radius: 50%;
+  color: #0d1320;
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
 
-.tree-indent {
-  color: transparent;
-  white-space: pre;
-  flex-shrink: 0;
+.mf-check {
+  display: block;
+  opacity: 0;
+  transition: opacity 0.15s ease;
 }
 
-.tree-checkbox {
-  flex-shrink: 0;
-  margin-right: 6px;
-  color: inherit;
+.mf-chip:hover .mf-box {
+  border-color: var(--ox-text-2);
 }
 
-.tree-label {
+.mf-chip[aria-pressed="true"] .mf-box {
+  background: var(--mf-fg);
+  border-color: var(--mf-fg);
+}
+
+.mf-chip[aria-pressed="true"] .mf-check {
+  opacity: 1;
+}
+
+.mf-label {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Nombre d'événements pour ce type (avec les autres filtres appliqués) */
+.mf-n {
+  flex-shrink: 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--ox-text-3, rgba(131, 146, 167, 0.9));
+  opacity: 0.85;
+}
+
+.mf-chip[aria-pressed="true"] .mf-n {
+  color: var(--mf-fg);
+  opacity: 1;
+}
+
+/* Aucun résultat avec les autres filtres : puce atténuée mais cliquable */
+.mf-chip[data-empty="true"] {
+  opacity: 0.45;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mf-chip,
+  .mf-box,
+  .mf-check {
+    transition: none;
+  }
 }

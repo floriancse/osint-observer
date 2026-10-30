@@ -1,58 +1,220 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" translate="no">
 
 <head>
   <meta charset="utf-8" />
-  <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="theme-color" content="#000000" />
-  <meta name="description" content="Web site created using create-react-app" />
-  <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
-  <!--
-      manifest.json provides metadata used when your web app is installed on a
-      user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
-    -->
-  <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
-  <!--
-      Notice the use of %PUBLIC_URL% in the tags above.
-      It will be replaced with the URL of the `public` folder during the build.
-      Only files inside the `public` folder can be referenced from the HTML.
 
-      Unlike "/favicon.ico" or "favicon.ico", "%PUBLIC_URL%/favicon.ico" will
-      work correctly both with client-side routing and a non-root public URL.
-      Learn how to configure a non-root public URL by running `npm run build`.
-    -->
+  <!-- Empêche la traduction automatique du navigateur (l'app gère déjà FR/EN/ES) -->
+  <meta name="google" content="notranslate" />
+  <!-- Aligne <html lang> sur la langue de l'utilisateur avant l'analyse de la page
+       (même logique que le useState initial de LangContext.jsx : langue
+       mémorisée, sinon langue du navigateur, sinon anglais) -->
+  <script>
+    (function () {
+      try {
+        var supported = ["fr", "en", "es"];
+        var saved = localStorage.getItem("lang");
+        var browser = (navigator.language || "en").slice(0, 2);
+        var l = supported.indexOf(saved) !== -1 ? saved
+          : supported.indexOf(browser) !== -1 ? browser
+            : "en";
+        document.documentElement.lang = l;
+      } catch (e) { }
+    })();
+  </script>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Connexions ouvertes tôt (4 max au total, Lighthouse en avertit au-delà) : API et miniatures des tweets -->
+  <link rel="preconnect" href="%REACT_APP_API_URL%" crossorigin>
+  <link rel="preconnect" href="https://pbs.twimg.com">
+  <meta name="referrer" content="no-referrer" />
+  <title>OSINT Watch | Interactive OSINT map of conflicts</title>
+  <meta name="description"
+    content="Follow conflicts in real time on an interactive OSINT map: geotagged events, weapons, targets, hotspots, trends and timeline." />
+  <link rel="canonical" href="https://osintwatch.app/" />
+  <!-- Titre et description dans la langue de l'utilisateur dès l'analyse du HTML : sans ça, la page
+       s'affiche avec le titre anglais ci-dessus, puis LangContext.jsx le remplace par la traduction
+       au montage de React (flash visible dans l'onglet). Textes à garder identiques à pageTitle et
+       metaDescription de src/context/LangContext.jsx. Pages théâtre (data-seo, posé par
+       inject-seo.js) : ignorées, leur titre est déjà celui de leur langue. -->
+  <script>
+    (function () {
+      try {
+        var d = document.documentElement;
+        if (d.hasAttribute("data-seo")) return;
+        var T = {
+          fr: ["OSINT Watch | Carte OSINT interactive des conflits",
+            "Suivez les conflits en temps réel sur une carte OSINT interactive : événements géolocalisés, armes, cibles, points chauds, tendances et chronologie."],
+          en: ["OSINT Watch | Interactive OSINT map of conflicts",
+            "Follow conflicts in real time on an interactive OSINT map: geotagged events, weapons, targets, hotspots, trends and timeline."],
+          es: ["OSINT Watch | Mapa OSINT interactivo de conflictos",
+            "Sigue los conflictos en tiempo real en un mapa OSINT interactivo: eventos geolocalizados, armas, objetivos, puntos calientes, tendencias y cronología."]
+        };
+        var t = T[d.lang];
+        if (!t) return;
+        document.title = t[0];
+        var m = document.querySelector('meta[name="description"]');
+        if (m) m.setAttribute("content", t[1]);
+      } catch (e) { }
+    })();
+  </script>
+  <meta name="theme-color" content="#0d1320" />
+
+  <!-- Aperçu lors d'un partage (Discord, X, LinkedIn...) -->
+  <meta property="og:site_name" content="OSINT Watch" />
+  <meta property="og:title" content="OSINT Watch – Interactive OSINT map of conflicts" />
+  <meta property="og:description"
+    content="Interactive OSINT map of conflicts: geotagged events, hotspots, and trends." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://osintwatch.app/" />
+  <meta property="og:image" content="https://osintwatch.app/preview.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="OSINT Watch – Interactive OSINT map of conflicts" />
+  <meta name="twitter:description"
+    content="Interactive OSINT map of conflicts: geotagged events, hotspots, and trends." />
+  <meta name="twitter:image" content="https://osintwatch.app/preview.png" />
+
+  <!-- Favicons -->
+  <link rel="icon" type="image/x-icon" href="%PUBLIC_URL%/favicon.ico" />
+  <link rel="icon" type="image/png" sizes="32x32" href="%PUBLIC_URL%/favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="%PUBLIC_URL%/favicon-16x16.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="%PUBLIC_URL%/apple-touch-icon.png" />
+  <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+
+  <!-- Données structurées -->
+  <!-- WebSite : déclare le nom de la marque (nom de site dans Google) ; son @id est le même que celui
+       référencé par les pages théâtre (inject-seo.js : `${SITE_URL}/#website`). -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "@id": "https://osintwatch.app/#website",
+        "url": "https://osintwatch.app/",
+        "name": "OSINT Watch",
+        "alternateName": ["OSINTWatch"],
+        "inLanguage": ["en", "fr", "es"]
+      },
+      {
+        "@type": "WebApplication",
+        "@id": "https://osintwatch.app/#app",
+        "url": "https://osintwatch.app/",
+        "name": "OSINT Watch",
+        "applicationCategory": "NewsApplication",
+        "operatingSystem": "Any (web browser)",
+        "description": "Interactive OSINT map of conflicts: geotagged events, hotspots, and trends.",
+        "isPartOf": { "@id": "https://osintwatch.app/#website" }
+      }
+    ]
+  }
+  </script>
+
   <!-- Font Awesome -->
+  <!-- Feuille NON bloquante (media="print" puis "all" au chargement) : elle ne retarde plus le 1er affichage -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
     integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A=="
-    crossorigin="anonymous" referrerpolicy="no-referrer" />
+    crossorigin="anonymous" referrerpolicy="no-referrer" media="print" onload="this.media='all'" />
+  <noscript>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+      crossorigin="anonymous" referrerpolicy="no-referrer" />
+  </noscript>
 
-  <!-- Google Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link
-    href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@100..700&family=Inter:wght@100..900&display=swap"
-    rel="stylesheet">
-  <link
-    href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Geist+Mono:wght@100..900&family=Roboto+Mono:ital,wght@0,100..700;1,100..700&display=swap"
-    rel="stylesheet">
+  <!-- Polices : hébergées avec l'app (@fontsource, voir src/index.js), plus aucune requête Google Fonts -->
+  <style>
+    /* Évite le flash blanc : même fond que l'écran de chargement */
+    body {
+      background: #0d1320;
+    }
 
-  <title>OSINT Observer</title>
+    /* Écran de chargement statique : visible dès le 1er octet de HTML, avant tout JS.
+       React le remplace au montage (BootScreen reprend exactement le même rendu). */
+    .ox-boot {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      background: #0d1320;
+      color: #e1e1e1;
+      font: 14px/1.3 system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+      letter-spacing: 0.3px;
+    }
+
+    /* Typographie FORCÉE sur tout l'écran de chargement : une règle globale de l'app
+       (ex: `* { font-family }`, `span { ... }`) ne doit jamais pouvoir la modifier, sinon le
+       texte change de taille quand le CSS puis la police web arrivent.
+       À garder identique à .ox-boot-screen dans BootScreen.jsx. */
+    .ox-boot,
+    .ox-boot * {
+      font: 14px/1.3 system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif !important;
+      letter-spacing: 0.3px !important;
+    }
+
+    .ox-boot-ring {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      border: 3px solid rgba(225, 225, 225, 0.2);
+      border-top-color: #e1e1e1;
+      animation: ox-boot-spin 0.9s linear infinite;
+    }
+
+    @keyframes ox-boot-spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    /* Contenu pour les robots : présent dans le DOM, invisible à l'écran.
+       Ne cible que les éléments NON <div> : le texte statique/injecté n'en contient
+       aucun, alors que l'app React est faite de <div> (overlay, .app-shell...).
+       Si l'app rend un jour un élément non-div directement dans #root, supprimer
+       ce bloc. */
+    #root> :not(div) {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      white-space: nowrap;
+    }
+  </style>
 </head>
 
 <body>
-  <noscript>You need to enable JavaScript to run this app.</noscript>
-  <div id="root"></div>
-  <!--
-      This HTML file is a template.
-      If you open it directly in the browser, you will see an empty page.
-
-      You can add webfonts, meta tags, or analytics to this file.
-      The build step will place the bundled scripts into the <body> tag.
-
-      To begin the development, run `npm start` or `yarn start`.
-      To create a production bundle, use `npm run build` or `yarn build`.
-    -->
+  <noscript>
+    <h1>OSINT Watch</h1>
+    <p>Interactive OSINT map of conflicts: geotagged events, weapons, targets, hotspots and trends. You need to enable
+      JavaScript to run this app.</p>
+  </noscript>
+  <!-- Contenu statique lu par les robots avant l'exécution du JS.
+       React le remplace entièrement au montage de l'app. -->
+  <div id="root">
+    <!-- Texte pour les robots : masqué par un style INLINE (appliqué dès l'analyse du HTML,
+         sans dépendre d'une feuille de style ni d'un sélecteur). React le remplace au montage. -->
+    <div class="ox-seo"
+      style="position:absolute;width:1px;height:1px;margin:-1px;padding:0;border:0;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap">
+      <h1>OSINT Watch – Interactive OSINT map of conflicts</h1>
+      <p>Follow conflicts in real time on an interactive OSINT map: geotagged events, weapons, targets, hotspots, trends
+        and timeline.</p>
+      <h2>Active theaters</h2>
+      <nav aria-label="Active theaters">
+        <ul>
+          <li><a href="/content/en/iran-us-war/">Iran-US War</a></li>
+          <li><a href="/content/en/ukraine-and-russia-at-war/">Ukraine and Russia at War</a></li>
+          <li><a href="/content/en/sudan-civil-war/">Sudan civil war</a></li>
+          <li><a href="/content/en/conflicts-in-ethiopia/">Conflicts in Ethiopia</a></li>
+          <li><a href="/content/en/pakistan-afghanistan-war/">Pakistan-Afghanistan War</a></li>
+          <li><a href="/content/en/conflicts-in-sahel/">Conflicts in Sahel</a></li>
+          <li><a href="/content/en/myanmar-civil-war/">Myanmar civil war</a></li>
+        </ul>
+      </nav>
+    </div>
+  </div>
 </body>
 
 </html>

@@ -1,0 +1,307 @@
+/* Panneau latéral "Théâtres" : flottant à gauche de la carte.
+   Réutilise les classes .theater-popup-* (tags, dot, résumé, événements)
+   définies dans MapView.css. Tokens (--ox-*) définis dans popupUtils.css. */
+
+.theaters-drawer {
+  position: absolute;
+  top: 54px;      /* laisse visibles le bouton + la barre de recherche */
+  bottom: 56px;   /* laisse visible la barre d'outils en bas à gauche */
+  left: 8px;
+  width: 360px;
+  z-index: 998;   /* sous le dropdown de suggestions (999) */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  isolation: isolate; /* garde le ::before (z-index: -1) à l'intérieur du panneau */
+  /* Le fond + le blur sont portés par ::before (voir plus bas) : un
+     backdrop-filter sur un parent en overflow:hidden + border-radius
+     provoque des coins mal découpés sur les enfants (bug Chromium). */
+  background: none;
+  border: 1px solid var(--ox-border);
+  border-radius: 16px;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.35);
+
+  /* Fermé : invisible, non focusable. Le panneau glisse à l'ouverture. */
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateX(-12px);
+  transition: opacity 0.18s ease, transform 0.18s ease, visibility 0s linear 0.18s;
+}
+
+/* Fond translucide + flou, séparés du conteneur qui clippe les enfants */
+.theaters-drawer::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: rgba(13, 19, 32, 0.94);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  backdrop-filter: blur(16px) saturate(1.2);
+  pointer-events: none;
+}
+
+.theaters-drawer--open {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateX(0);
+  transition-delay: 0s;
+}
+
+/* ── Header ── */
+.theaters-drawer-header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 12px 12px 16px;
+  border-bottom: 1px solid var(--ox-line);
+}
+
+.theaters-drawer-header--detail {
+  padding-left: 10px;
+}
+
+.theaters-drawer-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: var(--ox-text);
+}
+
+.theaters-drawer-heading {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.theaters-drawer-subtitle {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--ox-muted);
+}
+
+.theaters-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--ox-text-2);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.theaters-icon-btn:hover {
+  background: var(--ox-surface-3);
+  color: var(--ox-text);
+}
+
+.theaters-icon-btn:focus-visible,
+.theaters-card:focus-visible {
+  outline: 2px solid var(--ox-accent);
+  outline-offset: 2px;
+}
+
+/* ── Corps ── */
+.theaters-drawer-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--ox-surface-3) transparent;
+}
+
+.theaters-drawer-body--detail {
+  display: block;
+  padding: 12px 0;
+}
+
+.theaters-drawer-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.theaters-drawer-body::-webkit-scrollbar-thumb {
+  background: var(--ox-surface-3);
+  border-radius: 9999px;
+  border: 2px solid var(--ox-bg);
+}
+
+/* ── Carte d'un théâtre dans la liste ── */
+.theaters-card {
+  box-sizing: border-box;
+  user-select: none;
+  position: relative;
+  isolation: isolate;                 /* contexte d'empilement propre */
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  width: 100%;
+  min-height: 112px;
+  padding: 0;
+  border: none; /* la bordure est dessinée par ::after, au-dessus de l'overlay */
+  border-radius: 14px;
+  overflow: hidden;
+  background-color: var(--ox-bg);
+  background-size: cover;
+  background-position: center;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  text-decoration: none; /* la carte est un lien <a> */
+}
+
+/* Liseré : anneau interne par-dessus image + overlay (rendu uniforme aux coins) */
+.theaters-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: inherit;
+  border: 1px solid #0c121e;
+  pointer-events: none;
+  transition: box-shadow 0.15s ease;
+}
+
+.theaters-card:hover::after {
+  box-shadow: inset 0 0 0 1px var(--ox-accent);
+}
+
+.theaters-card-overlay {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(160deg, rgba(8, 12, 20, 0.92) 0%, rgba(8, 12, 20, 0.74) 45%, rgba(8, 12, 20, 0.45) 100%);
+}
+
+.theaters-card-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+}
+
+.theaters-card-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.theaters-card-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--ox-text);
+}
+
+.theaters-card-bottom {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.theaters-card .theater-popup-countries {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.theaters-card-more {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  font-size: 0.72rem;
+  font-weight: 650;
+  color: var(--ox-accent);
+  white-space: nowrap;
+}
+
+.theaters-detail-countries {
+  padding: 0 14px 12px;
+}
+
+/* ── Mobile : le panneau passe en PLEIN ÉCRAN ──
+   position: fixed => couvre toute la fenêtre. z-index > 1000 (bottom sheets)
+   pour passer au-dessus des boutons de la carte (999). */
+@media (max-width: 768px) {
+  .theaters-drawer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    height: 100vh;
+    height: 100dvh;
+    z-index: 1100;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    transform: translateY(12px);
+  }
+
+  /* Plein écran : fond opaque, pas besoin de flou */
+  .theaters-drawer::before {
+    background: var(--ox-bg);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  .theaters-drawer--open {
+    transform: translateY(0);
+  }
+
+  /* Encoche / barre d'état en haut, home-indicator en bas */
+  .theaters-drawer-header {
+    padding-top: calc(12px + env(safe-area-inset-top, 0px));
+  }
+
+  .theaters-drawer-body,
+  .theaters-drawer-body--detail {
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Zones tactiles plus grandes */
+  .theaters-icon-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .theaters-drawer .theater-popup-freshness-dot--hot,
+  .theaters-drawer .theater-popup-freshness-dot--warm {
+    animation: none;
+    box-shadow: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theaters-drawer,
+  .theaters-card,
+  .theaters-icon-btn {
+    transition: none;
+  }
+}

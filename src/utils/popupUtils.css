@@ -1,85 +1,105 @@
+/* ════════════════════════════════════════════════════════════════
+   Tokens partagés (SidePanel.css les réutilise : popupUtils.css est
+   importé par popupUtils.js, donc toujours chargé avant la liste).
+   ════════════════════════════════════════════════════════════════ */
+:root {
+    --ox-bg: #0d1320;
+    --ox-surface: #121a2a;
+    --ox-surface-2: #182236;
+    --ox-surface-3: #212d45;
+
+    --ox-border: #232d41;
+    --ox-line: rgba(255, 255, 255, 0.07);
+
+    --ox-text: #e8ecf3;
+    --ox-text-2: #e8ecf3;
+    --ox-muted: #8392a7;
+
+    --ox-accent: #5aa2ff;
+    --ox-accent-soft: rgba(90, 162, 255, 0.13);
+
+    --ox-danger: #ff5c61;
+    --ox-danger-line: #b8434b;
+    --ox-danger-soft: rgba(255, 92, 97, 0.11);
+    /* Voile des tweets importants : partagé entre le popup (.important-tweet)
+       et la vue liste (.tweet-list-item.important) pour qu'ils restent synchronisés. */
+    --ox-danger-veil: rgba(255, 92, 97, 0.24);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   Popup MapLibre
+   ════════════════════════════════════════════════════════════════ */
+.tweet-popup {
+    --tip: var(--ox-border);
+    max-width: none !important;
+}
+
+.tweet-popup:has(.important-tweet) {
+    --tip: var(--ox-danger-line);
+}
+
 .tweet-popup .maplibregl-popup-content {
-    background: #0f1524;
-    border: 1px solid #0f1524;
-    border-radius: 12px;
+    width: 460px;
+    max-width: calc(100vw - 32px);
     padding: 0;
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
-    font-family: 'Roboto Mono', monospace;
-    width: 360px;
     overflow: hidden;
-}
-
-.tweet-popup.maplibregl-popup-anchor-bottom .maplibregl-popup-tip {
-    border-top-color: #0f1524 !important;
-    border-bottom-color: transparent !important;
-    border-left-color: transparent !important;
-    border-right-color: transparent !important;
-}
-
-.tweet-popup.maplibregl-popup-anchor-top .maplibregl-popup-tip {
-    border-bottom-color: #0f1524 !important;
-    border-top-color: transparent !important;
-    border-left-color: transparent !important;
-    border-right-color: transparent !important;
-}
-
-.tweet-popup.maplibregl-popup-anchor-left .maplibregl-popup-tip {
-    border-right-color: #0f1524 !important;
-    border-top-color: transparent !important;
-    border-bottom-color: transparent !important;
-    border-left-color: transparent !important;
-}
-
-.tweet-popup.maplibregl-popup-anchor-right .maplibregl-popup-tip {
-    border-left-color: #0f1524 !important;
-    border-top-color: transparent !important;
-    border-bottom-color: transparent !important;
-    border-right-color: transparent !important;
-}
-
-/* ── Tip rouge quand le tweet est important ── */
-.tweet-popup:has(.important-tweet).maplibregl-popup-anchor-bottom .maplibregl-popup-tip {
-    border-top-color: #ed3f3f !important;
-}
-
-.tweet-popup:has(.important-tweet).maplibregl-popup-anchor-top .maplibregl-popup-tip {
-    border-bottom-color: #ed3f3f !important;
-}
-
-.tweet-popup:has(.important-tweet).maplibregl-popup-anchor-left .maplibregl-popup-tip {
-    border-right-color: #ed3f3f !important;
-}
-
-.tweet-popup:has(.important-tweet).maplibregl-popup-anchor-right .maplibregl-popup-tip {
-    border-left-color: #ed3f3f !important;
+    background: rgba(13, 19, 32, 0.94);
+    -webkit-backdrop-filter: blur(16px) saturate(1.2);
+    backdrop-filter: blur(16px) saturate(1.2);
+    border: 1px solid var(--ox-border);
+    border-radius: 16px;
+    box-shadow:
+        0 18px 48px rgba(0, 0, 0, 0.5),
+        0 2px 8px rgba(0, 0, 0, 0.35);
 }
 
 .tweet-popup:has(.important-tweet) .maplibregl-popup-content {
-    border-color: #ed3f3f !important;
+    border-color: var(--ox-danger-line) !important;
 }
 
-.tweet-popup .maplibregl-popup-tip {
-    border-top-color: #0f1524;
-}
+/* Une seule règle par côté : couvre aussi les ancres top-left, bottom-right, etc. */
+.tweet-popup[class*="anchor-bottom"] .maplibregl-popup-tip { border-top-color: var(--tip) !important; }
+.tweet-popup[class*="anchor-top"] .maplibregl-popup-tip    { border-bottom-color: var(--tip) !important; }
+.tweet-popup[class*="anchor-left"] .maplibregl-popup-tip   { border-right-color: var(--tip) !important; }
+.tweet-popup[class*="anchor-right"] .maplibregl-popup-tip  { border-left-color: var(--tip) !important; }
 
+/* ════════════════════════════════════════════════════════════════
+   Carte (popup + liste)
+   ════════════════════════════════════════════════════════════════ */
 .tweet-card {
     display: flex;
     flex-direction: column;
+    /* Pas de voile bleu/gris de "tap highlight" au toucher sur mobile */
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Tweet important : barre rouge à gauche + léger voile, plus de cadre épais */
+.tweet-card.important-tweet {
+    background: linear-gradient(90deg, var(--ox-danger-veil), transparent 70%);
 }
 
 /* Header */
 .tweet-card-header {
     display: flex;
     align-items: center;
-    gap: 4px;
-    padding: 10px;
+    gap: 10px;
+    padding: 14px 14px 10px;
+}
+
+.tweet-card-meta {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 5px;
 }
 
 .tweet-card-avatar {
-    width: 28px;
-    height: 28px;
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
-    background: #0f1524;
+    background: var(--ox-surface-2);
+    box-shadow: 0 0 0 1px var(--ox-line);
     overflow: hidden;
     flex-shrink: 0;
 }
@@ -88,138 +108,183 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
-}
-
-.tweet-card-username {
-    flex: 1;
-    font-size: 0.7rem;
-    font-weight: 700;
-    color: #e7e9ea;
-}
-
-.tweet-card-time {
-  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-  font-size: 0.6rem;
-  color: #8b949e; 
-  letter-spacing: 0.02em;
-  text-transform: lowercase;
-  display: flex;
-  align-items: center;
-}
-
-
-.close-btn {
-    background: none;
-    border: none;
-    color: #8b949e;
-    cursor: pointer;
-    padding: 6px;
-    border-radius: 100%;
-    display: flex;
-    align-items: center;
-}
-
-.close-btn:hover {
-    color: #f1f1f1;
-    background: #1b2436;
-}
-
-/* Text */
-.tweet-card-text {
-    font-size: 0.6rem;
-    color: #e1e1e1;
-    line-height: 1.6;
-    padding:10px;
-    padding-top: 0px;
-}
-
-/* Images */
-.tweet-card-images {
-    margin: 10px; 
-    margin-top: 0;
-    border-radius: 14px; 
-    overflow: hidden;    
     display: block;
 }
 
-.tweet-card-images img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transition: transform 0.2s ease;
-    cursor: pointer;
-    background: linear-gradient(90deg, #1a1a1a 25%, #2a2a2a 50%, #1a1a1a 75%);
-    background-size: 200% 100%;
-    animation: loading 1.5s infinite;
+.tweet-card-username {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.85rem;
+    font-weight: 650;
+    letter-spacing: -0.005em;
+    color: var(--ox-text);
 }
 
-.tweet-card-images.double img,
-.tweet-card-images.triple img,
-.tweet-card-images.quad img,
-.tweet-card-images.triple .main-img {
-    border-radius: 0 !important; /* On annule les arrondis spécifiques */
+.tweet-card-dot {
+    flex-shrink: 0;
+    font-size: 0.8rem;
+    color: var(--ox-muted);
+}
+
+.tweet-card-time {
+    flex-shrink: 0;
+    white-space: nowrap;
+    font-size: 0.75rem;
+    color: var(--ox-muted);
+    font-variant-numeric: tabular-nums;
+    text-transform: lowercase;
+}
+
+.tweet-card-badge.verified {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+}
+
+.close-btn {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    border-radius: 50%;
+    color: var(--ox-muted);
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.close-btn:hover {
+    color: var(--ox-text);
+    background: var(--ox-surface-3);
+}
+
+.close-btn:focus-visible,
+.tweet-card-link:focus-visible,
+.tweet-card-nav-btn:focus-visible {
+    outline: 2px solid var(--ox-accent);
+    outline-offset: 2px;
+}
+
+/* Tags : pills neutres */
+.tweet-card-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 0 14px 10px;
+}
+
+.tweet-card-tag {
+    --tag-fg: var(--ox-text-2);
+    --tag-bg: var(--ox-surface-2);
+    --tag-bd: var(--ox-border);
+
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 9px;
+    white-space: nowrap;
+    font-size: 0.7rem;
+    font-weight: 600;
+    line-height: 1.35;
+    color: var(--tag-fg);
+    background: var(--tag-bg);
+    border: 1px solid var(--tag-bd);
+    border-radius: 9999px;
+}
+
+/* Seul l'agresseur est teinté (discret), les autres tags restent neutres */
+.tweet-card-tag.aggressor { --tag-bg: rgba(255, 92, 97, 0.08); --tag-fg: #eab9bb; }
+
+/* Texte */
+.tweet-card-text {
+    padding: 0 14px 12px;
+    font-size: 0.84rem;
+    line-height: 1.55;
+    color: var(--ox-text-2);
+    overflow-wrap: break-word;
+}
+
+.tweet-card-text-link {
+    color: var(--ox-accent);
+    text-decoration: none;
+    word-break: break-all; /* les URL longues ne débordent pas de la popup */
+}
+
+.tweet-card-text-link:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.tweet-card-text-link:focus-visible {
+    outline: 2px solid var(--ox-accent);
+    outline-offset: 2px;
+    border-radius: 2px;
+}
+
+/* ── Images ── */
+.tweet-card-images {
+    display: block;
+    margin: 0 14px 12px;
+    overflow: hidden;
+    border-radius: 12px;
+    box-shadow: 0 0 0 1px var(--ox-line);
+}
+
+.tweet-card-images img {
+    display: block;
     width: 100%;
     height: 100%;
     object-fit: cover;
+    cursor: pointer;
+    background: linear-gradient(90deg, #131c2d 25%, #1c2840 50%, #131c2d 75%);
+    background-size: 200% 100%;
+    animation: loading 1.5s infinite;
 }
 
 .tweet-card-images img[src] {
     animation: none;
     background: transparent;
 }
+
 @keyframes loading {
     0%   { background-position: 200% 0; }
     100% { background-position: -200% 0; }
 }
 
 .tweet-card-images.single {
-    height: 180px;
-}
-.tweet-card-images.single img {
-    border-radius: 14px; 
-    width: 100%;
-    height: 180px;
-    object-fit: cover;
-    display: block;
+    height: 200px;
 }
 
-.tweet-card-images.double {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 2px;
-    height: 160px;
-}
-
-.tweet-card-images.double img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-}
-
+.tweet-card-images.double,
 .tweet-card-images.triple {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 2px;
-    height: 160px;
+    height: 170px;
 }
+
 .tweet-card-images.triple .main-img {
     grid-row: 1 / 3;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    border-radius: 13px 0 0 13px;
 }
+
 .tweet-card-images.triple .secondary-imgs {
     display: flex;
     flex-direction: column;
     gap: 2px;
+    min-height: 0;
 }
+
 .tweet-card-images.triple .secondary-imgs img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
     flex: 1;
+    min-height: 0;
 }
 
 .tweet-card-images.quad {
@@ -227,86 +292,646 @@
     grid-template-columns: 1fr 1fr;
     grid-template-rows: 1fr 1fr;
     gap: 2px;
-    height: 180px;
-}
-.tweet-card-images.quad .img-wrapper {
-    position: relative;
-    overflow: hidden;
-}
-.tweet-card-images.quad img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
+    height: 190px;
 }
 
 .img-wrapper {
     position: relative;
     overflow: hidden;
 }
+
 .more-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #fff;
+    background: rgba(8, 12, 20, 0.55);
+}
+
+/* ── Vidéos ── */
+.tweet-card-videos {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 0 14px 12px;
+    /* Zone vidéo : pas de sélection de texte / loupe au toucher prolongé,
+       pas de zoom au double-tap sur les contrôles. */
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    touch-action: manipulation;
+}
+
+/* Cadre vidéo à taille RÉSERVÉE (aspect-ratio) : plus de saut de mise en page
+   (CLS) quand la miniature ou la vidéo arrive. */
+.tweet-card-video {
+    /* --w / --h : dimensions réelles de la vidéo (posées en JS, lues dans l'URL mp4).
+       Le cadre épouse exactement le format : plus de bandes noires en portrait.
+       Sans dimensions connues, repli sur 16/9 comme avant. */
+    --video-max-h: 320px;
+    container: tweet-video / inline-size;
+    position: relative;
+    aspect-ratio: var(--w, 16) / var(--h, 9);
+    width: min(100%, calc(var(--video-max-h) * var(--w, 16) / var(--h, 9)));
+    max-height: var(--video-max-h);
+    overflow: hidden;
+    background: #000;
+    border-radius: 12px;
+    box-shadow: 0 0 0 1px var(--ox-line);
+}
+
+/* Plusieurs vidéos : rangée qui passe à la ligne. Les vidéos étroites (portrait)
+   se placent 2 par 2 ; les paysages gardent toute la largeur (donc une par ligne). */
+.tweet-card-videos.is-multi {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-start;
+}
+
+/* Deux vidéos étroites : elles se partagent 50/50 la largeur du popup.
+   Hauteur fixée à --video-max-h ; le cadre est rempli (object-fit: cover), ce qui rogne
+   légèrement le haut/bas au lieu de laisser des bandes noires ou du vide à droite. */
+.tweet-card-videos.is-multi > .tweet-card-video.is-portrait {
+    width: calc(50% - 3px);
+    height: var(--video-max-h);
+    aspect-ratio: auto;
+}
+
+.tweet-card-videos.is-multi > .tweet-card-video.is-portrait video,
+.tweet-card-videos.is-multi > .tweet-card-video.is-portrait .tweet-card-video-poster img {
+    object-fit: cover;
+}
+
+/* Plein écran : la vidéo reprend son format complet, sans rognage */
+.tweet-card-videos.is-multi > .tweet-card-video.is-portrait:fullscreen video {
+    object-fit: contain;
+}
+
+/* Vidéo en erreur (lien de repli) : le cadre reprend toute la largeur et sa hauteur naturelle */
+.tweet-card-videos.is-multi > .tweet-card-video.is-portrait:has(.tweet-card-video-fallback:not([hidden])) {
+    width: 100%;
+    height: auto;
+}
+
+/* Une vidéo large + une vidéo étroite : même hauteur, largeurs proportionnelles à leur
+   format (flex-grow = largeur/hauteur). Aucun rognage, et la rangée est entièrement remplie. */
+.tweet-card-videos.is-mixed {
+    flex-wrap: nowrap;
+    align-items: flex-start;
+}
+
+.tweet-card-videos.is-multi.is-mixed > .tweet-card-video {
+    flex: calc(var(--w, 16) / var(--h, 9)) 1 0;
+    width: auto;
+    min-width: 0;
+    height: auto;
+    max-height: none;
+    aspect-ratio: var(--w, 16) / var(--h, 9);
+}
+
+/* Une des deux vidéos en erreur : retour à l'empilement */
+.tweet-card-videos.is-mixed:has(.tweet-card-video-fallback:not([hidden])) {
+    flex-wrap: wrap;
+}
+
+.tweet-card-videos.is-mixed > .tweet-card-video:has(.tweet-card-video-fallback:not([hidden])) {
+    flex: 1 1 100%;
+    height: auto;
+    aspect-ratio: auto;
+}
+
+/* Lien de repli affiché (vidéo en erreur) : le cadre reprend sa hauteur naturelle */
+.tweet-card-video:has(.tweet-card-video-fallback:not([hidden])) {
+    aspect-ratio: auto;
+    width: 100%;
+    background: transparent;
+    box-shadow: none;
+}
+
+.tweet-card-video video,
+.tweet-card-video-poster {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.tweet-card-video video {
+    object-fit: contain;
+    background: #000;
+}
+
+/* Lecteur en cours de chargement : invisible (la miniature reste affichée dessous), pour ne
+   jamais montrer l'écran d'erreur natif qui flashe pendant la négociation de la source. */
+.tweet-card-video video.is-loading {
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* Facade : miniature + bouton lecture, le vrai <video> n'est créé qu'au clic */
+.tweet-card-video-poster {
+    padding: 0;
+    border: 0;
+    background: #000;
+    cursor: pointer;
+}
+
+.tweet-card-video-poster img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.tweet-card-video-play {
+    /* Disque gris translucide + triangle blanc. Taille proportionnelle au cadre vidéo
+       (unités de conteneur), bornée pour rester lisible en étroit comme en large. */
+    --play-size: clamp(44px, 15cqw, 60px);
     position: absolute;
     top: 50%;
     left: 50%;
+    width: var(--play-size);
+    height: var(--play-size);
+    display: flex;
+    align-items: center;
+    justify-content: center;
     transform: translate(-50%, -50%);
-    color: white;
-    font-size: 24px;
-    font-weight: bold;
-    z-index: 2;
-    text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+    color: #fff;
+    background: rgba(0, 0, 0, 0.45);
+    border: 0;
+    border-radius: 50%;
+    pointer-events: none;
+    transition: transform 0.15s ease, background 0.15s ease;
 }
 
-/* Location */
+/* Triangle net (sans arrondi) : le glyphe occupe ~45 % de la largeur du SVG,
+   donc un SVG à 75 % du disque donne un triangle d'environ 35 % du disque. */
+.tweet-card-video-play svg {
+    width: 75%;
+    height: 75%;
+}
+
+/* Remplissage forcé même si le SVG a un fill en dur */
+.tweet-card-video-play svg,
+.tweet-card-video-play svg * {
+    fill: currentColor;
+}
+
+.tweet-card-video-poster:hover .tweet-card-video-play {
+    transform: translate(-50%, -50%) scale(1.08);
+    background: rgba(0, 0, 0, 0.6);
+}
+
+.tweet-card-video-poster:focus-visible {
+    outline: 2px solid var(--ox-accent);
+    outline-offset: -2px;
+}
+
+/* ── Contrôles vidéo personnalisés (barre compacte, toujours complète même en portrait) ── */
+.tweet-card-vc,
+.tweet-card-vc * {
+    box-sizing: border-box;
+}
+
+.tweet-card-vc {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 3;
+    padding: 18px 10px 6px;
+    color: #fff;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0));
+    user-select: none;
+}
+
+.tweet-card-vc .vc-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    margin-top: 2px;
+}
+
+.tweet-card-vc .vc-row > * {
+    flex-shrink: 0;
+}
+
+.tweet-card-vc .vc-row > .vc-spacer {
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+.tweet-card-vc .vc-spacer {
+    flex: 1;
+}
+
+.tweet-card-vc .vc-time {
+    font-size: 0.7rem;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    opacity: 0.9;
+}
+
+.tweet-card-vc .vc-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    color: inherit;
+    background: none;
+    border: 0;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: transform 0.15s ease;
+}
+
+/* Pas de fond au survol : le pictogramme s'agrandit simplement */
+.tweet-card-vc .vc-btn:hover {
+    background: none;
+    transform: scale(1.2);
+}
+
+.tweet-card-vc .vc-btn:focus-visible,
+.tweet-card-vc input[type="range"]:focus-visible {
+    outline: 2px solid var(--ox-accent);
+    outline-offset: 1px;
+}
+
+/* Curseurs (progression + volume) : piste remplie jusqu'à --p */
+.tweet-card-vc input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 14px;
+    margin: 0;
+    background: transparent;
+    cursor: pointer;
+    --p: 0%;
+}
+
+.tweet-card-vc .vc-seek {
+    display: block;
+    width: 100%;
+}
+
+/* Largeur verrouillée : un éventuel style global sur input[type=range] (width: 100 %,
+   marges…) ne doit pas faire déborder la rangée ni repousser le bouton plein écran. */
+.tweet-card-vc .vc-row .vc-vol {
+    flex: 0 1 56px;
+    width: 56px;
+    min-width: 0;
+    max-width: 56px;
+    margin: 0 2px;
+    padding: 0;
+}
+
+/* Le temps ne doit jamais pousser les boutons hors du cadre */
+.tweet-card-vc .vc-row > .vc-time {
+    flex-shrink: 1;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.tweet-card-vc input[type="range"]::-webkit-slider-runnable-track {
+    height: 4px;
+    border-radius: 2px;
+    background: linear-gradient(to right, #fff var(--p), rgba(255, 255, 255, 0.3) var(--p));
+}
+
+.tweet-card-vc input[type="range"]::-moz-range-track {
+    height: 4px;
+    border-radius: 2px;
+    background: linear-gradient(to right, #fff var(--p), rgba(255, 255, 255, 0.3) var(--p));
+}
+
+.tweet-card-vc input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+    margin-top: -4px;
+    border: 0;
+    border-radius: 50%;
+    background: #fff;
+}
+
+.tweet-card-vc input[type="range"]::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    border: 0;
+    border-radius: 50%;
+    background: #fff;
+}
+
+/* Groupe volume : bouton muet + curseur. En cadre large, le curseur reste en ligne. */
+.tweet-card-vc .vc-volgroup {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    position: relative;
+}
+
+.tweet-card-vc .vc-volpop {
+    display: contents;
+}
+
+/* Cadre étroit : on retire le timer pour libérer la place, et le curseur
+   de volume reste HORIZONTAL (plus de bulle verticale). */
+@container tweet-video (max-width: 260px) {
+    .tweet-card-vc {
+        padding-left: 8px;
+        padding-right: 8px;
+    }
+
+    .tweet-card-vc .vc-row {
+        gap: 0;
+    }
+
+    /* Boutons resserrés : icône de 18 px dans une zone de 22 px */
+    .tweet-card-vc .vc-btn {
+        width: 22px;
+    }
+
+    .tweet-card-vc .vc-volgroup {
+        gap: 0;
+    }
+
+    .tweet-card-vc .vc-row > .vc-time {
+        display: none;
+    }
+
+    /* Ordre : [lecture][muet + volume] ··· [plein écran] (volume calé à gauche) */
+    .tweet-card-vc .vc-row > .vc-volgroup { order: 1; }
+    .tweet-card-vc .vc-row > .vc-spacer   { order: 2; }
+    .tweet-card-vc .vc-row > .vc-fs       { order: 3; }
+
+    /* Curseur un peu plus court pour tenir même dans un cadre très étroit */
+    .tweet-card-vc .vc-row .vc-vol {
+        flex-basis: 44px;
+        width: 44px;
+        max-width: 44px;
+        margin: 0 4px 0 2px;
+    }
+}
+
+/* Écrans tactiles : le volume se règle avec les boutons du téléphone */
+@media (pointer: coarse) {
+    .tweet-card-vc .vc-row .vc-volpop {
+        display: none;
+    }
+}
+
+/* Plein écran : le cadre reprend tout l'écran, la vidéo reste à son format */
+.tweet-card-video:fullscreen {
+    width: 100%;
+    max-height: none;
+    aspect-ratio: auto;
+    border-radius: 0;
+}
+
+.tweet-card-video-fallback {
+    display: block;
+    padding: 10px 12px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--ox-accent);
+    text-decoration: none;
+    background: var(--ox-surface);
+    border: 1px solid var(--ox-border);
+    border-radius: 12px;
+}
+
+.tweet-card-video-fallback[hidden] {
+    display: none;
+}
+
+/* ── Carrousel de médias (2 médias ou plus) ──
+   Vidéos puis images sur une seule ligne, défilement horizontal avec accroche (scroll-snap)
+   et flèches gauche/droite. Tous les cadres ont la même hauteur (--carousel-h) ; la largeur
+   suit le format de chaque média. Posé par carouselHTML() (JS). */
+.tweet-card-carousel {
+    --carousel-h: 220px;
+    position: relative;
+    margin: 0 14px 12px;
+    /* animation sans effet : sert uniquement à déclencher onanimationstart (calcul initial des flèches) */
+    animation: tweet-carousel-init 0.01s;
+}
+
+@keyframes tweet-carousel-init {
+    from { opacity: 0.999; }
+    to   { opacity: 1; }
+}
+
+.tweet-card-track {
+    position: relative; /* offsetParent des cadres (calcul du défilement des flèches) */
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x pan-y;
+}
+
+.tweet-card-track::-webkit-scrollbar {
+    display: none;
+}
+
+.tweet-card-carousel .tweet-card-slide {
+    flex: 0 0 auto;
+    width: auto;
+    height: var(--carousel-h);
+    max-width: 100%;
+    max-height: none;
+    margin: 0;
+    /* format réel si connu (--w/--h), 4/3 en attendant le chargement de l'image */
+    aspect-ratio: var(--w, 4) / var(--h, 3);
+    scroll-snap-align: start;
+}
+
+/* Vidéo sans dimensions connues : repli 16/9 comme avant */
+.tweet-card-carousel .tweet-card-slide.tweet-card-video {
+    aspect-ratio: var(--w, 16) / var(--h, 9);
+}
+
+/* Vidéo en erreur : le lien de secours prend toute la largeur, hauteur naturelle */
+.tweet-card-carousel .tweet-card-slide:has(.tweet-card-video-fallback:not([hidden])) {
+    width: 100%;
+    height: auto;
+    aspect-ratio: auto;
+}
+
+/* Plein écran : le cadre reprend tout l'écran */
+.tweet-card-carousel .tweet-card-slide.tweet-card-video:fullscreen {
+    max-width: none;
+    aspect-ratio: auto;
+}
+
+.tweet-card-carousel-btn {
+    position: absolute;
+    top: 50%;
+    z-index: 3;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    color: #fff;
+    background: rgba(15, 20, 25, 0.75);
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12);
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+    cursor: pointer;
+    transform: translateY(-50%);
+}
+
+.tweet-card-carousel-btn:hover {
+    background: rgba(39, 44, 48, 0.92);
+}
+
+.tweet-card-carousel-btn:focus-visible {
+    outline: 2px solid var(--ox-accent, #4f9dff);
+    outline-offset: 2px;
+}
+
+.tweet-card-carousel-btn.prev { left: 8px; }
+.tweet-card-carousel-btn.next { right: 8px; }
+
+.tweet-card-carousel.can-prev > .prev,
+.tweet-card-carousel.can-next > .next {
+    display: flex;
+}
+
+/* Écran tactile : flèches conservées (en plus du glissement au doigt), un peu plus grandes */
+@media (hover: none) {
+    .tweet-card-carousel-btn {
+        width: 36px;
+        height: 36px;
+    }
+}
+
+/* ── Vidéo portrait + image(s) côte à côte ──
+   Posé par mediaHTML() (JS) : une seule vidéo plus haute que large, suivie d'images.
+   Si la carte est trop étroite pour les deux, la rangée passe à la ligne (empilé comme avant). */
+.tweet-card-media.is-side {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+    gap: 6px;
+    margin: 0 14px 12px;
+}
+
+.tweet-card-media.is-side > .tweet-card-videos,
+.tweet-card-media.is-side > .tweet-card-images {
+    margin: 0;
+}
+
+/* La colonne vidéo prend exactement la largeur du cadre portrait */
+.tweet-card-media.is-side > .tweet-card-videos {
+    flex: 0 0 auto;
+    width: min(100%, calc(320px * var(--w, 9) / var(--h, 16)));
+}
+
+/* Les images remplissent la place restante, à la hauteur de la vidéo */
+.tweet-card-media.is-side > .tweet-card-images {
+    position: relative;
+    flex: 1 1 140px;
+    min-width: 140px;
+    min-height: 200px; /* hauteur d'origine si la rangée passe à la ligne */
+    height: auto;
+    /* la hauteur naturelle des images ne doit pas agrandir la rangée :
+       elles s'adaptent à la hauteur de la vidéo (étirement du flex) */
+    contain: size;
+}
+
+.tweet-card-media.is-side > .tweet-card-images.single img {
+    position: absolute;
+    inset: 0;
+}
+
+/* Plusieurs images : elles s'empilent dans la colonne de droite */
+.tweet-card-media.is-side > .tweet-card-images.double,
+.tweet-card-media.is-side > .tweet-card-images.triple {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.tweet-card-media.is-side > .tweet-card-images.double img,
+.tweet-card-media.is-side > .tweet-card-images.triple > img {
+    min-height: 0;
+}
+
+.tweet-card-media.is-side > .tweet-card-images.triple .main-img {
+    grid-row: auto;
+}
+
+.tweet-card-media.is-side > .tweet-card-images.triple .secondary-imgs {
+    flex-direction: row;
+}
+
+/* ── Localisation ── */
 .tweet-card-location {
     display: flex;
-    justify-content: flex-end;
-    align-items: center;
-    gap: 4px;          
-    padding-right: 10px;
-    padding-left: 10px;
-    font-size: 0.6rem;
-    font-style: italic;
+    justify-content: flex-start;
+    padding: 0 14px 2px;
 }
 
 .location-name {
-    color: #8b949e;
-    text-align: right;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    font-size: 0.74rem;
+    font-style: normal;
+    color: var(--ox-muted);
+    font-variant-numeric: tabular-nums;
 }
 
 .location-source-icon {
     display: inline-flex;
     align-items: center;
-    color: #8b949e;
+    flex-shrink: 0;
+    color: var(--ox-muted);
     opacity: 0.9;
-    transition: all 0.2s ease;
-    position: relative;
-    top:3px
 }
 
-/* Styles spécifiques aux icônes React Icons */
 .location-source-icon svg {
     width: 14px;
     height: 14px;
 }
 
-/* Actions */
+/* ── Actions ── */
 .tweet-card-actions {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    padding: 10px;
+    justify-content: space-between;
+    padding: 8px 14px 14px;
 }
 
 .tweet-card-link {
-    font-size: .6rem;
-    color: #1c96e9;
-    border-radius: 5px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    font-style: normal;
+    color: var(--ox-accent);
     text-decoration: none;
-    font-style: italic;
+    border-radius: 6px;
 }
 
 .tweet-card-link:hover {
     text-decoration: underline;
+    text-underline-offset: 3px;
 }
 
 .tweet-card-nav {
@@ -316,77 +941,356 @@
 }
 
 .tweet-card-nav-btn {
-    background: transparent;
-    border: none;
-    color: #8b949e;
-    width: .6rem;
-    height: .6rem;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 14px;
+    width: 26px;
+    height: 26px;
+    padding: 0;
     display: flex;
     align-items: center;
     justify-content: center;
+    background: transparent;
+    border: transparent;
+    border-radius: 8px;
+    color: var(--ox-text-2);
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
 }
 
-.tweet-card-nav-btn:hover {
-    background: #1b2436;
-    color: #e6e6e6
+.tweet-card-nav-btn:hover:not(.disabled) {
+    background: var(--ox-surface-3);
+    border-color: #2e3b55;
+    color: var(--ox-text);
 }
 
 .tweet-card-nav-btn.disabled {
-    color: #0f1524;
+    opacity: 0.3;
     cursor: default;
 }
 
-.tweet-card-nav-count {
-    font-size: .6rem;
-    color: #8b949e;
+.tweet-card-nav-btn svg {
+    display: block;
 }
 
-.tweet-card.important-tweet {
-    border: 2px solid #ed3f3f;
-    border-radius: 10px;
+.tweet-card-nav-count {
+    min-width: 28px;
+    text-align: center;
+    font-size: 0.72rem;
+    line-height: 1;
+    color: var(--ox-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+/* ── Vue liste (plusieurs événements au même endroit) ── */
+.tweet-list-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 14px 14px 10px;
+}
+
+.tweet-list-title {
+    font-size: 0.85rem;
+    font-weight: 650;
+    letter-spacing: -0.005em;
+    color: var(--ox-text);
+}
+
+.tweet-list-items {
+    display: flex;
+    flex-direction: column;
+    gap: 0; /* l'espace entre cartes est porté par .tweet-timeline-row (la ligne reste continue) */
+    padding: 0 10px 12px 12px;
+    max-height: min(56vh, 420px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: var(--ox-surface-3) transparent;
+}
+
+.tweet-list-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    width: 100%;
+    padding: 10px 12px;
+    text-align: left;
+    font: inherit;
+    color: inherit;
+    background: var(--ox-surface);
+    border: 1px solid var(--ox-border);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.tweet-list-item:hover {
+    background: var(--ox-surface-2);
+    border-color: #2e3b55;
+}
+
+.tweet-list-item:focus-visible {
+    outline: 2px solid var(--ox-accent);
+    outline-offset: 2px;
+}
+
+.tweet-list-item.important {
+    border-color: var(--ox-danger-line);
+    /* Même voile que le popup important : dégradé rouge posé sur le fond de la carte */
+    background: linear-gradient(90deg, var(--ox-danger-veil), transparent 70%), var(--ox-surface);
+}
+
+.tweet-list-item.important:hover {
+    background: linear-gradient(90deg, var(--ox-danger-veil), transparent 70%), var(--ox-surface-2);
+}
+
+/* Tweet sélectionné dans le SidePanel : même rendu que la carte sélectionnée du panneau.
+   Placé après .important pour l'emporter (même spécificité). */
+.tweet-list-item.selected,
+.tweet-list-item.selected:hover {
+    background: var(--ox-accent-soft);
+    border-color: var(--ox-accent);
+}
+
+.tweet-list-item-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.tweet-list-item-meta {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.72rem;
+    color: var(--ox-muted);
+}
+
+.tweet-list-item-flag {
+    width: 6px;
+    height: 6px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: var(--ox-danger);
+}
+
+.tweet-list-item-user {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 650;
+    color: var(--ox-text);
+}
+
+.tweet-list-item-time {
+    flex-shrink: 0;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.tweet-list-item-summary {
+    margin-top: 4px;
+    font-size: 0.8rem;
+    line-height: 1.45;
+    color: var(--ox-text-2);
+    overflow-wrap: break-word;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
     overflow: hidden;
 }
 
-.tweet-card-badge.verified {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 14px;
-  height: 14px;
-  flex-shrink: 0;
+/* résumé (summary_text) : affiché en entier, sans limite de lignes */
+.tweet-list-item-summary.is-summary {
+    display: block;
+    -webkit-line-clamp: unset;
+    overflow: visible;
 }
 
-.tweet-card-tags {
+.tweet-list-item-thumb {
+    width: 56px;
+    height: 56px;
+    flex-shrink: 0;
+    object-fit: cover;
+    border-radius: 8px;
+    box-shadow: 0 0 0 1px var(--ox-line);
+    background: var(--ox-surface-2);
+}
+
+/* ── Frise chronologique : ligne verticale + un point par événement ── */
+.tweet-timeline-row {
+    --tl-dot: 9px;
+    --tl-dot-y: 17px; /* centre du point, aligné sur la ligne "utilisateur · heure" */
+    --tl-color: var(--ox-surface-3);
+    --tl-gap: 8px; /* espace entre deux cartes */
     display: flex;
-    flex-wrap: wrap;
-    gap: 5px;
-    padding: 0 10px 10px;
+    align-items: stretch;
+    gap: 8px;
+    padding-bottom: var(--tl-gap);
 }
 
-.tweet-card-tag {
-  font-size: .55rem;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: #64748b;
-  background: rgba(100, 116, 139, 0.1);
-  border: 1px solid rgba(100, 116, 139, 0.2);
-  border-radius: 3px;
-  padding: 1px 5px;
-  white-space: nowrap;
+.tweet-timeline-row:last-child {
+    padding-bottom: 0;
 }
 
-.maplibregl-map{
+.tweet-timeline-row .tweet-list-item {
+    flex: 1;
+    min-width: 0;
+    width: auto;
+}
+
+.tweet-timeline-rail {
+    position: relative;
+    flex: 0 0 14px;
+}
+
+/* Trait vertical : pleine hauteur de la ligne (il traverse aussi l'espace entre les cartes) */
+.tweet-timeline-rail::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 0;
+    bottom: calc(-1 * var(--tl-gap)); /* déborde sur l'espace entre cartes : rejoint le rail suivant */
+    width: 2px;
+    transform: translateX(-50%);
+    background: var(--tl-color);
+}
+
+/* Le trait commence au 1er point et s'arrête au dernier */
+.tweet-timeline-row:first-child .tweet-timeline-rail::before {
+    top: var(--tl-dot-y);
+}
+
+.tweet-timeline-row:last-child .tweet-timeline-rail::before {
+    bottom: auto;
+    height: var(--tl-dot-y);
+}
+
+/* Un seul événement dans la frise : pas de trait */
+.tweet-timeline-row:only-child .tweet-timeline-rail::before {
+    display: none;
+}
+
+.tweet-timeline-dot {
+    position: absolute;
+    left: 50%;
+    top: var(--tl-dot-y);
+    width: var(--tl-dot);
+    height: var(--tl-dot);
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: var(--ox-muted);
+    box-shadow: 0 0 0 3px rgba(13, 19, 32, 0.94); /* "découpe" le trait autour du point */
+}
+
+.tweet-timeline-row.important .tweet-timeline-dot {
+    background: var(--ox-danger);
+}
+
+.tweet-timeline-row.selected .tweet-timeline-dot {
+    background: var(--ox-accent);
+}
+
+/* Le petit point rouge de la méta est redondant avec le point de la frise */
+.tweet-timeline-row .tweet-list-item-flag {
+    display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tweet-list-item {
+        transition: none;
+    }
+}
+
+/* Police des labels de la carte (inchangé) */
+.maplibregl-map {
     font-size: inherit !important;
     font-family: inherit !important;
-    font: inherit !important
+    font: inherit !important;
 }
 
-.tweet-card-tag.weapon-type {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
+@media (prefers-reduced-motion: reduce) {
+    .close-btn,
+    .tweet-card-nav-btn,
+    .tweet-card-video-play,
+    .tweet-card-vc .vc-btn {
+        transition: none;
+    }
+
+    .tweet-card-images img {
+        animation: none;
+    }
+}
+
+/* ── Médias repliables (bouton "Afficher les médias") ──
+   Le contenu vit dans un <template> et n'est inséré qu'au clic (voir window.toggleTweetMedia). */
+.tweet-card-media-toggle {
+    margin: 0 14px 12px;
+}
+
+.tweet-card-media-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 11px;
+    font: inherit;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.2;
+    color: var(--ox-text-2);
+    background: var(--ox-surface-2);
+    border: 1px solid var(--ox-border);
+    border-radius: 9999px;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.tweet-card-media-btn:hover {
+    color: var(--ox-text);
+    background: var(--ox-surface-3);
+    border-color: #2e3b55;
+}
+
+.tweet-card-media-btn:focus-visible {
+    outline: 2px solid var(--ox-accent);
+    outline-offset: 2px;
+}
+
+.tweet-card-media-btn svg {
+    flex-shrink: 0;
+    display: block;
+}
+
+.tweet-card-media-btn .chev {
+    transition: transform 0.15s ease;
+}
+
+.tweet-card-media-btn[aria-expanded="true"] .chev {
+    transform: rotate(180deg);
+}
+
+.tweet-card-media-body {
+    margin-top: 10px;
+}
+
+.tweet-card-media-body[hidden] {
+    display: none;
+}
+
+/* Les blocs médias portent déjà leur marge (0 14px 12px) : le conteneur s'en charge ici */
+.tweet-card-media-body > .tweet-card-videos,
+.tweet-card-media-body > .tweet-card-images,
+.tweet-card-media-body > .tweet-card-carousel {
+    margin-left: 0;
+    margin-right: 0;
+}
+
+.tweet-card-media-body > :last-child {
+    margin-bottom: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tweet-card-media-btn,
+    .tweet-card-media-btn .chev {
+        transition: none;
+    }
 }

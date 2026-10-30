@@ -1,170 +1,175 @@
-.events-chart {
-  --evc-bg: #0f1524;
-  --evc-border: #1e2d45;
-  --evc-border-soft: rgb(38, 48, 61);
-  --evc-text: #e2e8f0;
-  --evc-text-muted: #8b949e;
-  --evc-accent: #4f9dff;
-  --evc-accent-soft: rgba(79, 157, 255, 0.12);
+/* Tokens (--ox-*) définis dans popupUtils.css */
 
+
+.events-chart {
   position: relative;
-  background: var(--evc-bg);
-  border-top: 1px solid var(--evc-border-soft);
-  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.35);
-  color: var(--evc-text);
-  font-family: sans-serif;
   flex-shrink: 0;
   z-index: 150;
+  background: var(--ox-bg);
+  border-top: 1px solid var(--ox-border);
+  color: var(--ox-text);
 }
 
-/* Fine accent line signalling "this controls the map's time range" */
-.events-chart::before {
-  content: "";
-  position: absolute;
-  top: -1px;
-  left: 0;
-  right: 0;
-  height: 1px;
-  pointer-events: none;
+/* Le <h2> ne doit pas créer de ligne de texte autour du bouton : sinon la hauteur de la barre
+   dépend de la police (repli système, puis Hanken Grotesk une fois chargée) et change de
+   quelques px à l'arrivée de la police. En flex, la hauteur est celle du bouton, point. */
+.events-chart__heading {
+  display: flex;
+  margin: 0;
 }
 
+/* ── Barre du haut : titre | plage | chevron ── */
 .events-chart__toggle {
   width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 3px 12px;
-  background: transparent;
-  border: none;
-  color: var(--evc-text);
-  cursor: pointer;
-  font-family: 'Roboto Mono', monospace;
-  font-size: .62rem;
-  letter-spacing: 0.03em;
-  transition: background 0.15s ease;
-}
-
-.events-chart__toggle:hover {
-  background: #161e2c;
-}
-
-.events-chart__toggle svg {
-  transition: transform 0.2s ease;
-  flex-shrink: 0;
-  color: var(--evc-text-muted);
-}
-
-.events-chart__toggle:hover svg {
-  color: var(--evc-text);
-}
-
-.events-chart__active-range {
-  margin-left: auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  color: rgb(139, 148, 158);
-  border-radius: 12px;
-  padding: 3px ;
-  font-family: sans-serif;
-  font-size: .58rem;
-  letter-spacing: 0.01em;
-  white-space: nowrap;
-}
-
-.events-chart__body {
-  padding: 4px 12px;
-}
-
-.events-chart__controls {
+  min-height: 44px;
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 6px;
-  flex-wrap: wrap;
-}
-
-.events-chart__controls label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  color: var(--evc-text-muted);
-}
-
-.events-chart__controls input[type="date"] {
-  background: #161e2c;
-  border: 1px solid var(--evc-border);
-  color: var(--evc-text-muted);
-  border-radius: 6px;
-  padding: 3px 6px;
-  font-size: 11px;
-  color-scheme: dark;
-}
-
-.events-chart__apply {
-  background: var(--evc-accent);
+  padding: 6px 12px 6px 16px;      /* même retrait gauche que le SidePanel */
+  background: transparent;
   border: none;
-  color: #0b0c0e;
-  font-weight: 600;
-  border-radius: 6px;
-  padding: 4px 10px;
-  font-size: 11px;
+  color: var(--ox-text);
   cursor: pointer;
+  font: inherit;
+  text-align: left;
   transition: background 0.15s ease;
 }
 
-.events-chart__apply:hover {
-  background: #6cadff;
+.events-chart--open .events-chart__toggle {
+  border-bottom: 1px solid var(--ox-line);
 }
 
-.events-chart__hint {
+.events-chart__toggle:hover {
+  background: var(--ox-surface);
+}
+
+.events-chart__title {
+  font-size: 0.84rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: var(--ox-text);
+  white-space: nowrap;
+}
+
+/* Plage sélectionnée */
+.events-chart__active-range {
   margin-left: auto;
-  color: #6b7076;
-  font-size: 10px;
-  font-style: italic;
-}
-
-.events-chart__loading {
-  height: 80px;
-  display: flex;
+  min-width: 0;
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
   gap: 6px;
+  padding: 5px 11px;
+  background: var(--ox-surface-2);
+  border: 1px solid var(--ox-line);
+  border-radius: 9999px;
+  color: var(--ox-text-2);
+  font-size: 0.72rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
-.events-chart__loading-dot {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--evc-accent);
-  opacity: 0.4;
-  animation: events-chart-dot-pulse 1.2s ease-in-out infinite;
+/* Pendant le tracé : la pastille passe en accent */
+.events-chart__active-range--live {
+  background: var(--ox-accent-soft);
+  border-color: var(--ox-accent);
+  color: var(--ox-accent);
 }
 
-.events-chart__loading-dot:nth-child(2) {
-  animation-delay: 0.2s;
+.events-chart__active-range span {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.events-chart__loading-dot:nth-child(3) {
-  animation-delay: 0.4s;
+/* Chevron : l'orientation dépend de l'état (plus de style inline) */
+.events-chart__chevron {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  padding: 7px;
+  box-sizing: border-box;
+  border-radius: 10px;
+  color: var(--ox-muted);
+  transform: rotate(0deg);
+  transition: transform 0.2s ease, background 0.15s ease, color 0.15s ease;
 }
 
-@keyframes events-chart-dot-pulse {
+.events-chart--closed .events-chart__chevron {
+  transform: rotate(180deg);
+}
 
-  0%,
-  80%,
-  100% {
-    opacity: 0.25;
-    transform: scale(0.8);
-  }
+.events-chart__toggle:hover .events-chart__chevron {
+  background: var(--ox-surface-3);
+  color: var(--ox-text);
+}
 
-  40% {
-    opacity: 1;
-    transform: scale(1);
-  }
+.events-chart__body {
+  padding: 10px 16px 10px 4px;
 }
 
 .events-chart__graph {
   user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;          /* pas de menu contextuel à l'appui long (iOS) */
+  -webkit-tap-highlight-color: transparent;
+  touch-action: none;                   /* le glissement horizontal trace la sélection au lieu de faire défiler la page */
+  cursor: crosshair;
+}
+
+/* ── Tooltip (même surface que les popups de la carte) ── */
+.events-chart__tooltip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+  background: rgba(13, 19, 32, 0.94);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--ox-border);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  font-size: 0.78rem;
+}
+
+.events-chart__tooltip-date {
+  color: var(--ox-muted);
+}
+
+.events-chart__tooltip-count {
+  color: var(--ox-text);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Focus clavier visible */
+.events-chart__toggle:focus-visible {
+  outline: 2px solid var(--ox-accent);
+  outline-offset: -2px;
+}
+
+/* ── Mobile : zones tactiles plus grandes + zone de sécurité du bas ── */
+@media (max-width: 768px) {
+  .events-chart {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .events-chart__toggle {
+    min-height: 48px;
+  }
+
+  .events-chart__chevron {
+    width: 36px;
+    height: 36px;
+    padding: 9px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .events-chart__toggle,
+  .events-chart__chevron,
+  .events-chart__active-range {
+    transition: none;
+  }
 }

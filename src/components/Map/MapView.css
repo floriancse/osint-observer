@@ -1,29 +1,402 @@
+/* Tokens (--ox-*) définis dans popupUtils.css */
+
+.map-root {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  /* Même fond que le spinner / l'app : pas de flash noir pendant le chargement */
+  background: var(--ox-bg, #0d1320);
+}
+
 .map-container {
   width: 100%;
   height: 100%;
   left: 0px;
-  background: radial-gradient(circle at center,
-      #2b3042 0%,
-      #0f1524 70%);
+  background: var(--ox-bg, #0d1320);
+}
+
+/* Tant que le style + les couches ne sont pas prêts (cf. MAP_REVEAL_MODE dans MapView.jsx) :
+   - "canvas" : seule la carte est invisible, les contrôles flottants restent affichés ;
+   - "all"    : la carte et tous ses contrôles sont invisibles.
+   Les éléments restent dans le layout (MapLibre mesure correctement le conteneur). */
+.map-root--canvas:not(.is-ready) > .map-container,
+.map-root--all:not(.is-ready) > *:not(.map-loading) {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.map-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--ox-bg, #0d1320);
+}
+
+/* Fondu à l'apparition (animation et non transition : ne gêne pas les transitions
+   existantes des boutons ; "backwards" => aucun contexte d'empilement après la fin).
+   Mode "none" : pas de fondu. */
+.map-root--canvas.is-ready > .map-container,
+.map-root--all.is-ready > * {
+  animation: ox-map-reveal 0.25s ease backwards;
+}
+
+@keyframes ox-map-reveal {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.maplibregl-popup-content {
+  font: inherit !important;
+}
+
+/* ═══════════════════════════════════════════
+   CONTRÔLES FLOTTANTS (bouton Théâtres, recherche, barre d'outils)
+   ═══════════════════════════════════════════ */
+
+/* Surface "verre" commune */
+.map-toolbar,
+.map-search-input,
+.map-suggest {
+  background: #0c1320;
+
+  border: 1px solid var(--ox-border);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+
+/* Les styles de .map-ctrl-btn vivent dans MapControls.css (chargé avec MapApp). */
+
+/* Barre d'outils en bas à gauche : un seul groupe */
+.map-toolbar {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 13px;
+}
+
+.map-toolbar-item {
+  position: relative;
+  display: flex;
+}
+
+/* Croix "supprimer le rectangle" */
+.map-ctrl-badge {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 15px;
+  height: 15px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--ox-bg);
+  border-radius: 50%;
+  background: var(--ox-danger);
+  color: #fff;
+  line-height: 0;
+  cursor: pointer;
+  box-sizing: content-box;
+  transform: translate(0, 0);
+}
+
+/* ── Barre de recherche ── */
+.map-kw-list {
+  position: absolute;
+  top: 8px;
+  width: 320px;
+  z-index: 999;
+}
+
+.map-search {
+  position: relative;
+  width: 100%;
+}
+
+.map-search-input {
+  width: 100%;
+  height: 34px;
+  box-sizing: border-box;
+  padding: 0 12px 0 34px;
+  border-radius: 11px;
+  color: var(--ox-text);
+  font-size: 0.8rem;
+  outline: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238392a7' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: 11px center;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.map-search-input.has-value {
+  padding-right: 34px;
 }
 
 .map-search-input::placeholder {
-  color: #8b949e;
+  color: var(--ox-muted);
+}
+
+.map-search-input:focus {
+  border-color: var(--ox-accent);
+  box-shadow: 0 0 0 3px var(--ox-accent-soft), 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+
+.map-search-clear {
+  position: absolute;
+  top: 50%;
+  right: 7px;
+  transform: translateY(-50%);
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ox-muted);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.map-search-clear:hover {
+  background: var(--ox-surface-3);
+  color: var(--ox-text);
+}
+
+/* Suggestions */
+.map-suggest {
+  margin-top: 6px;
+  padding: 4px;
+  max-height: 50vh;
+  overflow-y: auto;
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+  scrollbar-width: thin;
+  scrollbar-color: var(--ox-surface-3) transparent;
+}
+
+.map-suggest-title {
+  padding: 8px 10px 4px;
+  font-size: 0.72rem;
+  font-weight: 650;
+  color: var(--ox-muted);
+}
+
+.map-suggest-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  color: var(--ox-text-2);
+  font-size: 0.8rem;
+  line-height: 1.35;
+  cursor: pointer;
+}
+
+.map-suggest-item:hover {
+  background: var(--ox-surface-3);
+  color: var(--ox-text);
+}
+
+.map-suggest-icon {
+  flex-shrink: 0;
+  color: var(--ox-accent);
+}
+
+.map-suggest-term {
+  margin-left: 6px;
+  color: var(--ox-muted);
+}
+
+/* ═══════════════════════════════════════════
+   POPUPS
+   ═══════════════════════════════════════════ */
+
+/* ── Popup chokepoint : ancré dans un coin de la carte (au lieu de suivre le point) ──
+   MapLibre positionne le popup via un transform inline : on l'écrase avec !important.
+   Pour changer de coin, modifie uniquement les 4 lignes top/bottom/left/right. */
+.tweet-popup:has(.chokepoint-popup-inner).maplibregl-popup {
+  position: absolute !important;
+  transform: none !important;
+  top: auto !important;
+  right: auto !important;
+  bottom: 56px !important;   /* bas-gauche, au-dessus de la barre d'outils */
+  left: 8px !important;
+  z-index: 5;
+}
+
+.tweet-popup:has(.chokepoint-popup-inner) .maplibregl-popup-tip {
+  display: none !important;
 }
 
 .tweet-popup:has(.chokepoint-popup-inner) .maplibregl-popup-content {
   width: max-content !important;
-  max-width: 250px !important;
+  max-width: 260px !important;
   white-space: normal !important;
   word-break: break-word !important;
 }
 
-.tweet-popup .maplibregl-popup-content {
-  padding: 0;
-  box-shadow: none;
-  border-radius: 8px;
+.tweet-popup:has(.chokepoint-popup-inner) .maplibregl-popup-content > div {
+  width: 100% !important;
+  box-sizing: border-box !important;
 }
 
+.chokepoint-popup-inner {
+  min-width: 80px;
+  padding: 12px 14px;
+}
+
+.cp-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.cp-name {
+  font-size: 0.84rem;
+  font-weight: 650;
+  color: var(--ox-text);
+}
+
+.cp-status {
+  padding: 2px 8px;
+  font-size: 0.7rem;
+  font-weight: 650;
+  color: rgb(var(--c));
+  background: rgba(var(--c), 0.14);
+  border: 1px solid rgba(var(--c), 0.3);
+  border-radius: 9999px;
+}
+
+.cp-reason {
+  margin-top: 8px;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--ox-text-2);
+}
+
+.cp-duration {
+  margin-top: 6px;
+  color: var(--ox-muted);
+}
+
+/* ── Popup zone de conflit (clusters d'événements) ──
+   Réutilise le conteneur .chokepoint-popup-inner (ancrage dans le coin, largeur, badge .cp-status)
+   via la classe .conflict-zone-popup-inner. Seules les lignes d'acteurs sont spécifiques. */
+.cz-actors {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cz-actors + .cz-actors {
+  margin-top: 8px;
+}
+
+.cz-actors-label {
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--ox-muted);
+}
+
+.cz-actors-list {
+  font-size: 0.78rem;
+  color: var(--ox-text-2);
+}
+
+/* En-tête : la pill "événements" passe AU-DESSUS du nom (comme une étiquette), puis le nom
+   occupe toute la largeur de la popup. Même structure quelle que soit la longueur du nom,
+   et plus de vide à droite du texte. */
+.conflict-zone-popup-inner .cp-head {
+  flex-direction: column-reverse; /* le DOM garde nom puis pill ; l'affichage inverse */
+  align-items: flex-start;
+  flex-wrap: nowrap;
+  gap: 6px;
+}
+
+/* Ligne au-dessus du nom : étiquette "Zone de conflit" + pill du nombre d'événements */
+.cz-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Bloc "Force en présence" : étiquette serrée juste au-dessus du nom de l'acteur */
+.cz-force {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cz-kicker {
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--ox-muted);
+}
+
+.conflict-zone-popup-inner .cp-name {
+  line-height: 1.3;
+  text-wrap: pretty; /* remplit la largeur, évite seulement le mot orphelin */
+}
+
+.conflict-zone-popup-inner .cp-status {
+  white-space: nowrap;
+}
+
+.conflict-zone-popup-inner .cp-reason {
+  margin-top: 10px;
+}
+
+/* Stats historiques de la paire (popup théâtre / frontière) : grille 2×2,
+   étiquette façon .cz-kicker au-dessus de la valeur. */
+.cp-pair-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 14px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--ox-line);
+}
+
+.cp-pair-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.cp-pair-stat-label {
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--ox-muted);
+}
+
+.cp-pair-stat-value {
+  font-size: 0.8rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  color: var(--ox-text);
+}
+
+/* ── Popup survol d'une zone de conflit ── */
 .conflict-popup {
   max-width: none !important;
 }
@@ -36,235 +409,189 @@
 }
 
 .conflict-popup .maplibregl-popup-tip {
-  border-top-color: #2a2a3e !important;
+  border-top-color: var(--ox-border) !important;
 }
 
 .conflict-popup .maplibregl-popup-close-button {
   display: none;
 }
 
-.tweet-popup:has(.chokepoint-popup-inner) .maplibregl-popup-content>div {
-  width: 100% !important;
-  box-sizing: border-box !important;
+.conflict-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  white-space: nowrap;
+  background: rgba(13, 19, 32, 0.94);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--ox-border);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
 }
 
-.maplibregl-popup-content {
-  font: inherit !important;
+.conflict-card-name {
+  align-self: flex-start;
+  padding: 2px 9px;
+  font-size: 0.78rem;
+  font-weight: 650;
+  color: #ffc875;
+  background: rgba(255, 176, 64, 0.12);
+  border: 1px solid rgba(255, 176, 64, 0.26);
+  border-radius: 9999px;
 }
 
-.maplibregl-ctrl-attrib-inner {
-  font-size: .6rem;
+.conflict-card-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--ox-line);
 }
 
+.conflict-card-rows > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 18px;
+}
 
-.tweet-popup:has(.theater-popup-inner) .maplibregl-popup-content {
-  width: fit-content !important;
+.conflict-card-rows dt {
+  font-size: 0.72rem;
+  color: var(--ox-muted);
+}
+
+.conflict-card-rows dd {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 650;
+  color: var(--ox-text);
+  font-variant-numeric: tabular-nums;
 }
 
 /* ═══════════════════════════════════════════
-   THEATER POPUP
+   THÉÂTRES — classes partagées avec TheatersDrawer
+   (tags, pastille de fraîcheur, résumé, événements)
    ═══════════════════════════════════════════ */
 
-.theater-popup-wrap .maplibregl-popup-content {
-  padding: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
-  border-radius: 12px !important;
-  overflow: hidden;
-}
-
-.theater-popup-wrap .maplibregl-popup-tip {
-  border-top-color: #0f1524 !important;
-}
-
-
-
-.theater-popup-wrap .maplibregl-popup-close-button:hover {
-  color: #e2e8f0;
-  background: transparent;
-}
-
-.theater-popup-inner {
-  width: 400px;
-  background: #0f1524;
-  border: 1px solid #1e2d45;
-  border-radius: 12px;
-  font-family: 'Roboto Mono', monospace;
-  overflow: hidden;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
-}
-
-/* ── Header ── */
-.theater-popup-header {
-  padding: 12px 12px 10px 14px;
-  border-bottom: 1px solid #0f1625;
-  background: rgba(15, 22, 37, 0.9);
-}
-
-.theater-popup-header-top {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 6px;
-}
-
-.theater-popup-title {
-  font-size: .7rem;
-  font-weight: 700;
-  color: #e7e9ea;
-  letter-spacing: 0.06em;
-  flex: 1;
-}
-
 .theater-popup-rel-time {
-  font-size: 11px;
-  color: #8b949e;
+  font-size: 0.72rem;
   font-weight: 500;
+  color: var(--ox-muted);
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
-/* Freshness dot */
+/* Pastille de fraîcheur */
 .theater-popup-freshness-dot {
-  width: 7px;
-  height: 7px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   flex-shrink: 0;
 }
 
 .theater-popup-freshness-dot--hot {
-  background: #ef4444;
-  box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5);
+  background: var(--ox-danger);
+  box-shadow: 0 0 0 0 rgba(255, 92, 97, 0.5);
   animation: theater-dot-hot 1.4s ease-in-out infinite;
 }
 
-@keyframes theater-dot-hot {
-  0% {
-    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5);
-  }
-
-  70% {
-    box-shadow: 0 0 0 5px rgba(239, 68, 68, 0);
-  }
-
-  100% {
-    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
-  }
-}
-
 .theater-popup-freshness-dot--warm {
-  background: #f97316;
-  box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.4);
+  background: #ff9f43;
+  box-shadow: 0 0 0 0 rgba(255, 159, 67, 0.4);
   animation: theater-dot-warm 2.4s ease-in-out infinite;
 }
 
-@keyframes theater-dot-warm {
-  0% {
-    box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.4);
-  }
-
-  70% {
-    box-shadow: 0 0 0 5px rgba(249, 115, 22, 0);
-  }
-
-  100% {
-    box-shadow: 0 0 0 0 rgba(249, 115, 22, 0);
-  }
-}
-
 .theater-popup-freshness-dot--cool {
-  background: #eab308;
+  background: #e9c23a;
 }
 
 .theater-popup-freshness-dot--stale {
-  background: #334155;
+  background: #3b4a63;
 }
 
-/* Country tags */
+@keyframes theater-dot-hot {
+  0%   { box-shadow: 0 0 0 0 rgba(255, 92, 97, 0.5); }
+  70%  { box-shadow: 0 0 0 5px rgba(255, 92, 97, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 92, 97, 0); }
+}
+
+@keyframes theater-dot-warm {
+  0%   { box-shadow: 0 0 0 0 rgba(255, 159, 67, 0.4); }
+  70%  { box-shadow: 0 0 0 5px rgba(255, 159, 67, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 159, 67, 0); }
+}
+
+/* Tags pays : lisibles aussi par-dessus une image */
 .theater-popup-countries {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: 5px;
 }
 
 .theater-popup-tag {
-  font-size: .55rem;
+  padding: 3px 9px;
+  font-size: 0.7rem;
   font-weight: 600;
-  letter-spacing: 0.05em;
-  color: #64748b;
-  background: rgba(100, 116, 139, 0.1);
-  border: 1px solid rgba(100, 116, 139, 0.2);
-  border-radius: 3px;
-  padding: 1px 5px;
+  line-height: 1.35;
+  color: var(--ox-text-2);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
   white-space: nowrap;
 }
 
-/* ── Body (scrollable) ── */
-.theater-popup-body {
-  max-height: 420px;
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: #1e2d3d transparent;
-}
-
-.theater-popup-body::-webkit-scrollbar {
-  width: 3px;
-}
-
-.theater-popup-body::-webkit-scrollbar-thumb {
-  background: #1e2d3d;
-  border-radius: 4px;
-}
-
-/* ── Summary block ── */
+/* ── Résumé du théâtre ── */
 .theater-popup-summary {
   position: relative;
-  margin: 0px 12px 0;
-  border-radius: 8px;
+  margin: 0 12px;
+  border-radius: 12px;
   overflow: hidden;
   background-size: cover;
   background-position: center;
-  background-color: #0f1524;
+  background-color: #000;
+  box-shadow: 0 0 0 1px var(--ox-line);
 }
 
 .theater-popup-summary-overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(160deg, rgba(6, 9, 15, 0.9) 0%, rgba(6, 9, 15, 0.7) 30%, rgba(6, 9, 15, 0.4) 60%);
+  background: linear-gradient(160deg, rgba(8, 12, 20, 0.92) 0%, rgba(8, 12, 20, 0.76) 40%, rgba(8, 12, 20, 0.5) 100%);
 }
 
 .theater-popup-summary-inner {
   position: relative;
   z-index: 1;
-  padding: 12px 12px 14px;
+  padding: 14px;
 }
 
 .theater-popup-summary-label {
   display: flex;
   align-items: center;
-  gap: 5px;
-  font-size: .7rem;
+  gap: 6px;
+  margin-bottom: 8px;
+  font-size: 0.75rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
-  color: #4f9dff;
-  margin-bottom: 7px;
+  color: var(--ox-accent);
 }
 
 .theater-popup-summary-text {
-  font-size: .6rem;
-  color: #e2e8f0;
-  line-height: 1.65;
   margin: 0;
-  font-family: sans-serif;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
+  font-size: 0.82rem;
+  line-height: 1.6;
+  color: #e3e8f0;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
 }
 
-/* ── Divider ── */
+/* ── Séparateur ── */
 .theater-popup-divider {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 0 12px;
-  margin: 10px 0 2px;
+  gap: 10px;
+  padding: 0 14px;
+  margin: 16px 0 6px;
 }
 
 .theater-popup-divider::before,
@@ -272,144 +599,115 @@
   content: "";
   flex: 1;
   height: 1px;
-  background: rgb(38, 48, 61);
+  background: var(--ox-line);
 }
 
 .theater-popup-divider span {
-  font-size: .6rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  color: #8b949e;
+  font-size: 0.75rem;
+  font-weight: 650;
+  color: var(--ox-muted);
   white-space: nowrap;
 }
 
-/* ── Events list ── */
+/* ── Événements : vraie chronologie (les événements sont ordonnés dans le temps) ── */
 .theater-popup-events {
   display: flex;
   flex-direction: column;
 }
 
 .theater-popup-event {
-  padding: 10px 14px;
-  border-bottom: 1px solid #0f1625;
+  position: relative;
+  padding: 8px 14px 14px 36px;
 }
 
-.theater-popup-event:last-child {
-  border-bottom: none;
+.theater-popup-event::before {
+  content: "";
+  position: absolute;
+  left: 18px;
+  top: 13px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ox-accent);
+  box-shadow: 0 0 0 3px #0d1320;
+}
+
+.theater-popup-event::after {
+  content: "";
+  position: absolute;
+  left: 21px;
+  top: 24px;
+  bottom: -13px;
+  width: 1px;
+  background: var(--ox-border);
+}
+
+.theater-popup-event:last-child::after {
+  display: none;
 }
 
 .theater-popup-event-date {
-  font-size: .6rem;
-  color: #8b949e;
-  font-weight: 600;
-  letter-spacing: 0.03em;
   margin-bottom: 4px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--ox-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .theater-popup-event-title {
-  font-size: .7rem;
-  font-weight: 600;
-  color: #e7e9ea;
-  line-height: 1.4;
   margin: 0 0 4px;
-  letter-spacing: 0.01em;
-  font-family: sans-serif;
+  font-size: 0.84rem;
+  font-weight: 650;
+  line-height: 1.4;
+  color: var(--ox-text);
 }
 
 .theater-popup-event-summary {
-  font-size: .6rem;
-  color: #e1e1e1;
+  margin: 0;
+  font-size: 0.8rem;
   line-height: 1.6;
-  margin: 0;
-  font-style: italic;
-  font-family: sans-serif;
+  color: var(--ox-text-2);
 }
 
-/* ── Loading ── */
-.theater-popup-loading {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 32px 20px;
-}
-
-.theater-popup-loading-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #86a0c3;
-  animation: theater-dot-pulse 1.2s ease-in-out infinite;
-}
-
-.theater-popup-loading-dot:nth-child(2) {
-  animation-delay: 0.2s;
-}
-
-.theater-popup-loading-dot:nth-child(3) {
-  animation-delay: 0.4s;
-}
-
-@keyframes theater-dot-pulse {
-
-  0%,
-  80%,
-  100% {
-    opacity: 0.2;
-    transform: scale(0.8);
-  }
-
-  40% {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-/* ── Empty / error ── */
+/* ── Vide / erreur ── */
 .theater-popup-empty {
-  padding: 24px 16px;
-  color: #8b949e;
-  font-size: 11px;
   margin: 0;
+  padding: 28px 16px;
+  font-size: 0.8rem;
+  color: var(--ox-muted);
   text-align: center;
-  font-family: sans-serif;
 }
 
 /* ═══════════════════════════════════════════
-   ATTRIBUTION CONTROL — DARK MODE
+   ATTRIBUTION — MODE SOMBRE
    ═══════════════════════════════════════════ */
+
+.maplibregl-ctrl-attrib-inner {
+  font-size: 0.7rem;
+}
 
 .maplibregl-ctrl.maplibregl-ctrl-attrib {
   display: flex !important;
   align-items: center !important;
-  min-height: 24px; 
+  min-height: 24px;
+  background-color: transparent !important;
 }
 
-.maplibregl-ctrl-attrib.maplibregl-compact {
-  background-color: #0f1524 !important;
-  color: #8b949e !important;
+.maplibregl-ctrl-attrib.maplibregl-compact,
+.maplibregl-ctrl-attrib.maplibregl-compact-show {
+  background-color: rgba(13, 19, 32, 0.88) !important;
+  color: var(--ox-muted) !important;
   border-radius: 12px !important;
 }
 
-.maplibregl-ctrl-attrib.maplibregl-compact-show {
-  background-color: #0f1524 !important;
-}
-
-/* Liens dans l'attribution */
 .maplibregl-ctrl-attrib-inner a {
-  color: #e1e1e1 !important;
+  color: var(--ox-text-2) !important;
   text-decoration: none;
 }
 
 .maplibregl-ctrl-attrib-inner a:hover {
   color: #93c5fd !important;
   text-decoration: underline;
-}
-
-/* Bouton toggle (le petit ⓘ) */
-.maplibregl-ctrl-attrib-button {
-  background-color: #0f1524 !important;
-  filter: invert(1) brightness(0.6);
 }
 
 .maplibregl-ctrl-attrib-button:focus,
@@ -422,6 +720,7 @@
   border-radius: 50% !important;
   opacity: 0.85;
   filter: none !important;
+  background-color: transparent !important;
   background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='9' fill='none' stroke='white' stroke-width='2'/%3E%3Crect x='11' y='11' width='2' height='6' fill='white'/%3E%3Crect x='11' y='7' width='2' height='2' fill='white'/%3E%3C/svg%3E") !important;
   background-repeat: no-repeat !important;
   background-position: center !important;
@@ -429,6 +728,145 @@
 }
 
 .maplibregl-ctrl-attrib-button:hover {
-  background-color: #2a3d5a !important;
+  background-color: var(--ox-surface-3) !important;
   opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .map-ctrl-btn,
+  .map-search-input,
+  .map-search-clear {
+    transition: none;
+  }
+}
+
+/* ═══════════════════════════════════════════
+   POPUPS TWEET / THÉÂTRE — "BOTTOM SHEET" MOBILE
+   Appliqué uniquement aux popups marquées "tweet-popup--mobile".
+   La popup est ancrée en bas de l'écran et ne prend que la hauteur
+   nécessaire, avec un plafond pour rester scrollable.
+   ═══════════════════════════════════════════ */
+
+@media (max-width: 768px) {
+  .tweet-popup--mobile.maplibregl-popup {
+    /* Hauteur MAX du bottom sheet : ajuste pour laisser plus ou moins de carte visible. */
+    --sheet-max-h: 45dvh;
+
+    position: fixed !important;
+    top: auto !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    transform: none !important;
+    width: 100% !important;
+    height: auto !important;
+    max-width: none !important;
+    z-index: 1000;
+  }
+
+  .tweet-popup--mobile .maplibregl-popup-tip {
+    display: none !important;
+  }
+
+  .tweet-popup--mobile .maplibregl-popup-content {
+    width: 100% !important;
+    height: auto !important;
+    max-width: none !important;
+    max-height: var(--sheet-max-h) !important;
+    border-radius: 18px 18px 0 0 !important;
+    border-bottom: none !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    box-sizing: border-box;
+    box-shadow: 0 -8px 28px rgba(0, 0, 0, 0.5) !important;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    animation: tweet-sheet-up 0.22s ease-out;
+  }
+
+  @keyframes tweet-sheet-up {
+    from { transform: translateY(100%); }
+    to   { transform: translateY(0); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .tweet-popup--mobile .maplibregl-popup-content {
+      animation: none;
+    }
+  }
+
+  /* Images plafonnées pour ne pas transformer la sheet en plein écran */
+  .tweet-popup--mobile .tweet-card-images {
+    max-height: 22dvh;
+    overflow: hidden;
+  }
+
+  .tweet-popup--mobile .tweet-card-images img {
+    max-height: 22dvh;
+    object-fit: cover;
+  }
+
+  .tweet-popup--mobile .maplibregl-popup-content > div {
+    width: 100% !important;
+    max-width: none !important;
+    box-sizing: border-box;
+  }
+
+  .tweet-popup--mobile .maplibregl-popup-close-button {
+    display: none;
+  }
+
+  /* Vue liste (plusieurs événements au même endroit) : un SEUL conteneur
+     scrollable. La sheet ne scrolle plus, c'est la liste qui scrolle, avec
+     l'en-tête qui reste visible. Évite le scroll imbriqué (sheet + liste). */
+  .tweet-popup--mobile .maplibregl-popup-content:has(.tweet-list) {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden !important;
+  }
+
+  .tweet-popup--mobile .maplibregl-popup-content > .tweet-list {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  .tweet-popup--mobile .tweet-list-header {
+    flex: 0 0 auto;
+  }
+
+  .tweet-popup--mobile .tweet-list-items {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+  }
+
+  .tweet-popup--mobile .tweet-list-item {
+    touch-action: pan-y;
+  }
+
+  /* Barre de recherche : ancrée à droite (5px), largeur = reste de l'écran.
+     `left` vient du style inline de MapView (searchBarLeftOffset + 42). */
+  .map-kw-list {
+    right: 5px !important;
+    width: auto !important;
+    max-width: none !important;
+    box-sizing: border-box;
+  }
+
+  .map-search-input {
+    width: 100% !important;
+    /* 16px minimum : en dessous, iOS Safari zoome la page au focus du champ */
+    font-size: 14px;
+  }
+
+  .theater-popup-freshness-dot--hot,
+  .theater-popup-freshness-dot--warm {
+    animation: none !important;
+    box-shadow: none !important;
+  }
 }

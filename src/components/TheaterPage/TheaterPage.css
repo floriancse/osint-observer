@@ -1,0 +1,735 @@
+@import url("https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:opsz,wght@6..72,400..700&display=swap");
+
+/* Page /content/<slug>/ : style "article de presse".
+   Fond de page sombre + colonne d'article légèrement plus claire (le contraste entre les
+   deux fait ressortir le texte). .tp-root est en fixed + overflow auto :
+   indépendant du layout plein écran de l'app carte. */
+
+.tp-root {
+  /* Palette OSINT Watch (tokens --ox-*). Le fond de page est plus sombre que la
+     colonne d'article : c'est ce contraste qui dessine l'article. */
+  --tp-page: color-mix(in srgb, var(--ox-bg, #0d1320) 72%, #000);
+  --tp-paper: var(--ox-bg, #0d1320);
+  --tp-ink: var(--ox-text, #e8ecf3);
+  --tp-ink-2: var(--ox-text-2, #b8c0cf);
+  --tp-muted: var(--ox-muted, #8b95a7);
+  --tp-rule: var(--ox-line, rgba(255, 255, 255, 0.1));
+  --tp-border: var(--ox-border, #26324a);
+  --tp-accent: var(--ox-accent, #5aa9ff);
+  --tp-link: var(--tp-accent);
+  /* Titres / chapô : serif éditorial. Étiquettes, dates, méta : mono. Corps : sans (Hanken Grotesk). */
+  --tp-serif: "Newsreader", Georgia, "Iowan Old Style", "Palatino Linotype", "Times New Roman", serif;
+  --tp-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+  --tp-sans: "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+
+  position: fixed;
+  inset: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--tp-paper);
+  color: var(--tp-ink);
+  font-family: var(--tp-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── En-tête : bandeau blanc, filet noir dessous ── */
+.tp-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  padding: calc(12px + env(safe-area-inset-top, 0px)) max(clamp(20px, 3.4vw, 44px), env(safe-area-inset-right, 0px)) 12px max(clamp(20px, 3.4vw, 44px), env(safe-area-inset-left, 0px));
+  background: var(--tp-paper);
+  border-bottom: 1px solid var(--tp-accent);
+  /* gauche : retour | centre : marque | droite : vide (garde la marque centrée) */
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+}
+
+.tp-back {
+  justify-self: start;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--tp-ink-2);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+.tp-back:hover { color: var(--tp-accent); }
+.tp-back:focus-visible { outline: 2px solid var(--tp-link); outline-offset: 2px; }
+
+.tp-brand {
+  font-family: var(--tp-serif);
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--tp-ink);
+  text-decoration: none;
+}
+
+.tp-brand:focus-visible,
+.tp-cta:focus-visible,
+.tp-others a:focus-visible {
+  outline: 2px solid var(--tp-link);
+  outline-offset: 2px;
+}
+
+/* ── Fond de page + 3 colonnes : sommaire | article | carte ──
+   Le groupe est centré (justify-content) et l'article a une largeur de lecture
+   fixe : le sommaire à gauche décale donc naturellement le texte vers le centre. */
+.tp-page {
+  box-sizing: border-box;
+  max-width: 1680px;
+  margin: 0 auto;
+  padding: 40px clamp(20px, 3.4vw, 44px) calc(72px + env(safe-area-inset-bottom, 0px));
+  display: grid;
+  grid-template-columns: 232px minmax(0, 760px) 340px;
+  grid-template-areas: "toc article aside";
+  justify-content: center;
+  gap: clamp(32px, 4vw, 72px);
+  align-items: start;
+}
+
+/* Théâtre sans pays (pas de carte) : sommaire + article seulement */
+.tp-page--nomap {
+  grid-template-columns: 232px minmax(0, 760px);
+  grid-template-areas: "toc article";
+}
+
+/* Sans sommaire ni colonne de droite (chargement, erreur, théâtre introuvable) */
+.tp-page--single {
+  max-width: 1100px;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "article";
+  justify-content: stretch;
+}
+
+.tp-article {
+  grid-area: article;
+  box-sizing: border-box;
+  background: transparent;
+  padding: 0;
+  border: none;
+}
+.tp-toc { grid-area: toc; }
+.tp-aside { grid-area: aside; }
+
+/* Ancres du sommaire : on ne passe pas sous l'en-tête collant */
+.tp-article-head,
+.tp-body,
+.tp-event,
+.tp-topics { scroll-margin-top: calc(84px + env(safe-area-inset-top, 0px)); }
+
+/* ── Sommaire sticky (colonne de gauche) ── */
+.tp-toc {
+  position: sticky;
+  top: calc(72px + env(safe-area-inset-top, 0px));
+  align-self: start;
+  max-height: calc(100vh - 92px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--tp-border) transparent;
+}
+
+.tp-toc-title {
+  margin: 0 0 16px;
+  font-family: var(--tp-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1.3;
+}
+
+.tp-toc-list { list-style: none; margin: 0; padding: 0; }
+
+.tp-toc-link {
+  position: relative;
+  display: block;
+  padding: 7px 32px 7px 14px; /* droite : place de la flèche */
+  margin-left: -2px;
+  border-left: 2px solid transparent;
+  color: var(--tp-muted);
+  font-size: 1rem;
+  line-height: 1.35;
+  text-decoration: none;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.tp-toc-link:hover { color: var(--tp-ink); }
+.tp-toc-link.is-active {
+  color: var(--tp-ink);
+  font-weight: 600;
+  border-left-color: var(--tp-accent);
+}
+/* Flèche ← (style Material « arrow_back », blanche), calée au bord droit, centrée sur l'entrée active */
+.tp-toc-link.is-active::after {
+  content: "";
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  width: 18px;
+  height: 18px;
+  transform: translateY(-50%);
+  background: #fff;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z'/%3E%3C/svg%3E") center / contain no-repeat;
+  animation: tp-toc-arrow 0.25s ease both;
+}
+@keyframes tp-toc-arrow {
+  from { opacity: 0; transform: translate(6px, -50%); }
+  to { opacity: 1; transform: translate(0, -50%); }
+}
+.tp-toc-link:focus-visible { outline: 2px solid var(--tp-link); outline-offset: 2px; }
+
+/* Parent d'une sous-entrée active : texte mis en avant, mais ni trait ni flèche */
+.tp-toc-link.is-open { color: var(--tp-ink); font-weight: 600; }
+
+/* Sous-entrées : un titre par résumé quotidien, sous « Événements récents ».
+   Le trait actif reste sur le même rail que les entrées principales ; seule l'indentation du texte change. */
+.tp-toc-sub { list-style: none; margin: 0 0 6px; padding: 0; }
+.tp-toc-link--sub {
+  padding-top: 5px;
+  padding-bottom: 5px;
+  padding-left: 28px;
+  font-size: 0.875rem;
+  line-height: 1.3;
+}
+/* Le clamp est sur le <span>, pas sur le lien : sinon le padding du lien laisse voir un bout de ligne suivante */
+.tp-toc-sub-text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2; /* filet de sécurité : le JS raccourcit déjà le titre */
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+.tp-article-head { margin-bottom: 24px; }
+
+.tp-title {
+  margin: 0;
+  font-family: var(--tp-serif);
+  font-size: clamp(1.9rem, 5.2vw, 2.7rem);
+  line-height: 1.12;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+
+/* Indicateurs (type de conflit, statut) entre le titre et le chapô */
+.tp-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+}
+.tp-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 10px;
+  border: 1px solid var(--tp-border);
+  border-radius: 3px;
+  font-family: var(--tp-mono);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1.3;
+  color: var(--tp-ink-1);
+}
+.tp-tag-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--tp-muted);
+}
+.tp-tag--active { color: var(--tp-ink); }
+.tp-tag--active .tp-tag-dot { background: #3ecf8e; }
+.tp-tag--inactive { color: var(--tp-muted); }
+
+.tp-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  margin: 14px 0 0;
+  font-size: 0.78rem;
+  color: var(--tp-muted);
+  font-family: var(--tp-mono);
+}
+
+.tp-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #6b7686;
+}
+.tp-dot--hot { background: #ff5a4d; }
+.tp-dot--warm { background: #f5a524; }
+.tp-dot--cool { background: #5aa9ff; }
+
+/* Chapô : résumé du théâtre, plus gros que le corps */
+.tp-chapo {
+  margin: 18px 0 0;
+  font-family: var(--tp-sans);
+  font-size: 1.22rem;
+  line-height: 1.5;
+  font-weight: 700;
+  color: var(--tp-ink);
+  white-space: pre-line;
+}
+
+.tp-figure {
+  margin: 0 0 10px;
+}
+
+.tp-figure img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  background: #000;
+}
+
+/* Crédit de l'image, sous l'illustration */
+/* Style « légende de presse » : « Légende. Photo : Auteur / Source » (texte stocké dans TOPICS.CREDIT) */
+.tp-figure-credit {
+  margin: 10px 0 0;
+  font-family: var(--tp-sans);
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--tp-muted);
+}
+.tp-figure-credit a {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--tp-rule);
+  text-underline-offset: 3px;
+}
+.tp-figure-credit a:hover { color: var(--tp-ink); text-decoration-color: currentColor; }
+.tp-figure-credit a:focus-visible { outline: 2px solid var(--tp-link); outline-offset: 2px; }
+
+/* ── Résumés quotidiens ── */
+.tp-h2 {
+  margin: 0;
+  padding: 18px 0 16px;
+  border-top: 1px solid var(--tp-ink);
+  font-family: var(--tp-mono);
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.tp-events { list-style: none; margin: 0; padding: 0; }
+
+.tp-event {
+  padding: 34px 0 36px;
+  border-bottom: 1px solid var(--tp-rule);
+}
+.tp-event:first-child { padding-top: 22px; }
+.tp-event:last-child { border-bottom: none; }
+
+/* Titre au-dessus, date dessous (inversion visuelle, le HTML reste inchangé) */
+.tp-event > article {
+  display: flex;
+  flex-direction: column;
+}
+.tp-event-title { order: 1; }
+.tp-event-date  { order: 2; }
+.tp-event-points { order: 3; }
+.tp-event-sources { order: 4; }
+
+.tp-event-title {
+  margin: 0 0 10px;
+  font-family: var(--tp-serif);
+  font-size: clamp(1.6rem, 2.3vw, 2.2rem);
+  line-height: 1.2;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+.tp-event-date {
+  margin: 0 0 18px;
+  font-size: 0.85rem;
+  color: var(--tp-muted);
+  font-variant-numeric: tabular-nums;
+  font-family: var(--tp-mono);
+}
+
+/* Puces du résumé (puce décalée, texte en Newsreader) */
+.tp-event-points {
+  margin: 0;
+  padding: 0 0 0 2.2em;
+  list-style: disc;
+  font-family: var(--tp-serif) !important;
+  font-size: 1rem;
+  color: var(--tp-ink);
+}
+.tp-event-points li { padding-left: 0.3em; }
+.tp-event-points li + li { margin-top: 0.6em; }
+.tp-event-points li::marker { color: var(--tp-ink); }
+
+.tp-empty,
+.tp-status { color: var(--tp-muted); }
+
+.tp-cta {
+  display: inline-block;
+  margin-top: 28px;
+  padding: 10px 18px;
+  border: 1px solid var(--tp-accent);
+  color: var(--tp-accent);
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+.tp-cta:hover { background: var(--tp-accent); color: var(--tp-page); }
+
+/* ── Autres sujets (bas de l'article) : théâtres actifs + autres théâtres ── */
+.tp-topics {
+  margin-top: 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+}
+
+
+/* ── Références aux tweets (texte souligné + carte au survol) ── */
+.tp-ref-link {
+  text-decoration: underline;
+  text-decoration-color: var(--tp-accent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: background-color 0.15s ease;
+}
+.tp-ref-link:hover,
+.tp-ref-link[aria-expanded="true"] {
+  background: color-mix(in srgb, var(--tp-accent) 16%, transparent);
+}
+.tp-ref-link:focus-visible { outline: 2px solid var(--tp-link); outline-offset: 2px; }
+
+/* Flèche « ouvrir le tweet » après chaque source */
+.tp-ref-ext {
+  margin-left: 4px;
+  color: var(--tp-muted);
+  text-decoration: none;
+}
+.tp-ref-ext:hover { color: var(--tp-accent); }
+.tp-ref-ext:focus-visible { outline: 2px solid var(--tp-link); outline-offset: 2px; }
+
+/* Carte en position fixed : coordonnées calculées en JS, jamais coupée par le défilement */
+.tp-ref-card {
+  position: fixed;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-sizing: border-box;
+  width: min(380px, calc(100vw - 24px));
+  padding: 12px 14px;
+  background: color-mix(in srgb, var(--tp-paper) 88%, #fff);
+  border: 1px solid var(--tp-border);
+  border-radius: 12px;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.35);
+  font-family: var(--tp-sans);
+  font-size: 0.85rem;
+  font-weight: 400;
+  font-style: normal;
+  line-height: 1.5;
+  text-align: left;
+  text-decoration: none;
+  white-space: normal;
+  color: var(--tp-ink-2);
+  cursor: default;
+}
+.tp-ref-meta {
+  font-family: var(--tp-mono);
+  font-size: 0.72rem;
+  color: var(--tp-muted);
+}
+.tp-ref-text { overflow-wrap: anywhere; white-space: pre-line; }
+.tp-ref-open {
+  align-self: flex-start;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--tp-accent);
+  text-decoration: none;
+}
+.tp-ref-open:hover { text-decoration: underline; text-underline-offset: 3px; }
+.tp-ref-open:focus-visible { outline: 2px solid var(--tp-link); outline-offset: 2px; }
+
+/* Ligne « Sources » sous les puces (résumés sans marqueurs dans le texte) */
+.tp-event-sources {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 14px;
+  margin: 16px 0 0;
+  font-size: 0.9rem;
+  color: var(--tp-ink-2);
+}
+.tp-event-sources-label {
+  font-family: var(--tp-mono);
+  font-size: 0.78rem;
+  color: var(--tp-muted);
+}
+
+/* ── Colonne de droite ── */
+.tp-aside {
+  position: sticky;
+  top: calc(72px + env(safe-area-inset-top, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+  max-height: calc(100vh - 92px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--tp-border) transparent;
+}
+
+.tp-panel {
+  background: transparent;
+  border: none;
+  padding: 18px 0 0;
+}
+
+.tp-panel-title,
+.tp-panel-title--small {
+  margin: 0 0 8px;
+  font-family: var(--tp-mono);
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1.3;
+}
+
+/* ── Carte des pays concernés (SVG, sans tuiles ni dépendance) ── */
+.tp-panel--map .tp-panel-title { margin-bottom: 14px; }
+
+.tp-map {
+  --tp-ocean: #090e17;
+  --tp-land: #2a2f3b;
+  --tp-land-line: color-mix(in srgb, var(--tp-paper) 60%, #fff);
+  position: relative;
+  display: block;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  background: var(--tp-ocean);
+  border: 0;
+  border-radius: 4px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.tp-map-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Halo bleuté très discret au centre de la mer (sous le SVG) */
+.tp-map::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 42%, color-mix(in srgb, var(--tp-accent) 11%, transparent), transparent 72%);
+  pointer-events: none;
+}
+
+.tp-map-grid {
+  fill: none;
+  stroke: var(--tp-ink);
+  stroke-opacity: 0.06;
+  stroke-width: 1;
+  stroke-dasharray: 2 5;
+  vector-effect: non-scaling-stroke;
+}
+
+.tp-map-land path {
+  fill: var(--tp-land);
+  stroke: var(--tp-land-line);
+  stroke-opacity: 0.75;
+  stroke-width: 0.5;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+/* Pays concernés : aplat accent + hachures */
+.tp-map-sel path {
+  fill: color-mix(in srgb, var(--tp-accent) 24%, transparent);
+  stroke: var(--tp-accent);
+  stroke-width: 1.4;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  transition: fill 0.2s ease;
+}
+.tp-map:hover .tp-map-sel path { fill: color-mix(in srgb, var(--tp-accent) 36%, transparent); }
+
+.tp-map-hatch path { stroke: none; pointer-events: none; }
+.tp-map-hatch-line { stroke: var(--tp-accent); stroke-width: 1; stroke-opacity: 0.4; }
+
+.tp-map-labels text {
+  font-family: var(--tp-mono);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-anchor: middle;
+  dominant-baseline: central;
+  fill: var(--tp-ink);
+  stroke: var(--tp-ocean);
+  stroke-width: 3;
+  stroke-linejoin: round;
+  paint-order: stroke;
+  pointer-events: none;
+}
+
+.tp-map-ticks {
+  fill: none;
+  stroke: var(--tp-ink);
+  stroke-opacity: 0.35;
+  stroke-width: 1;
+  stroke-linecap: square;
+  vector-effect: non-scaling-stroke;
+}
+
+/* Bouton rond « ouvrir la carte » en bas à droite, comme sur le CFR */
+.tp-map-go {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--tp-ink);
+  color: var(--tp-paper);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+  z-index: 1;
+  transition: transform 0.15s ease;
+}
+.tp-map:hover .tp-map-go { transform: scale(1.08); }
+.tp-map:focus-visible { outline: 2px solid var(--tp-link); outline-offset: 2px; }
+
+.tp-map--loading::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 25%, rgba(255, 255, 255, 0.06) 50%, transparent 75%);
+  background-size: 600px 100%;
+  animation: tp-map-shimmer 1.6s infinite linear;
+}
+@keyframes tp-map-shimmer {
+  from { background-position: -600px 0; }
+  to   { background-position: 600px 0; }
+}
+
+.tp-map-caption {
+  margin: 10px 0 0;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  color: var(--tp-muted);
+}
+
+.tp-ranked {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.tp-ranked li {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--tp-rule);
+}
+.tp-ranked li:last-child { border-bottom: none; }
+
+.tp-rank {
+  font-family: var(--tp-serif);
+  font-size: 1.5rem;
+  line-height: 1;
+  font-weight: 400;
+  color: var(--tp-accent);
+}
+
+.tp-ranked-link {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  color: var(--tp-ink);
+  text-decoration: none;
+}
+.tp-ranked-link:hover .tp-ranked-title { text-decoration: underline; }
+.tp-ranked-link:focus-visible { outline: 2px solid var(--tp-link); outline-offset: 2px; }
+
+.tp-ranked-title {
+  font-family: var(--tp-serif);
+  font-size: 1.08rem;
+  line-height: 1.3;
+}
+
+.tp-ranked-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.74rem;
+  color: var(--tp-muted);
+  font-family: var(--tp-mono);
+}
+
+.tp-others {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.tp-others li { border-bottom: 1px solid var(--tp-rule); }
+.tp-others li:last-child { border-bottom: none; }
+
+.tp-others a {
+  display: block;
+  padding: 11px 0;
+  font-family: var(--tp-serif);
+  font-size: 1.05rem;
+  color: var(--tp-ink);
+  text-decoration: none;
+}
+.tp-others a:hover { color: var(--tp-link); text-decoration: underline; }
+
+/* Tablette / mobile : le sommaire disparaît, la carte passe sous l'article */
+@media (max-width: 1100px) {
+  .tp-page,
+  .tp-page--nomap { grid-template-columns: minmax(0, 1fr); grid-template-areas: "article" "aside"; }
+  .tp-toc { display: none; }
+  .tp-aside { position: static; max-height: none; overflow: visible; }
+  .tp-map { max-width: 640px; }
+}
+
+@media (max-width: 768px) {
+  .tp-page { padding: 24px 20px calc(40px + env(safe-area-inset-bottom, 0px)); gap: 40px; }
+  .tp-map { max-width: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tp-map--loading::after { animation: none; }
+  .tp-map-go,
+  .tp-back,
+  .tp-ref-link,
+  .tp-toc-link { transition: none; }
+  .tp-toc-link.is-active::after { animation: none; }
+}

@@ -1,0 +1,157 @@
+/* Styles des boutons flottants de la carte (.map-ctrl-btn).
+   Fichier chargé EAGERLY par MapApp.jsx : le bouton "rouvrir le panneau" est rendu par
+   MapApp pendant que le chunk lazy de MapView (et donc MapView.css) se télécharge ;
+   sans ces règles il s'affichait brut (non stylé) pendant quelques instants. */
+
+.map-ctrl-btn--float {
+  background: #0c1320;
+  border: 1px solid var(--ox-border);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+
+.map-ctrl-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 20px;
+  background: #0c1320;
+  color: var(--ox-muted);
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.map-ctrl-btn:hover {
+  background: #0c1320;
+  color: var(--ox-text);
+}
+
+.map-ctrl-btn.is-active {
+  background: #0c1320;
+  color: var(--ox-accent);
+}
+
+.map-ctrl-btn:focus-visible,
+.map-ctrl-badge:focus-visible,
+.map-search-clear:focus-visible {
+  outline: 2px solid var(--ox-accent);
+  outline-offset: 2px;
+}
+
+/* Bouton isolé (Théâtres) */
+.map-ctrl-btn.map-ctrl-btn--float {
+  position: absolute;
+  top: 8px;
+  z-index: 999;
+  border: 1px solid var(--ox-border, #26324a);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+
+.map-ctrl-btn--float:hover {
+  border-color: #2e3b55;
+}
+
+.map-ctrl-btn--float.is-active {
+  border-color: var(--ox-accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .map-ctrl-btn { transition: none; }
+}
+
+/* ═══════════════════════════════════════════
+   SPINNER DE LA CARTE (MapSpinner.jsx)
+   Radar : cercles + réticule, faisceau qui tourne, échos rouges synchronisés.
+   ═══════════════════════════════════════════ */
+.ox-spinner {
+  --ox-sp-period: 2.4s;
+  position: relative;
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  box-sizing: border-box;
+  border: 1px solid rgba(79, 157, 255, 0.55);
+  background: rgba(79, 157, 255, 0.04);
+  color: rgba(131, 146, 167, 0.5);
+}
+
+/* Réticule */
+.ox-spinner::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0.45;
+  background:
+    linear-gradient(currentColor, currentColor) center / 1px 100% no-repeat,
+    linear-gradient(currentColor, currentColor) center / 100% 1px no-repeat;
+}
+
+.ox-spinner-ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+  opacity: 0.55;
+}
+
+/* Faisceau : secteur dégradé, bord avant lumineux (à 360° = haut au départ) */
+.ox-spinner-sweep {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    rgba(79, 157, 255, 0) 0deg,
+    rgba(79, 157, 255, 0) 250deg,
+    rgba(79, 157, 255, 0.3) 358deg,
+    rgba(79, 157, 255, 0.95) 360deg
+  );
+  animation: ox-sp-rotate var(--ox-sp-period) linear infinite;
+  animation-delay: var(--ox-sp-t, 0s);
+  will-change: transform;
+}
+
+/* Écho : s'allume quand le faisceau passe (--d = angle / 360 * période), puis s'efface */
+.ox-spinner-blip {
+  --d: 0s;
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  margin: -3px 0 0 -3px;
+  border-radius: 50%;
+  background: #ed0c0c;
+  box-shadow: 0 0 8px rgba(237, 12, 12, 0.9);
+  opacity: 0;
+  animation: ox-sp-blip var(--ox-sp-period) ease-out infinite;
+  animation-delay: calc(var(--ox-sp-t, 0s) + var(--d));
+}
+
+.ox-spinner-core {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 4px;
+  height: 4px;
+  margin: -2px 0 0 -2px;
+  border-radius: 50%;
+  background: var(--ox-accent, #4f9dff);
+}
+
+@keyframes ox-sp-rotate {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes ox-sp-blip {
+  0% { opacity: 1; transform: scale(1.4); }
+  60%, 100% { opacity: 0; transform: scale(0.8); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ox-spinner-sweep { animation-duration: 6s; }
+  .ox-spinner-blip { animation: none; opacity: 0.6; }
+}

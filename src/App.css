@@ -33,3 +33,32 @@
   from { transform: rotate(0deg); }
   to   { transform: rotate(360deg); }
 }
+
+/* ── Conteneur principal de l'app ─────────────────
+   100vh sur mobile = hauteur "barre d'adresse rétractée" : le bas de la page
+   (barre d'outils, chronologie) passe sous l'interface du navigateur.
+   100dvh = hauteur réellement visible. 100vh reste en repli pour les
+   navigateurs anciens (la 2e déclaration l'écrase si dvh est supporté). */
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+}
+
+.app-shell {
+  display: flex;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+/* ── Bouton "rouvrir le SidePanel" ────────────────
+   Le style de base vient de .map-ctrl-btn / .map-ctrl-btn--float (MapView.css) :
+   même taille (34px), même ligne (top: 8px) que le bouton Théâtres et la recherche.
+   Ici, uniquement le miroir de l'icône ("|→" au lieu de "←|"). */
+.sidepanel-reopen svg {
+  display: block;
+  transform: scaleX(-1);
+}

@@ -1,0 +1,34 @@
+/* Titre principal masqué visuellement (lu par Google et les lecteurs d'écran) */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Les titres h2/h3 remplacent des <span>/<div>/<p> : on neutralise les styles par défaut
+   du navigateur. :where() a une spécificité nulle, donc tes règles existantes
+   (font-size, margin...) sur ces classes restent prioritaires. */
+:where(
+  .sp-title,
+  .theaters-drawer-title,
+  .theaters-card-title,
+  .theater-popup-summary-label,
+  .theater-popup-event-title,
+  .events-chart__heading
+) {
+  margin: 0;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+}
+
+/* <h2> qui enveloppe le bouton de la chronologie : aucun impact sur la mise en page */
+.events-chart__heading {
+  display: contents;
+}
