@@ -295,6 +295,56 @@ if (typeof window !== "undefined") {
     if (label) label.textContent = open ? btn.dataset.show : btn.dataset.hide;
   };
 
+  // Texte long : « Lire la suite » / « Réduire ». Le texte court et le texte complet sont
+  // tous deux dans le DOM (simple texte, très léger) ; on bascule leur attribut `hidden`.
+  window.toggleTweetText = (btn) => {
+    const root = btn.closest(".tweet-card-text");
+    const shortEl = root && root.querySelector(".tweet-card-text-short");
+    const fullEl = root && root.querySelector(".tweet-card-text-full");
+    if (!shortEl || !fullEl) return;
+    const open = btn.getAttribute("aria-expanded") === "true";
+
+    // Popup de la carte : MapLibre l'ancre par rapport au point (souvent par le bas), donc
+    // quand le texte grandit, c'est le HAUT de la popup qui bouge. On mesure la position du
+    // haut avant/après et on la compense (propriété CSS `translate`, que MapLibre n'écrase
+    // pas : il ne gère que `transform`). Résultat : le haut reste fixe, le texte se déplie
+    // vers le bas. Dans le SidePanel (pas de .maplibregl-popup) : comportement inchangé.
+    const popup = btn.closest(".maplibregl-popup");
+    const topBefore = popup ? popup.getBoundingClientRect().top : 0;
+
+    shortEl.hidden = !open;
+    fullEl.hidden = open;
+    btn.setAttribute("aria-expanded", String(!open));
+    btn.textContent = open ? btn.dataset.more : btn.dataset.less;
+
+    if (popup) {
+      const delta = topBefore - popup.getBoundingClientRect().top;
+      if (Math.abs(delta) > 0.5) {
+        const shift = (parseFloat(popup.dataset.textShift) || 0) + delta;
+        applyPopupShift(popup, shift);
+      }
+      // Si le contenu de la popup est remplacé (flèches ◀ ▶, retour à la liste…),
+      // le décalage n'a plus lieu d'être : on le remet à zéro.
+      const content = popup.querySelector(".maplibregl-popup-content");
+      if (content && !popup.__shiftObserver) {
+        popup.__shiftObserver = new MutationObserver(() => applyPopupShift(popup, 0));
+        popup.__shiftObserver.observe(content, { childList: true });
+      }
+    }
+  };
+
+  const applyPopupShift = (popup, shift) => {
+    if (Math.abs(shift) < 0.5) {
+      delete popup.dataset.textShift;
+      popup.style.translate = "";
+      popup.classList.remove("is-text-shifted");
+    } else {
+      popup.dataset.textShift = String(shift);
+      popup.style.translate = `0 ${shift}px`;
+      popup.classList.add("is-text-shifted"); // masque la pointe, qui ne vise plus le point
+    }
+  };
+
   // Carrousel de médias : affiche/masque les flèches selon la position de défilement.
   window.syncTweetCarousel = (el) => {
     const root = el && el.closest && el.closest(".tweet-card-carousel");
@@ -528,6 +578,18 @@ export function getLocationName(props, lang) {
   return t?.[lang] || t?.en || props.location_name || "";
 }
 
+// Titre court du tweet dans la langue demandée (carte de survol). Lit
+// `headline_translations` (cf. /bootstrap). Repli : anglais, puis résumé traduit,
+// puis début du texte traduit / brut (tweet pas encore traduit).
+export function getHeadline(props, lang) {
+  const h = parseJSONProp(props.headline_translations, {});
+  const direct = h?.[lang] || h?.en;
+  if (direct) return direct;
+  const s = parseJSONProp(props.summary_translations, {});
+  const tr = parseJSONProp(props.translations, {});
+  return truncate(s?.[lang] || tr?.[lang] || props.text || "", 90);
+}
+
 // Tri chronologique décroissant (le plus récent en premier). À importance égale
 // l'ordre d'origine est conservé (Array.sort est stable). Utilisé par MapView
 // AVANT de construire la pile : la liste ET la vue détaillée (flèches ◀ ▶, index)
@@ -551,13 +613,60 @@ function truncate(value, max) {
   return (lastSpace > max * 0.6 ? cut.slice(0, lastSpace) : cut).trimEnd() + "…";
 }
 
+// Carte compacte affichée au SURVOL d'un point / d'une pile : avatar, titre (langue
+// active), @compte · date relative, pays, « cliquer pour les détails ». Purement
+// informative (pointer-events: none côté CSS) : le clic ouvre le dock comme avant.
+// `countryName` : déjà traduit par l'appelant (MapView). `count` : taille de la pile.
+export function createHoverCardHTML(props, lang = getCurrentLang(), { countryName = "", count = 1 } = {}) {
+  const ui = getUI(lang);
+  const isImportant = ['4', '5'].includes(String(props.importance_score || '0').trim());
+  const rawDate = props.created_at ?? props.date ?? new Date();
+  const username = String(props.username ?? '').replace(/^@/, '');
+  const avatar = avatarCache[props.username]
+    ?? (avatarCache[props.username] = {
+      local: `${process.env.PUBLIC_URL || ""}/img/${encodeURI(props.username)}.jpg`,
+      remote: `https://unavatar.io/twitter/${username}`,
+    });
+  const headline = getHeadline(props, lang);
+  // Initiales du titre : affichées derrière l'avatar, visibles si la photo du compte manque.
+  const initials = Array.from(headline.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => Array.from(w)[0] ?? "").join("")).join("").toUpperCase();
+  // Pays introuvable (point en mer, contours pas encore chargés) : on retombe sur le lieu.
+  const place = countryName || getLocationName(props, lang);
+
+  return `
+  <div class="tweet-hover-card${isImportant ? ' important' : ''}">
+    <div class="tweet-hover-header">
+      <div class="tweet-hover-avatar">
+        <span class="tweet-hover-initials" aria-hidden="true">${escapeHTML(initials)}</span>
+        <img src="${avatar.local}" data-fallback="${avatar.remote}" alt="" loading="eager" onerror="if(this.dataset.fallback){this.src=this.dataset.fallback;delete this.dataset.fallback}else{this.style.display='none'}">
+      </div>
+      <div class="tweet-hover-main">
+        <div class="tweet-hover-meta">
+          <span class="tweet-hover-status${isImportant ? ' important' : ''}" aria-hidden="true"></span>
+          <span class="tweet-hover-user">${escapeHTML(username)}</span>
+          <span class="tweet-card-dot">·</span>
+          <span class="tweet-hover-time"${relativeTimeAttrs(rawDate, lang)}>${getTimeAgo(rawDate, lang)}</span>
+          ${count > 1 ? `<span class="tweet-hover-count">${escapeHTML(ui.moreEvents(count - 1))}</span>` : ''}
+        </div>
+        <div class="tweet-hover-headline">${escapeHTML(headline)}</div>
+      </div>
+    </div>
+    <div class="tweet-hover-footer">
+      <span class="tweet-hover-country">${escapeHTML(place)}</span>
+      <span class="tweet-hover-cta">${escapeHTML(ui.clickForDetails)}</span>
+    </div>
+  </div>`;
+}
+
 // Vue "liste" d'une pile de tweets (plusieurs événements au même endroit).
 // `features` doit déjà être triée par date décroissante (sortFeaturesByDateDesc) :
 // le plus récent apparaît en premier, sur une frise verticale (ligne + point). Un clic sur une ligne appelle
 // window.navigateTweet(index), qui ouvre la vue détaillée de ce tweet.
 // `selectedId` : id du tweet sélectionné dans le SidePanel (facultatif). La ligne
 // correspondante est surlignée (classe "selected" + aria-current).
-export function createPopupListHTML(features, lang = getCurrentLang(), selectedId = null) {
+// `title` (facultatif) : nom du lieu affiché dans l'en-tête (popup d'une ville : « Kharkiv,
+// Ukraine » + nombre de tweets). Sans titre, on garde le libellé d'origine « N événements ici ».
+export function createPopupListHTML(features, lang = getCurrentLang(), selectedId = null, title = null) {
   const ui = getUI(lang);
 
   const items = features.map((feature, index) => {
@@ -592,7 +701,7 @@ export function createPopupListHTML(features, lang = getCurrentLang(), selectedI
             ${isImportant ? '<span class="tweet-list-item-flag" aria-hidden="true"></span>' : ''}
             <span class="tweet-list-item-user">${escapeHTML(username)}</span>
             <span class="tweet-card-dot">·</span>
-            <span class="tweet-list-item-time">${getTimeAgo(rawDate, lang)}</span>
+            <span class="tweet-list-item-time"${relativeTimeAttrs(rawDate, lang)}>${getTimeAgo(rawDate, lang)}</span>
           </div>
           <div class="tweet-list-item-summary${isSummary ? ' is-summary' : ''}">${escapeHTML(summary)}</div>
         </div>
@@ -604,7 +713,9 @@ export function createPopupListHTML(features, lang = getCurrentLang(), selectedI
   return `
   <div class="tweet-card tweet-list">
     <div class="tweet-list-header">
-      <span class="tweet-list-title">${ui.eventsAtLocation(features.length)}</span>
+      ${title
+        ? `<span class="tweet-list-title tweet-list-title--place"><span class="tweet-list-place">${escapeHTML(title)}</span><span class="tweet-list-count" title="${escapeHTML(ui.eventsAtLocation(features.length))}">${features.length}</span></span>`
+        : `<span class="tweet-list-title">${ui.eventsAtLocation(features.length)}</span>`}
       <button onclick="window.closePopup()" class="close-btn"><svg width="8" height="8" viewBox="0 0 14 14" fill="none">
         <path d="M1 1l12 12M13 1L1 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
       </svg></button>
@@ -695,6 +806,31 @@ export const getTimeAgo = (dateString, lang = getCurrentLang()) => {
   return date.toLocaleDateString((DATE_LOCALES[lang] || DATE_LOCALES.en), { day: 'numeric', month: 'short' });
 };
 
+// ── Heure relative auto-rafraîchie ──
+// Les temps (« il y a 3 h ») vivent dans du HTML injecté à la main (popups de la
+// carte et cartes du SidePanel) : React ne les re-rend pas. On mémorise donc
+// l'horodatage brut (data-ts) et la langue (data-lang) sur chaque élément au
+// rendu, et ce minuteur global met leur texte à jour toutes les 5 minutes.
+const RELATIVE_TIME_REFRESH_MS = 5 * 60 * 1000;
+
+// Attributs posés sur les <span> de temps par createPopupHTML / createPopupListHTML.
+const relativeTimeAttrs = (rawDate, lang) => {
+  const iso = new Date(rawDate).toISOString();
+  if (iso === "Invalid Date") return ""; // date illisible : pas de rafraîchissement possible
+  return ` data-ts="${iso}" data-lang="${escapeHTML(lang)}"`;
+};
+
+if (typeof window !== "undefined" && !window.__relativeTimeTimer) {
+  window.__relativeTimeTimer = setInterval(() => {
+    if (document.visibilityState !== "visible") return; // onglet masqué : inutile
+    document
+      .querySelectorAll(".tweet-card-time[data-ts], .tweet-list-item-time[data-ts], .tweet-hover-time[data-ts]")
+      .forEach((el) => {
+        el.textContent = getTimeAgo(el.dataset.ts, el.dataset.lang || getCurrentLang());
+      });
+  }, RELATIVE_TIME_REFRESH_MS);
+}
+
 const avatarCache = {};
 
 // true : les médias des popups sont repliés par défaut (bouton "Afficher les médias").
@@ -749,7 +885,18 @@ export function createPopupHTML(props, pinned, currentIndex, totalCount, showIma
     });
   const rawText = translations?.[lang] || props.text;
   const locationName = getLocationName(props, lang);
-  const text = linkifyText(truncateKeepingUrls(rawText, 500));
+  const fullText = String(rawText ?? "");
+  const shortText = truncateKeepingUrls(fullText, 500);
+  const isLongText = shortText !== fullText; // truncateKeepingUrls ajoute « … » quand il coupe
+  const ui = getUI(lang);
+  const textHTML = isLongText
+    ? `<div class="tweet-card-text">
+        <span class="tweet-card-text-short">${linkifyText(shortText)}</span><span class="tweet-card-text-full" hidden>${linkifyText(fullText)}</span>
+        <button type="button" class="tweet-card-more" aria-expanded="false"
+          data-more="${escapeHTML(ui.readMore)}" data-less="${escapeHTML(ui.readLess)}"
+          onclick="window.toggleTweetText(this)">${escapeHTML(ui.readMore)}</button>
+      </div>`
+    : `<div class="tweet-card-text">${linkifyText(shortText)}</div>`;
   const LIST_ICON = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>`;
   const CHEVRON_LEFT = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>`;
   const CHEVRON_RIGHT = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>`;
@@ -762,14 +909,14 @@ export function createPopupHTML(props, pinned, currentIndex, totalCount, showIma
       <div class="tweet-card-meta">
         <span class="tweet-card-username">${props.username.replace(/^@/, '')}</span>
         ${(props.verified === true || props.verified === 'true') ? `
-        <span class="tweet-card-badge verified" title="OSINT Observer verified">
+        <span class="tweet-card-badge verified" title="OSINT Watch verified">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M8 1.5L2 4v4c0 3.5 2.5 5.8 6 7 3.5-1.2 6-3.5 6-7V4L8 1.5z" fill="rgba(79,157,255,0.22)" stroke="#4f9dff" stroke-width="1"/>
             <path d="M5.5 8l2 2 3-3" stroke="#4f9dff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </span>` : ''}
         <span class="tweet-card-dot">·</span>
-        <span class="tweet-card-time">${displayTime}</span>
+        <span class="tweet-card-time"${relativeTimeAttrs(rawDate, lang)}>${displayTime}</span>
       </div>
       ${showBack ? '' : `
       <button onclick="window.closePopup()" class="close-btn"><svg width="8" height="8" viewBox="0 0 14 14" fill="none">
@@ -778,7 +925,7 @@ export function createPopupHTML(props, pinned, currentIndex, totalCount, showIma
     </div>
     ${tagsHTML(props, lang)}
 
-    <div class="tweet-card-text">${text}</div>
+    ${textHTML}
     ${mediaHTML(videos, images, showImages, lang, priority, props.username, collapseMedia)}
     ${locationName || props.latitude ? `
       <div class="tweet-card-location">

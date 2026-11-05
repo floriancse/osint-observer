@@ -17,32 +17,27 @@ function endOfDay(d) {
   return copy;
 }
 
-// Lundi 00:00 de la semaine en cours (semaine à la française).
-function startOfWeek(d) {
-  const copy = startOfDay(d);
-  const sinceMonday = (copy.getDay() + 6) % 7; // lundi = 0 … dimanche = 6
-  copy.setDate(copy.getDate() - sinceMonday);
-  return copy;
-}
-
-// 1er du mois en cours, 00:00.
-function startOfMonth(d) {
-  const copy = startOfDay(d);
-  copy.setDate(1);
-  return copy;
-}
-
 // Périodes proposées dans le SidePanel (voir PeriodPicker). Les autres valeurs
 // gérées plus bas ("1h", "6h", "24h", "7d", "14d", "custom") restent acceptées
 // pour ne pas casser d'éventuels liens / UrlStateSync existants.
+//
+// Périodes en heures GLISSANTES (et non calendaires) :
+//   today = 24 h   | week = 168 h (7 jours)   | month = 720 h (30 jours)
+// Chaque période couvre donc toujours exactement N heures en arrière à partir
+// de maintenant, quel que soit le jour/heure de la sélection.
 export const PERIOD_PRESETS = ["today", "week", "month"];
 export const DEFAULT_PERIOD = "today";
+
+// Durées (en heures) des périodes glissantes du sélecteur.
+export const PERIOD_HOURS = { today: 24, week: 168, month: 720 };
 
 export function TimeProvider({ children }) {
   // Plus de graphique : la période est définitive dès le premier rendu
   // (avant, "24h" n'était qu'un placeholder remplacé par EventsChart).
   const [selectedPeriod, setSelectedPeriod] = useState(DEFAULT_PERIOD);
   const [customRange, setCustomRange] = useState(null);
+  // Incrémenté par refreshRange() : force le recalcul de timeRange (nouveau "maintenant").
+  const [nowTick, setNowTick] = useState(0);
 
   const timeRange = useMemo(() => {
     if (selectedPeriod === "custom" && customRange) {
@@ -58,14 +53,16 @@ export function TimeProvider({ children }) {
 
     switch (selectedPeriod) {
       case "today":
-        // "Aujourd'hui" = les dernières 24 h glissantes (et non le jour calendaire).
+        // 24 dernières heures glissantes.
         start.setHours(start.getHours() - 24);
         break;
       case "week":
-        start = startOfWeek(now);
+        // 168 dernières heures glissantes (7 jours), et non la semaine calendaire.
+        start.setHours(start.getHours() - 168);
         break;
       case "month":
-        start = startOfMonth(now);
+        // 720 dernières heures glissantes (30 jours), et non le mois calendaire.
+        start.setHours(start.getHours() - 720);
         break;
       case "1h":
         start.setHours(start.getHours() - 1);
@@ -97,7 +94,13 @@ export function TimeProvider({ children }) {
       end: now.toISOString(),
       label: selectedPeriod,
     };
-  }, [selectedPeriod, customRange]);
+    // nowTick : volontairement dans les dépendances (relance le calcul avec la date du moment)
+  }, [selectedPeriod, customRange, nowTick]);
+
+  // Recalcule les périodes relatives ("today", "week", "month"…) avec l'heure actuelle.
+  // Sans ça, `end` reste figé à l'instant où la période a été choisie et les tweets arrivés
+  // depuis sont filtrés. Une période personnalisée (dates choisies par l'utilisateur) ne bouge pas.
+  const refreshRange = useCallback(() => setNowTick((t) => t + 1), []);
 
   const changePeriod = useCallback((newPeriod) => {
     setSelectedPeriod(newPeriod);
@@ -113,7 +116,7 @@ export function TimeProvider({ children }) {
   }, []);
 
   return (
-    <TimeContext.Provider value={{ timeRange, selectedPeriod, changePeriod, setRange, rangeReady: true, markRangeReady: noop }}>
+    <TimeContext.Provider value={{ timeRange, selectedPeriod, changePeriod, setRange, refreshRange, rangeReady: true, markRangeReady: noop }}>
       {children}
     </TimeContext.Provider>
   );

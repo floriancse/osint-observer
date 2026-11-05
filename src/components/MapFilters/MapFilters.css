@@ -1,23 +1,27 @@
-/* Tokens (--ox-*) définis dans popupUtils.css */
+/* Tokens (--ox-*) définis dans popupUtils.css.
+   Les replis neutres reprennent ceux de TopBar.css (palette sans teinte bleutée). */
 
 .map-floating-filters {
   position: absolute;
   bottom: 56px;               /* au-dessus de la barre d'outils */
-  left: 8px;
+  /* --sp-offset est posé par MapApp sur la zone carte : largeur dont le SidePanel flottant
+     recouvre la carte (0 s'il est replié ou sur mobile). Même décalage que .map-toolbar. */
+  left: calc(var(--sp-offset, 0px) + 8px);
   z-index: 998;
   width: 300px;
-  max-width: calc(100vw - 16px);
+  max-width: calc(100% - var(--sp-offset, 0px) - 16px);
   max-height: min(60vh, 440px);
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: rgba(13, 19, 32, 0.94);
-  -webkit-backdrop-filter: blur(16px) saturate(1.2);
-  backdrop-filter: blur(16px) saturate(1.2);
-  border: 1px solid var(--ox-border);
-  border-radius: 16px;
-  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.35);
-  color: var(--ox-text);
+  background: var(--ox-bg, #0c0c0c);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  backdrop-filter: blur(14px) saturate(1.2);
+  border: 1px solid var(--ox-border, #2a2a2a);
+  border-radius: 18px;
+  /* Même ombre que les menus du SidePanel (.sp-lang-menu) */
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.35);
+  color: var(--ox-text, #f2f2f2);
   font-family: "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
@@ -31,7 +35,7 @@
   flex-direction: column;
   gap: 16px;
   scrollbar-width: thin;
-  scrollbar-color: var(--ox-surface-3) transparent;
+  scrollbar-color: var(--ox-surface-3, #262626) transparent;
 }
 
 .mf-section {
@@ -42,7 +46,7 @@
 
 .mf-section + .mf-section {
   padding-top: 14px;
-  border-top: 1px solid var(--ox-line);
+  border-top: 1px solid var(--ox-line, #222222);
 }
 
 .mf-title {
@@ -54,7 +58,7 @@
   font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: -0.005em;
-  color: var(--ox-text);
+  color: var(--ox-text, #f2f2f2);
 }
 
 /* Nombre de filtres actifs dans la section */
@@ -91,6 +95,7 @@
   --mf-bd: rgba(45, 212, 191, 0.42);
 }
 
+/* Puces en pastille, comme les boutons de la nav (.topbar-btn) */
 .mf-chip {
   display: inline-flex;
   align-items: center;
@@ -104,18 +109,18 @@
   font-weight: 600;
   line-height: 1.25;
   text-align: left;
-  color: var(--ox-text-2);
-  background: var(--ox-surface-2);
-  border: 1px solid var(--ox-line);
+  color: var(--ox-text-2, #c7c7c7);
+  background: var(--ox-surface-2, #1a1a1a);
+  border: 1px solid var(--ox-line, #222222);
   border-radius: 9999px;
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
 .mf-chip:hover {
-  background: var(--ox-surface-3);
-  border-color: #2e3b55;
-  color: var(--ox-text);
+  background: var(--ox-surface-3, #262626);
+  border-color: #333333;
+  color: var(--ox-text, #f2f2f2);
 }
 
 .mf-chip[aria-pressed="true"] {
@@ -125,7 +130,7 @@
 }
 
 .mf-chip:focus-visible {
-  outline: 2px solid var(--ox-accent);
+  outline: 2px solid var(--ox-accent, #5aa9ff);
   outline-offset: 2px;
 }
 
@@ -139,9 +144,9 @@
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
-  border: 1.5px solid rgba(131, 146, 167, 0.55);
+  border: 1.5px solid #5c5c5c;
   border-radius: 50%;
-  color: #0d1320;
+  color: var(--ox-bg, #0c0c0c);
   transition: background 0.15s ease, border-color 0.15s ease;
 }
 
@@ -152,7 +157,7 @@
 }
 
 .mf-chip:hover .mf-box {
-  border-color: var(--ox-text-2);
+  border-color: var(--ox-text-2, #c7c7c7);
 }
 
 .mf-chip[aria-pressed="true"] .mf-box {
@@ -176,13 +181,11 @@
   font-size: 0.68rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  color: var(--ox-text-3, rgba(131, 146, 167, 0.9));
-  opacity: 0.85;
+  color: var(--ox-muted, #8a8a8a);
 }
 
 .mf-chip[aria-pressed="true"] .mf-n {
   color: var(--mf-fg);
-  opacity: 1;
 }
 
 /* Aucun résultat avec les autres filtres : puce atténuée mais cliquable */

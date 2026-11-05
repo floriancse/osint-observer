@@ -2,6 +2,9 @@ import { buildEnrichedTweets } from "./utils/tweetFilters";
 import BootScreen from "./components/BootScreen/BootScreen";
 import SidePanelBase from "./components/SidePanel/SidePanel";
 import ContentPanelBase from "./components/ContentPanel/ContentPanel";
+import TopBar from "./components/TopBar/TopBar";
+import { briefPath } from "./utils/briefRoute";
+import { theatersIndexPath } from "./utils/theatersIndexRoute";
 import { TimeProvider, useTime } from "./context/TimeContext";
 import { LayerProvider } from "./context/LayerContext";
 import { BootstrapProvider, useBootstrap } from "./context/BootstrapContext";
@@ -14,6 +17,7 @@ import MapSpinner, { SHOW_MAP_SPINNER } from "./components/Map/MapSpinner";
 import "./seo-headings.css";
 import UrlStateSync from "./components/UrlStateSync/UrlStateSync";
 import { readUrlState } from "./utils/urlState";
+import usePersistentState from "./utils/usePersistentState";
 
 // MapFilters chargé en différé : fermé par défaut, inutile de le télécharger avant le premier affichage.
 // memo() appliqué dans le then() : le composant ne se re-rend que si ses props changent.
@@ -57,7 +61,7 @@ function MapLoadingPlaceholder() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "var(--ox-bg, #0d1320)",
+        background: "var(--ox-bg, #111111)",
       }}
     >
       {SHOW_MAP_SPINNER && <MapSpinner />}
@@ -108,27 +112,39 @@ export default function MapApp() {
   const [contentPanelOpen, setContentPanelOpen] = useState(true);
   const [openPanel, setOpenPanel] = useState(null);
   const [sidePanelCollapsed, setSidePanelCollapsed] = useState(false);
+  // Tiroir Théâtres : l'état vit dans MapView, il nous est remonté pour la topbar.
+  const [theatersOpen, setTheatersOpen] = useState(false);
+  // Desktop = SidePanel flottant au-dessus de la carte (voir TopBar.css) ; mobile = plein écran.
+  const [isDesktop, setIsDesktop] = useState(() =>
+    typeof window === "undefined" ? true : window.matchMedia("(min-width: 769px)").matches
+  );
   const mapRef = useRef(null);
+  // Zone de droite (carte) + mesure du recouvrement par le SidePanel flottant : la variable CSS
+  // --sp-offset décale la barre d'outils (.map-toolbar) pour qu'elle reste visible à côté du panneau.
+  const mapZoneRef = useRef(null);
   // État initial lu UNE SEULE FOIS depuis l'URL (permalinks), voir utils/urlState.js.
   // UrlStateSync nettoie ensuite la barre d'adresse : on fige donc la lecture
   // pour ne plus dépendre de window.location aux rendus suivants.
   const initialUrlState = useRef(null);
   if (initialUrlState.current === null) initialUrlState.current = readUrlState();
   const init = initialUrlState.current;
-  const [activeLabel, setActiveLabel] = useState(() => init.label);
-  const [filtersOpen, setFiltersOpen] = useState(
-    () => init.weapons.length > 0 || init.objectives.length > 0
-  );
-  const [activeWeaponTypes, setActiveWeaponTypes] = useState(() => init.weapons);
-  const [activeObjectiveTypes, setActiveObjectiveTypes] = useState(() => init.objectives);
+  // Filtres / sujet / recherche conservés au rechargement (localStorage).
+  // Si l'URL (permalien) porte déjà une valeur, elle gagne sur la valeur sauvegardée.
+  const urlHasFilters = init.weapons.length > 0 || init.objectives.length > 0;
+  const [activeLabel, setActiveLabel] = usePersistentState("map.label", () => init.label, Boolean(init.label));
+  const [filtersOpen, setFiltersOpen] = usePersistentState("map.filtersOpen", () => urlHasFilters, urlHasFilters);
+  const [activeWeaponTypes, setActiveWeaponTypes] = usePersistentState("map.weapons", () => init.weapons, init.weapons.length > 0);
+  const [activeObjectiveTypes, setActiveObjectiveTypes] = usePersistentState("map.objectives", () => init.objectives, init.objectives.length > 0);
   // searchText est débouncé (300ms) à la source, directement dans MapView
   // (l'input local n'y remonte la valeur qu'après une pause de frappe). Donc
   // ici, App reçoit déjà une valeur "stable".
-  const [searchText, setSearchText] = useState(() => init.search);
+  const [searchText, setSearchText] = usePersistentState("map.search", () => init.search, Boolean(init.search));
   // Rectangle / pays remontés par MapView : plus lus ici depuis la suppression du graphique
   // (on garde seulement les setters car MapView les appelle).
   const [, setSpatialRectangle] = useState(() => init.rectangle);
-  const [, setSelectedCountry] = useState(null);
+  // Pays sélectionné sur la carte (clic ; reclic = désélection -> null).
+  // Conservé ici pour être affiché dans le SidePanel (sp-title-group).
+  const [selectedCountry, setSelectedCountry] = useState(null);
   // La carte est-elle montée ? Toujours sur desktop ; sur mobile seulement sur demande
   // (voir DEFER_MAP_ON_MOBILE).
   const [mapRequested, setMapRequested] = useState(() => {
@@ -150,6 +166,12 @@ export default function MapApp() {
     mq.addEventListener?.("change", onChange);
     return () => mq.removeEventListener?.("change", onChange);
   }, [mapRequested]);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 769px)");
+    const onChange = () => setIsDesktop(mq.matches);
+    mq.addEventListener?.("change", onChange);
+    return () => mq.removeEventListener?.("change", onChange);
+  }, []);
   // Écran de chargement plein page : reste affiché tant que MapView n'a pas
   // fini de charger les données (bootstrap + sources MapLibre).
   const [appLoading, setAppLoading] = useState(true);
@@ -241,6 +263,50 @@ export default function MapApp() {
   const handleToggleFilters = useCallback(() => setFiltersOpen((v) => !v), []);
   const handleTweetPopupClose = useCallback(() => setSelectedTweetId(null), []);
   const handleToggleContentPanel = useCallback(() => setContentPanelOpen((v) => !v), []);
+  // Le résumé du jour a sa propre page : /content/<lang>/brief
+  const handleOpenRecap = useCallback(() => { window.location.assign(briefPath(lang)); }, [lang]);
+
+  // ── Topbar : Carte / Théâtres agissent sur place ; Résumé du jour est un lien vers sa page ──
+  const topbarActive = theatersOpen ? "theaters" : "map";
+  const handleTopMap = useCallback(() => { mapRef.current?.closeTheaters?.(); }, []);
+  // Théâtres : page dédiée (le tiroir n'existe plus). Ancien lien /?theaters -> redirigé vers la page.
+  const handleTopTheaters = useCallback(() => { window.location.assign(theatersIndexPath(lang)); }, [lang]);
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).has("theaters")) {
+      window.location.replace(theatersIndexPath(lang));
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Position gauche du bouton Théâtres sur la carte (mobile uniquement : sur desktop la topbar le remplace
+  // et la recherche vit dans le SidePanel).
+  const mapControlsLeft = sidePanelCollapsed && openPanel !== "topics" ? 50 : 8;
+
+  useEffect(() => {
+    const zone = mapZoneRef.current;
+    if (!zone) return undefined;
+    const panel = zone.parentElement?.querySelector(".sidepanel");
+    const update = () => {
+      let offset = 0;
+      if (isDesktop && !sidePanelCollapsed && panel) {
+        // Recouvrement = combien le panneau dépasse sur la zone carte (0 s'il est dans le flux).
+        offset = Math.max(
+          0,
+          Math.round(panel.getBoundingClientRect().right - zone.getBoundingClientRect().left)
+        );
+      }
+      zone.style.setProperty("--sp-offset", `${offset}px`);
+    };
+    update();
+    if (!panel || typeof ResizeObserver === "undefined") return undefined;
+    const ro = new ResizeObserver(update); // suit le redimensionnement (poignée) et le repli
+    ro.observe(panel);
+    ro.observe(zone);
+    window.addEventListener("resize", update);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", update);
+    };
+  }, [isDesktop, sidePanelCollapsed]);
 
   return (
     <BootstrapProvider>
@@ -259,11 +325,18 @@ export default function MapApp() {
           />
           {/* Titre principal de la page (masqué visuellement, lu par Google et les lecteurs d'écran) */}
           <h1 className="visually-hidden">{t.pageTitle}</h1>
-          <div className="app-shell">
+          <div className="app-root">
+          <TopBar
+            active={topbarActive}
+            onMap={handleTopMap}
+            onTheaters={handleTopTheaters}
+          />
+          <div className={`app-shell${theatersOpen ? " app-shell--theaters" : ""}`}>
 
             {/* 1. SidePanel — le bouton toggle est à l'intérieur quand il est ouvert */}
             <SidePanel
               tweets={tweets}
+              selectedCountry={selectedCountry}
               collapsed={sidePanelCollapsed}
               activeLabel={activeLabel}
               onLabelChange={setActiveLabel}
@@ -271,10 +344,11 @@ export default function MapApp() {
               selectedTweetId={selectedTweetId}
               onToggle={handleSidePanelToggle}
               onResize={handleMapResize}
+              onOpenRecap={handleOpenRecap}
             />
 
             {/* 2. Zone de droite */}
-            <div style={{
+            <div ref={mapZoneRef} style={{
               flex: 1,
               minWidth: 0,
               position: 'relative',
@@ -293,7 +367,7 @@ export default function MapApp() {
                   className="map-ctrl-btn map-ctrl-btn--float sidepanel-reopen"
                   onClick={() => setSidePanelCollapsed(false)}
                   aria-label={t.expandPanel ?? "Expand panel"}
-                  style={{ left: 8 }}
+                  style={{ left: 8, top: isDesktop ? 70 : undefined }}
                 >
                   {/* Icône ←| (miroir de |→) pour indiquer "ouvrir vers la droite" */}
                   <svg
@@ -307,12 +381,6 @@ export default function MapApp() {
                 </button>
               )}
               
-              {/* 
-            <TopBar
-              togglePanel={togglePanel}
-              openPanel={openPanel}
-              sidePanelCollapsed={sidePanelCollapsed}
-            /> */}
               <div style={{ flex: 1, position: 'relative' }}>
                 {filtersOpen && (
                   <Suspense fallback={null}>
@@ -339,7 +407,9 @@ export default function MapApp() {
                   activeObjectiveTypes={activeObjectiveTypes}
                   searchText={searchText}
                   onSearchTextChange={setSearchText}
-                  searchBarLeftOffset={sidePanelCollapsed && openPanel !== "topics" ? 50 : 8}
+                  searchBarLeftOffset={mapControlsLeft}
+                  onTheatersChange={setTheatersOpen}
+                  hideTheatersButton={isDesktop}
                   filtersOpen={filtersOpen}
                   onToggleFilters={handleToggleFilters}
                   onRectangleDrawn={setSpatialRectangle}
@@ -361,6 +431,7 @@ export default function MapApp() {
               {/* <StatusBar /> */}
             </div>
 
+          </div>
           </div>
         </LayerProvider>
       </TimeProvider>

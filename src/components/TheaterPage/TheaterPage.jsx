@@ -9,6 +9,7 @@ import { formatRelativeTime } from "../../utils/formatRelativeTime";
 import { getImageCredit } from "../../utils/theaterImageCredits";
 import { localizeCredit } from "../../utils/theaterCaptions";
 import CountryMap from "./CountryMap";
+import TopBar from "../TopBar/TopBar";
 import { TWEET_REF_RE, getTheaterEvents, hasTweetRefs } from "../../utils/theaterEvents";
 
 // Page autonome /content/<slug>/ : uniquement le théâtre et ses résumés
@@ -414,13 +415,7 @@ export default function TheaterPage() {
 
   return (
     <div className="tp-root" ref={rootRef}>
-      <header className="tp-header">
-        <a className="tp-back" href="/">
-          <span aria-hidden="true">←</span> {copy.backToConflictMap}
-        </a>
-        <a className="tp-brand" href="/">{copy.brand}</a>
-        <span className="tp-header-spacer" aria-hidden="true" />
-      </header>
+      <TopBar variant="bar" active="theaters" lang={urlLang} brand={copy.brand} />
 
       <main className={`tp-page${status !== "ok" ? " tp-page--single" : hasAside ? "" : " tp-page--nomap"}`}>
         {hasToc && (

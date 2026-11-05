@@ -1,54 +1,171 @@
 /* eslint-disable */
 import { forwardRef, useImperativeHandle, useRef, useState, useEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
 import "./MapView.css";
 import * as maptilersdk from "@maptiler/sdk";
 import "@maptiler/sdk/dist/maptiler-sdk.css";
 import { useTime } from "../../context/TimeContext";
 import { useLang } from "../../context/LangContext";
-import { createPopupHTML, createPopupListHTML, sortFeaturesByDateDesc } from "../../utils/popupUtils";
+import { createPopupHTML, createPopupListHTML, createHoverCardHTML, sortFeaturesByDateDesc, getLocationName } from "../../utils/popupUtils";
 import { filterTweets, buildEnrichedTweets, getSearchableText } from "../../utils/tweetFilters";
 import { getCurrentLang, translateChokepointStatus, translateChokepoint, chokepointDurationHTML, DATE_LOCALES } from "../../utils/typeLabels";
 import { loadChokepointImages } from "../../utils/chokepointIcons";
 import { useBootstrap, useKeywords } from "../../context/BootstrapContext";
-import { MdOutlineDraw, MdSearch, MdTrendingUp, MdClose, MdSatelliteAlt, MdOutlineMap, MdOutlineFlag } from "react-icons/md";
+import { MdOutlineDraw, MdSearch, MdTrendingUp, MdClose, MdOutlineFlag } from "react-icons/md";
 import { PiBookOpenTextBold } from "react-icons/pi";
 import { CgPerformance } from "react-icons/cg";
 import { FaFilter } from "react-icons/fa";
-import TheatersDrawer from "./TheatersDrawer";
 import MapSpinner, { SHOW_MAP_SPINNER } from "./MapSpinner";
-import { getInitialTheaterSlug } from "../../utils/theaterRoute";
+import { theatersIndexPath } from "../../utils/theatersIndexRoute";
 import { buildSearch } from "../../utils/urlState";
 
 const MAPTILER_API_KEY = process.env.REACT_APP_MAPTILER_API_KEY;
 maptilersdk.config.apiKey = MAPTILER_API_KEY;
-const STYLE_URL = `https://api.maptiler.com/maps/019e947a-cdc7-7112-be5f-b04019239e3c/style.json?key=${MAPTILER_API_KEY}`;
-export { STYLE_URL };
-const SATELLITE_STYLE_URL = `https://api.maptiler.com/maps/satellite-v4/style.json?key=${MAPTILER_API_KEY}`;
+const STYLE_URL = `https://api.maptiler.com/maps/01a1a86e-f9bf-7a29-b93c-c7219d176885/style.json?key=${MAPTILER_API_KEY}`;
+export { STYLE_URL }; // plus utilisé par la carte principale (satellite uniquement), gardé pour les autres imports
+// hybrid-v4 = imagerie satellite + étiquettes (pays, villes, frontières). Pour l'imagerie seule :
+// remplacer "hybrid-v4" par "satellite-v4". Le voile d'assombrissement (applySatelliteDim) se place
+// sous les étiquettes du style, qui restent donc lisibles.
+const SATELLITE_STYLE_URL = `https://api.maptiler.com/maps/01a1a86e-f9bf-7a29-b93c-c7219d176885/style.json?key=${MAPTILER_API_KEY}`;
 const API = process.env.REACT_APP_API_URL;
+
+// ── Contours de villes sous les tweets "medium" ──────────────────────────────
+// Un tweet location_accuracy === "medium" est placé au centre approximatif d'une ville :
+// on dessine donc le contour de la ville (GET /city-boundaries, table city_boundaries) sous
+// le point. Lien : feature.properties.location_name (contour) === tweet.properties.location_name.
+// Le filtre de couche suit les tweets VISIBLES (période, pays, armes, recherche...) : seuls les
+// contours des tweets medium affichés sont dessinés. Les derniers tweets filtrés sont gardés
+// sur l'objet map (comme __applyCountrySelected) pour pouvoir réappliquer le filtre dès que la
+// couche existe ou après un changement de fond de carte.
+const CITY_MIL_COLOR = "#ED0C0C";   // même rouge que les points MIL
+const CITY_OTHER_COLOR = "#4f9dff"; // même bleu que les autres tweets
+const CITY_LAYERS = ["city-boundaries-fill", "city-boundaries-line"];
+const CITY_HOVER_LAYERS = ["city-boundaries-hover-fill", "city-boundaries-hover-line"];
+
+const applyCityBoundariesFilter = (map, tweetsFC) => {
+    if (!map) return;
+    if (tweetsFC) map.__cityBoundaryTweets = tweetsFC;
+    if (!map.getLayer("city-boundaries-fill")) return;
+    const all = new Set();
+    const mil = new Set(); // une ville avec au moins un tweet MIL visible est dessinée en rouge
+    for (const f of map.__cityBoundaryTweets?.features ?? []) {
+        const p = f.properties;
+        if (p?.location_accuracy !== "medium" || !p.location_name) continue;
+        all.add(p.location_name);
+        if (p.conflict_typology === "MIL") mil.add(p.location_name);
+    }
+    const filter = all.size
+        ? ["match", ["get", "location_name"], [...all], true, false]
+        : ["==", ["get", "location_name"], "__none__"];
+    const color = mil.size
+        ? ["match", ["get", "location_name"], [...mil], CITY_MIL_COLOR, CITY_OTHER_COLOR]
+        : CITY_OTHER_COLOR;
+    for (const id of CITY_LAYERS) if (map.getLayer(id)) map.setFilter(id, filter);
+    map.setPaintProperty("city-boundaries-fill", "fill-color", color);
+    map.setPaintProperty("city-boundaries-line", "line-color", color);
+    if (map.getLayer("city-boundaries-hover-fill")) {
+        map.setPaintProperty("city-boundaries-hover-fill", "fill-color", color);
+        map.setPaintProperty("city-boundaries-hover-line", "line-color", color);
+    }
+};
+
+// Le contour d'une ville est lui-même survolable (popup des tweets de la ville) : il est donc
+// prioritaire sur les zones dessous (théâtres, détroits...). Ajouté dynamiquement car la couche
+// n'existe qu'après le fetch (interroger une couche absente renvoie une erreur MapLibre).
+const withCityBlock = (map, layers) =>
+    map.getLayer("city-boundaries-fill") ? [...layers, "city-boundaries-fill"] : layers;
+
+// Survol d'un point medium : met en avant le contour correspondant (names = [] pour effacer).
+const applyCityBoundaryHighlight = (map) => {
+    if (!map?.getLayer("city-boundaries-hover-fill")) return;
+    const names = [...new Set([...(map.__cityHover ?? []), ...(map.__citySelected ?? [])])];
+    const filter = names.length
+        ? ["match", ["get", "location_name"], names, true, false]
+        : ["==", ["get", "location_name"], "__none__"];
+    for (const id of CITY_HOVER_LAYERS) map.setFilter(id, filter);
+};
+const setCityBoundaryHover = (map, names) => {
+    if (!map) return;
+    map.__cityHover = names;
+    applyCityBoundaryHighlight(map);
+};
+// Contour(s) gardé(s) en avant tant que la popup épinglée est ouverte (names = [] pour effacer).
+const setCityBoundarySelected = (map, names) => {
+    if (!map) return;
+    map.__citySelected = names;
+    applyCityBoundaryHighlight(map);
+};
 
 // Affichage des zones de conflit (hachures rouges). Mettre à true pour les réactiver.
 const SHOW_CONFLICT_ZONES = false;
 const CZ_VISIBILITY = SHOW_CONFLICT_ZONES ? "visible" : "none";
 
-// ── Changement de fond de carte ──────────────────────────────────────────────
-// map.setStyle() remplace tout le style : les sources/couches ajoutées à la main
-// (tweets, zones, détroits, rectangle...) disparaîtraient. transformStyle reçoit
-// l'ancien style (sérialisé, donc avec les données GeoJSON à jour) et le nouveau :
-// on reporte sur le nouveau toutes les sources GeoJSON de l'ancien et les couches
-// qui les utilisent. Les couches du fond (vector ou satellite) ne sont jamais reprises.
-const keepCustomLayers = (previous, next) => {
-    if (!previous) return next;
-    const nextSources = next.sources ?? {};
-    const customSources = {};
-    for (const [id, src] of Object.entries(previous.sources ?? {})) {
-        if (src.type === "geojson" && !(id in nextSources)) customSources[id] = src;
+// Popup de survol des tweets (desktop). Désactivée : le contenu d'un point / d'une pile de tweets
+// s'affiche uniquement dans le dock à droite, ouvert au clic. Mettre à true pour la réactiver.
+const SHOW_TWEET_HOVER_POPUP = false;
+
+// Carte compacte au survol (desktop) : titre traduit, @compte · date, pays, « cliquer pour les
+// détails ». Informative seulement (le clic ouvre toujours le dock). false pour la couper.
+const SHOW_TWEET_HOVER_CARD = true;
+// Décalage (px) de la carte par rapport au point, selon l'ancre : elle s'écarte du point
+// pour ne pas le recouvrir. Pas de triangle (masqué en CSS).
+const HOVER_CARD_OFFSETS = {
+    left: [16, 0], right: [-16, 0],
+    "top-left": [16, -4], "top-right": [-16, -4],
+    "bottom-left": [16, 4], "bottom-right": [-16, 4],
+    top: [0, 16], bottom: [0, -16], center: [0, 0],
+};
+
+// ── Fond de carte : satellite assombri ───────────────────────────────────────
+// Une seule vue (satellite MapTiler). On l'assombrit pour que les données (points, zones,
+// lignes) ressortent. Deux mécanismes cumulés (le 2e garantit le résultat même si le style
+// n'expose pas de couche "raster" classique) :
+//  1. propriétés raster-* sur les couches raster du style ;
+//  2. un voile noir semi-transparent inséré juste APRÈS la dernière couche raster, donc sous
+//     toutes les couches de données (et sous d'éventuelles étiquettes du fond).
+// À appeler au "load", AVANT l'ajout des couches de données. Idempotent.
+// Réglages :
+//  - overlayOpacity : opacité du voile noir (0 = aucun, 0.5-0.7 = sombre)
+//  - brightnessMax  : plafond de luminosité raster (1 = inchangé)
+//  - saturation     : -1 (noir et blanc) à 1 ; négatif = couleurs ternes
+//  - contrast       : -1 à 1
+const SATELLITE_DIM = { overlayOpacity: 0.2, brightnessMax: 1, saturation: -0.1, contrast: 0.1 };
+const SATELLITE_DIM_ID = "basemap-dim";
+const WORLD_POLYGON = {
+    type: "Feature",
+    properties: {},
+    geometry: {
+        type: "Polygon",
+        coordinates: [[[-180, -85.05], [180, -85.05], [180, 85.05], [-180, 85.05], [-180, -85.05]]],
+    },
+};
+const applySatelliteDim = (map) => {
+    if (map.getLayer(SATELLITE_DIM_ID)) return;
+    const layers = map.getStyle()?.layers ?? [];
+    let lastRaster = -1;
+    layers.forEach((l, i) => {
+        if (l.type !== "raster") return;
+        lastRaster = i;
+        try {
+            map.setPaintProperty(l.id, "raster-brightness-max", SATELLITE_DIM.brightnessMax);
+            map.setPaintProperty(l.id, "raster-saturation", SATELLITE_DIM.saturation);
+            map.setPaintProperty(l.id, "raster-contrast", SATELLITE_DIM.contrast);
+        } catch { /* couche non modifiable : le voile prend le relais */ }
+    });
+    if (!map.getSource(SATELLITE_DIM_ID)) {
+        map.addSource(SATELLITE_DIM_ID, { type: "geojson", data: WORLD_POLYGON });
     }
-    const customLayers = (previous.layers ?? []).filter((l) => l.source && l.source in customSources);
-    return {
-        ...next,
-        sources: { ...nextSources, ...customSources },
-        layers: [...(next.layers ?? []), ...customLayers],
-    };
+    // Juste après la dernière couche raster ; sinon tout en bas de la pile.
+    const beforeId = lastRaster >= 0 ? layers[lastRaster + 1]?.id : layers[0]?.id;
+    map.addLayer(
+        {
+            id: SATELLITE_DIM_ID,
+            type: "fill",
+            source: SATELLITE_DIM_ID,
+            paint: { "fill-color": "#000000", "fill-opacity": SATELLITE_DIM.overlayOpacity, "fill-antialias": false },
+        },
+        beforeId
+    );
 };
 
 // Les images (addImage) sont stockées dans le style : elles sont perdues au setStyle.
@@ -76,6 +193,40 @@ const ensureHatchImages = (map) => {
     makeHatch("hatch-conflict-zones", "#ED0C0C", 1.5, "\\"); // zones de conflit
 };
 
+// Viseur (réticule) affiché autour des tweets dont location_accuracy === "explicit"
+// (coordonnées données dans le tweet lui-même) : un cercle + 4 petits traits qui
+// dépassent aux points cardinaux. Une image par couleur de typologie (MIL rouge,
+// autres bleu, mêmes teintes que les points et le highlight). Comme les hachures,
+// les images sont perdues au setStyle() : fonction idempotente, rappelée après un
+// changement de fond de carte.
+const CROSSHAIR_COLORS = { "crosshair-mil": "#ffffff", "crosshair-other": "#4f9dff" };
+const ensureCrosshairImages = (map) => {
+    for (const [id, color] of Object.entries(CROSSHAIR_COLORS)) {
+        if (map.hasImage(id)) continue;
+        const size = 36; // px canvas = 24px CSS (pixelRatio 2)
+        const c = size / 2;
+        const canvas = document.createElement("canvas");
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext("2d");
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.lineCap = "round";
+        // cercle
+        ctx.beginPath();
+        ctx.arc(c, c, 12, 0, Math.PI * 2);
+        ctx.stroke();
+        // 4 traits : de légèrement à l'intérieur du cercle jusqu'à l'extérieur
+        for (const [dx, dy] of [[0, -1], [1, 0], [0, 1], [-1, 0]]) {
+            ctx.beginPath();
+            ctx.moveTo(c + dx * 12, c + dy * 12);
+            ctx.lineTo(c + dx * 22, c + dy * 22);
+            ctx.stroke();
+        }
+        map.addImage(id, ctx.getImageData(0, 0, size, size), { pixelRatio: 2 });
+    }
+};
+
 // Icône du bouton « zone d'extraction » : un cadre en pointillés dont les deux coins
 // opposés sont marqués (= les deux clics du tracé) et quelques points à l'intérieur
 // (= les éléments extraits). Quand une zone est tracée (filled), le cadre devient plein
@@ -98,10 +249,10 @@ const AreaSelectIcon = ({ size = 16, filled = false }) => (
 // Les contours viennent de GET /countries (une feature par pays, properties.name).
 // Le filtrage se fait côté client par point-in-polygon sur ces mêmes géométries :
 // pas de dépendance à une propriété "pays" sur les tweets.
-const buildCountryIndex = (fc) => {
+const buildCountryIndex = (fc, key = "name") => {
     const index = new Map(); // name -> [{ bbox, rings }]
     for (const f of fc?.features ?? []) {
-        const name = f.properties?.name;
+        const name = f.properties?.[key];
         const g = f.geometry;
         if (!name || !g) continue;
         const polys = g.type === "Polygon" ? [g.coordinates] : g.type === "MultiPolygon" ? g.coordinates : [];
@@ -152,10 +303,6 @@ const filterByCountry = (fc, polys, kind = "point") => {
 
 const COUNTRY_TITLES = { fr: "Pays sélectionné", en: "Selected country", es: "País seleccionado" };
 
-const BASEMAP_TITLES = {
-    vector: { fr: "Passer en vue satellite", en: "Switch to satellite view", es: "Cambiar a vista satélite" },
-    satellite: { fr: "Revenir au fond de carte", en: "Back to map view", es: "Volver al mapa" },
-};
 // Comportement au chargement de la carte :
 //  "canvas" : seule la carte est masquée (fond sombre) jusqu'à ce que le style et les couches
 //             soient prêts, puis apparaît en fondu ; les contrôles restent visibles.
@@ -166,6 +313,14 @@ const MAP_REVEAL_MODE = "canvas";
 // puis la couche est retirée au-delà de THEATERS_FADE_END.
 const THEATERS_FADE_START = 6;
 const THEATERS_FADE_END = 9;
+
+// ── Rotation lente du globe ──
+// Le globe tourne doucement dès le chargement, et reprend après une période d'inactivité
+// tant que la vue est dézoomée (globe encore entièrement / presque entièrement visible).
+const SPIN_DEG_PER_SEC = 3;        // vitesse : ~2 min pour un tour complet
+const SPIN_IDLE_MS = 5000;         // inactivité avant la reprise (après un clic, un drag, une molette...)
+const SPIN_RAMP_SEC = 2;           // accélération progressive à chaque reprise
+const SPIN_MAX_ZOOM_OFFSET = 1.2;  // au-dessus du zoom "globe entier" + ce décalage, pas de rotation
 const THEATERS_FILL_OPACITY = ['interpolate', ['linear'], ['zoom'], THEATERS_FADE_START, 0.2, THEATERS_FADE_END, 0];
 
 // Zones de conflit (clusters d'événements) : même principe que les théâtres,
@@ -314,13 +469,15 @@ const centerSelectedInList = (p) => {
     list.scrollTop += sr.top - lr.top - (lr.height - sr.height) / 2;
 };
 
-const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activeWeaponTypes, activeObjectiveTypes, searchText, onSearchTextChange, searchBarLeftOffset = 5, filtersOpen = false, onToggleFilters, onRectangleDrawn, onCountryChange, onLoadingChange, onTweetPopupClose, selectedTweetId = null, sidePanelOpen = false, initialView = null, initialRectangle = null, initialTweetId = null, onMoveEnd }, ref) {
+const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activeWeaponTypes, activeObjectiveTypes, searchText, onSearchTextChange, searchBarLeftOffset = 5, filtersOpen = false, onToggleFilters, onRectangleDrawn, onCountryChange, onLoadingChange, onTweetPopupClose, selectedTweetId = null, sidePanelOpen = false, initialView = null, initialRectangle = null, initialTweetId = null, onMoveEnd, onTheatersChange, hideTheatersButton = false }, ref) {
     const { timeRange } = useTime();
     const { t, lang, mapLanguage, setEntityNamesFr, setEntityNamesEs, setActorNamesFr, setActorNamesEs, translateActor, translateEntity } = useLang();
 
     // ── Panneau latéral "Théâtres" ──
     // Ouvert d'emblée si l'URL est /content/<slug>/ (le panneau sélectionne alors ce théâtre)
-    const [theatersOpen, setTheatersOpen] = useState(() => getInitialTheaterSlug() !== null);
+    const [theatersOpen, setTheatersOpen] = useState(false);
+    // Remonte l'état du tiroir Théâtres au parent (topbar)
+    useEffect(() => { onTheatersChange?.(theatersOpen); }, [theatersOpen]); // eslint-disable-line react-hooks/exhaustive-deps
     const theaterOutlineIdRef = useRef(null); // topic_id (valeur exacte de la source) dont l'area est activée par le panneau
 
     // ── Debounce de la recherche texte ──
@@ -346,6 +503,12 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
         return () => clearTimeout(timeoutId);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [localSearchText]);
+    // Emplacement de la recherche dans le SidePanel (#sp-search-slot). Absent => on la rend sur la carte comme avant.
+    const [searchSlot, setSearchSlot] = useState(null);
+    useEffect(() => {
+        const el = document.getElementById("sp-search-slot");
+        setSearchSlot((prev) => (prev === el ? prev : el));
+    });
     const { data: bootstrapData, error: bootstrapError } = useBootstrap();
     // Dernier bootstrap connu : loadAllData (asynchrone) lit celui-ci plutôt que la
     // valeur résolue au 1er rendu, pour voir les tweets plus anciens s'ils sont déjà arrivés.
@@ -390,9 +553,14 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
         if (onSearchTextChange) onSearchTextChange(kw.term);
     };
 
+    const searchInputRef = useRef(null);
+
     const handleClearSearch = () => {
         setLocalSearchText("");
         if (onSearchTextChange) onSearchTextChange("");
+        setShowSuggestions(true); // rouvre le panneau des tendances
+        setActiveIdx(-1);
+        searchInputRef.current?.focus();
     };
 
     const handleSearchKeyDown = (e) => {
@@ -419,9 +587,15 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
     useEffect(() => {
         if (!showSuggestions) return;
         const handleClickOutside = (e) => {
-            if (searchContainerRef.current && !searchContainerRef.current.contains(e.target)) {
-                setShowSuggestions(false);
-            }
+            const box = searchContainerRef.current;
+            if (!box) return;
+            // composedPath() est figé au début de l'évènement : il reste valable même si
+            // la cible a été retirée du DOM entre-temps (ex. la croix, qui disparaît dès
+            // que le champ est vidé). Avec e.target seul, contains() renvoyait false et
+            // refermait immédiatement le panneau qu'on venait de rouvrir.
+            const path = typeof e.composedPath === "function" ? e.composedPath() : [];
+            if (path.includes(box) || box.contains(e.target)) return;
+            setShowSuggestions(false);
         };
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -574,8 +748,8 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                 const target = { center: coords, zoom: Math.max(map.getZoom(), 5) };
                 // animate: false => saut instantané (ouverture initiale, carte encore masquée
                 // derrière le spinner : inutile de jouer un vol de 1,2 s que personne ne voit).
-                if (animate) map.flyTo({ ...target, duration: 1200, padding: { top: 0, bottom: 0, left: 0, right: 0 } });
-                else map.jumpTo({ ...target, padding: { top: 0, bottom: 0, left: 0, right: 0 } });
+                if (animate) map.flyTo({ ...target, duration: 1200, padding: { top: 0, bottom: 0, left: leftPadRef.current, right: rightPadRef.current } });
+                else map.jumpTo({ ...target, padding: { top: 0, bottom: 0, left: leftPadRef.current, right: rightPadRef.current } });
             }
 
             if (!fly || !isMobileViewport()) return;
@@ -667,6 +841,52 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
     // Pause du pulse du tweet sélectionné quand le SidePanel recouvre la carte
     // (mobile uniquement) : inutile de rendre la carte ~60 fois/s si elle est cachée.
     const highlightPausedRef = useRef(false);
+
+    // ── Décalage du globe : SidePanel flottant à gauche, panneau "dock" des points à droite (desktop) ──
+    // Les deux panneaux sont posés PAR-DESSUS la carte : on ajoute un padding gauche / droit égal à leur
+    // encombrement, ce qui recentre le globe dans l'espace restant. Replié / fermé (ou mobile) : 0.
+    const sidePanelOpenRef = useRef(sidePanelOpen);
+    const leftPadRef = useRef(0);
+    const rightPadRef = useRef(0);
+    const applyPanelPaddingRef = useRef(null);
+    const computePad = () => {
+        if (isMobileViewport()) return { left: 0, right: 0 };
+        let left = 0;
+        if (sidePanelOpenRef.current) {
+            const el = document.querySelector(".sidepanel");
+            if (el?.offsetWidth) left = el.offsetLeft + el.offsetWidth + 12; // bord droit du panneau + marge flottante
+        }
+        const dock = document.querySelector(".tweet-popup--dock");
+        const right = dock?.offsetWidth ? dock.offsetWidth + 24 : 0; // largeur du dock + marges
+        return { left, right };
+    };
+    // center (optionnel) : recentre aussi la carte sur ce point (ouverture du dock sur un point cliqué).
+    const applyPanelPadding = (animate, center) => {
+        const map = mapRef.current;
+        if (!map) return;
+        const { left, right } = computePad();
+        const changed = left !== leftPadRef.current || right !== rightPadRef.current;
+        if (!changed && !center) return;
+        leftPadRef.current = left;
+        rightPadRef.current = right;
+        const padding = { ...map.getPadding(), left, right };
+        const opts = center ? { padding, center } : { padding };
+        if (animate) map.easeTo({ ...opts, duration: center ? 350 : 150 });
+        else map.jumpTo(opts);
+    };
+    applyPanelPaddingRef.current = applyPanelPadding;
+    useEffect(() => {
+        sidePanelOpenRef.current = sidePanelOpen;
+        applyPanelPadding(true); // ouverture / fermeture : transition douce
+    }, [sidePanelOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+    useEffect(() => {
+        // Redimensionnement du panneau (poignée de largeur, fenêtre) : suivi en continu, sans animation
+        const el = document.querySelector(".sidepanel");
+        if (!el || typeof ResizeObserver === "undefined") return undefined;
+        const ro = new ResizeObserver(() => applyPanelPadding(false));
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
     useEffect(() => {
         const evaluate = () => {
             const paused = sidePanelOpen && isMobileViewport();
@@ -710,32 +930,12 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
     };
     // ── Performance mode (désactive les pulses quand trop de tweets sont chargés) ──
     const [performanceMode, setPerformanceMode] = useState(false);
-    // Fond de carte : "vector" (style MapTiler personnalisé) ou "satellite"
-    const [basemap, setBasemap] = useState("vector");
-    const handleToggleBasemap = () => {
-        const map = mapRef.current;
-        if (!map) return;
-        const next = basemap === "vector" ? "satellite" : "vector";
-        setBasemap(next);
-        // Une fois le nouveau style chargé : on restaure ce que setStyle() réinitialise
-        // (images, projection globe, langue des étiquettes, animation du tweet sélectionné).
-        map.once("style.load", () => {
-            try {
-                ensureHatchImages(map);
-                loadChokepointImages(map);
-                map.setProjection({ type: "globe" });
-                if (next === "vector" && appliedMapLangRef.current) map.setLanguage(appliedMapLangRef.current);
-                if (map.__highlightActive) map.__startHighlightPulse?.();
-                map.__reapplyCountryState?.(); // feature-state perdu au setStyle
-            } catch { /* carte déjà détruite */ }
-        });
-        map.setStyle(next === "satellite" ? SATELLITE_STYLE_URL : STYLE_URL, { transformStyle: keepCustomLayers });
-    };
     // Feedback du bouton "Copier le lien" (icône coche pendant ~1,8 s)
     const [linkCopied, setLinkCopied] = useState(false);
     const performanceModeRef = useRef(false);
     const militaryPulseFrameRef = useRef(null);
     const resumeAnimationsRef = useRef(null);
+    const spinFrameRef = useRef(null); // requestAnimationFrame de la rotation du globe
     const tweetCount = dataTweets?.features?.length || 0;
     // Nombre de filtres arme + objectif actifs : affiché en pastille sur le bouton filtres de la toolbar
     const activeFilterCount = (activeWeaponTypes?.length || 0) + (activeObjectiveTypes?.length || 0);
@@ -835,6 +1035,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                 // tweets et military-lines sont alimentées immédiatement avec les
                 // données du bootstrap (plus besoin d'attendre un fetch séparé).
                 map.addSource("tweets", { type: "geojson", data: filteredTweets });
+                map.__cityBoundaryTweets = filteredTweets; // pour le filtre des contours de villes
                 map.addSource("military-lines", { type: "geojson", data: filteredMilitaryLines, lineMetrics: true });
 
                 // Ajout des autres sources
@@ -871,7 +1072,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
 
         const map = new maptilersdk.Map({
             container: containerRef.current,
-            style: STYLE_URL,
+            style: SATELLITE_STYLE_URL,
             // Étiquettes de la carte dans la langue de l'app dès le premier rendu
             language: mapLanguageRef.current,
             center: initialViewRef.current?.center ?? [37, 37],
@@ -886,6 +1087,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
 
         mapRef.current = map;
         appliedMapLangRef.current = mapLanguageRef.current;
+        applyPanelPaddingRef.current?.(false); // globe décalé dès le 1er rendu si le panneau est ouvert
 
         // Secours : si le style de la carte ne se charge pas (clé MapTiler refusée,
         // réseau, rendu Googlebot...), l'événement "load" n'arrive jamais et les
@@ -920,7 +1122,9 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
         let userInteracted = Boolean(initialViewRef.current);
         const markInteracted = () => { userInteracted = true; };
         map.on("dragstart", markInteracted);
-        map.on("moveend", () => onMoveEndRef.current?.());
+        // Les petits déplacements de la rotation ne doivent pas mettre à jour l'URL (permalink).
+        let isSpinStep = false;
+        map.on("moveend", () => { if (!isSpinStep) onMoveEndRef.current?.(); });
         map.on("zoomstart", (e) => {
             // Ignore les zooms déclenchés par notre propre resize (pas d'event
             // "originalEvent" venant de l'utilisateur dans ce cas).
@@ -935,11 +1139,68 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
         window.addEventListener("resize", handleResize);
         map.once("remove", () => window.removeEventListener("resize", handleResize));
 
+        // ── Rotation lente du globe (voir constantes SPIN_*) ──
+        // Armée d'emblée, sauf si l'URL porte une vue / un tweet précis : dans ce cas elle ne
+        // démarre qu'après la première interaction de l'utilisateur (puis l'inactivité).
+        let spinArmed = !(initialViewRef.current || initialTweetIdRef.current);
+        let spinLastInteraction = 0;
+        let spinPointerDown = false;
+        let spinRamp = 0;
+        let spinLastTs = 0;
+        const spinInteract = () => { spinArmed = true; spinLastInteraction = performance.now(); };
+        const spinPointerDownH = () => { spinPointerDown = true; spinInteract(); };
+        const spinPointerUpH = () => { spinPointerDown = false; spinLastInteraction = performance.now(); };
+        const spinCanvas = map.getCanvasContainer();
+        spinCanvas.addEventListener("pointerdown", spinPointerDownH);
+        spinCanvas.addEventListener("wheel", spinInteract, { passive: true });
+        window.addEventListener("pointerup", spinPointerUpH);
+        window.addEventListener("pointercancel", spinPointerUpH);
+        const spinStep = (ts) => {
+            spinFrameRef.current = requestAnimationFrame(spinStep);
+            const dt = Math.min((ts - spinLastTs) / 1000, 0.1);
+            spinLastTs = ts;
+            const blocked =
+                !spinArmed || spinPointerDown || document.hidden ||
+                ts - spinLastInteraction < SPIN_IDLE_MS ||
+                map.isMoving() ||
+                map.getZoom() > getFitGlobeZoom(
+                    containerRef.current?.clientWidth, containerRef.current?.clientHeight
+                ) + SPIN_MAX_ZOOM_OFFSET ||
+                isDrawModeRef.current ||
+                selectedTweetIdRef.current != null ||
+                selectedCountryRef.current ||
+                highlightPausedRef.current ||
+                pinnedPopupRef.current ||
+                containerRef.current?.querySelector(".maplibregl-popup");
+            if (blocked) { spinRamp = 0; return; }
+            spinRamp = Math.min(1, spinRamp + dt / SPIN_RAMP_SEC);
+            const c = map.getCenter();
+            isSpinStep = true;
+            try {
+                map.setCenter([((c.lng + SPIN_DEG_PER_SEC * spinRamp * dt + 540) % 360) - 180, c.lat]);
+            } finally { isSpinStep = false; }
+        };
+        const startSpin = () => {
+            if (spinFrameRef.current) return;
+            if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+            spinLastTs = performance.now();
+            spinFrameRef.current = requestAnimationFrame(spinStep);
+        };
+        map.once("remove", () => {
+            if (spinFrameRef.current) { cancelAnimationFrame(spinFrameRef.current); spinFrameRef.current = null; }
+            spinCanvas.removeEventListener("pointerdown", spinPointerDownH);
+            spinCanvas.removeEventListener("wheel", spinInteract);
+            window.removeEventListener("pointerup", spinPointerUpH);
+            window.removeEventListener("pointercancel", spinPointerUpH);
+        });
+
         map.on("load", async () => {
             mapLoaded = true;
             clearTimeout(fallbackTimer);
+            startSpin();
             map.doubleClickZoom.disable();
             map.setProjection({ type: 'globe' });
+            applySatelliteDim(map); // fond assombri, sous toutes les couches de données
             const dataTweets = await loadAllData(map);
             let popup = new maptilersdk.Popup({
                 closeButton: false,
@@ -1104,7 +1365,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                 type: 'line',
                 source: 'military-lines',
                 paint: {
-                    'line-color': '#7d8288',
+                    'line-color': '#b8b8b8',
                     'line-width': 0.5
                 }
             });
@@ -1235,6 +1496,25 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                     "circle-color": "#ffffff",
                     "circle-stroke-color": "#ED0C0C",
                     "circle-stroke-width": 1.5,
+                },
+            });
+            // Viseur autour des tweets géolocalisés avec des coordonnées explicites
+            // (location_accuracy === "explicit"). Au-dessus des points, sous la zone de survol.
+            // Taille croissante avec l'importance pour entourer le halo des gros points.
+            ensureCrosshairImages(map);
+            map.addLayer({
+                id: "tweets-explicit-crosshair",
+                type: "symbol",
+                source: "tweets",
+                filter: ["==", ["get", "location_accuracy"], "explicit"],
+                layout: {
+                    "icon-image": ["match", ["get", "conflict_typology"], "MIL", "crosshair-mil", "crosshair-other"],
+                    "icon-size": ["interpolate", ["linear"],
+                        ["coalesce", ["to-number", ["get", "importance_score"]], 1],
+                        1, 0.7, 3, 0.9, 5, 1.5,
+                    ],
+                    "icon-allow-overlap": true,
+                    "icon-ignore-placement": true,
                 },
             });
             map.addLayer({
@@ -1493,7 +1773,15 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
 
             const renderTweetStack = (st) => {
                 const lang = getCurrentLang();
-                if (st.view === "list") return createPopupListHTML(st.features, lang, selectedTweetIdRef.current);
+                if (st.view === "list") {
+            // Popup d'une ville : l'en-tête affiche le nom du lieu (traduit si possible)
+            let title = null;
+            if (st.cityName) {
+                const ref = st.features.find((f) => f.properties?.location_name === st.cityName);
+                title = ref ? getLocationName(ref.properties, lang) || st.cityName : st.cityName;
+            }
+            return createPopupListHTML(st.features, lang, selectedTweetIdRef.current, title);
+        }
                 const props = st.features[st.index].properties;
                 const images = (() => { try { return JSON.parse(props.images); } catch { return []; } })();
                 return createPopupHTML(
@@ -1549,7 +1837,66 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                 if (tweetStack?.view === "list") updateTweetStack();
             };
 
+            // ── Carte de survol compacte (SHOW_TWEET_HOVER_CARD) ──
+            // Popup distincte de `popup` (celle de la pile interactive) : pas de pointeur,
+            // aucun état à synchroniser, fermée dès que le curseur quitte le point.
+            const hoverCard = new maptilersdk.Popup({
+                closeButton: false,
+                closeOnClick: false,
+                maxWidth: "none",
+                className: "tweet-hover-popup",
+                // Ancre et décalage choisis à chaque affichage (voir showHoverCard) : la carte
+                // flotte à côté du point, sans triangle, et reste dans l'écran.
+                offset: HOVER_CARD_OFFSETS,
+            });
+            let hoverCardKey = null;
+            const hideHoverCard = () => {
+                hoverCardKey = null;
+                if (hoverCard.isOpen()) hoverCard.remove();
+            };
+            // Pays d'un point : point-in-polygon sur les contours de /countries (les mêmes que
+            // le filtre par pays). On ne mémorise pas un échec : les contours peuvent arriver après.
+            const countryNameCache = new Map();
+            const countryNameAt = (lng, lat) => {
+                const index = countryIndexRef.current;
+                if (!index || !Number.isFinite(lng) || !Number.isFinite(lat)) return null;
+                const k = `${lng.toFixed(3)},${lat.toFixed(3)}`;
+                if (countryNameCache.has(k)) return countryNameCache.get(k);
+                for (const [name, polys] of index) {
+                    if (pointInCountry(polys, lng, lat)) { countryNameCache.set(k, name); return name; }
+                }
+                return null;
+            };
+            const showHoverCard = (queryFeatures) => {
+                if (isDrawModeRef.current) return;
+                const features = sortFeaturesByDateDesc(queryFeatures());
+                if (!features.length) return;
+                const first = features[0];
+                const [lng, lat] = first.geometry.coordinates;
+                const lang = getCurrentLang();
+                // mousemove tire en continu : on ne ré-injecte le HTML que si la pile ou la langue change
+                const key = `${first.properties.id ?? first.properties.url}|${features.length}|${lang}`;
+                if (key === hoverCardKey && hoverCard.isOpen()) return;
+                hoverCardKey = key;
+                const country = countryNameAt(lng, lat);
+                // Côté de la carte selon la position du point à l'écran : à droite du point (ou à
+                // gauche près du bord droit), au-dessus / au-dessous près des bords haut / bas.
+                const pt = map.project([lng, lat]);
+                const { clientWidth: w, clientHeight: h } = map.getContainer();
+                const side = pt.x > w * 0.6 ? "right" : "left";
+                const vert = pt.y < h * 0.35 ? "top" : pt.y > h * 0.65 ? "bottom" : "";
+                hoverCard.options.anchor = vert ? `${vert}-${side}` : side;
+                hoverCard
+                    .setLngLat([lng, lat])
+                    .setHTML(createHoverCardHTML(first.properties, lang, {
+                        countryName: country ? translateEntityRef.current(country) : "",
+                        count: features.length,
+                    }))
+                    .addTo(map);
+            };
+
             const scheduleHoverClose = (delay) => {
+                hideHoverCard(); // la carte de survol n'est pas interactive : fermeture immédiate
                 clearTimeout(hoverCloseTimer);
                 hoverCloseTimer = setTimeout(() => {
                     if (isHoveringTweet || popupHovered || pinnedPopupRef.current || isHoveringConflictArea) return;
@@ -1578,28 +1925,15 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
             const getStackKey = (features) =>
                 features.map((f) => f.properties.url ?? String(f.properties.text ?? "").slice(0, 40)).join("|");
 
-            map.on("mousemove", "tweets-hover-area", (e) => {
-                // Sur mobile, les navigateurs tactiles émulent souvent un
-                // mousemove/mouseenter juste avant le vrai "click" sur un tap.
-                // Ce hover n'a aucun sens au doigt, et le popup qu'il ouvre ici
-                // n'est jamais stylé "mobile" (className fixe sur `popup`) : il
-                // s'affichait donc en plein sur le premier tap, à la place du
-                // popup épinglé mobile, et consommait ce premier tap (d'où le
-                // besoin de taper 2 fois). On coupe donc ce chemin sur mobile
-                // et on laisse uniquement le handler "click" gérer l'ouverture.
-                if (isMobileViewport()) return;
-                if (pinnedPopupRef.current) return;
-                // Souris au-dessus de la popup elle-même : MapLibre voit quand même le
-                // mousemove (la popup est dans le conteneur du canvas) et interroge la
-                // carte sous le curseur. On ignore, sinon la popup de survol est
-                // ré-injectée (setHTML) et la vidéo en lecture est recréée.
-                if (e.originalEvent?.target?.closest?.(".maplibregl-popup")) return;
-
+            // Ouvre (ou met à jour) la popup de survol pour une pile de tweets.
+            // queryFeatures() renvoie les features à afficher : le survol d'un point (couche
+            // tweets-hover-area) et celui du contour d'une ville medium partagent ce code.
+            const showTweetHover = (queryFeatures, cityName = null) => {
                 isHoveringTweet = true;
                 isHoveringConflictArea = false;
                 clearTimeout(hoverCloseTimer);
 
-                if (currentHoverPopup !== 'tweet') {
+                if (SHOW_TWEET_HOVER_POPUP && currentHoverPopup !== 'tweet') {
                     conflictPopup.remove();
                     popup.remove();
                     currentHoverPopup = 'tweet';
@@ -1609,9 +1943,14 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
 
                 if (!isDrawModeRef.current) map.getCanvas().style.cursor = 'pointer';
 
-                const features = sortFeaturesByDateDesc(
-                    map.queryRenderedFeatures(e.point, { layers: ["tweets-hover-area"] })
-                );
+                // Pas de popup interactive au survol : le clic ouvre le dock (openPinnedTweetStack).
+                // On affiche seulement la carte compacte.
+                if (!SHOW_TWEET_HOVER_POPUP) {
+                    if (SHOW_TWEET_HOVER_CARD) showHoverCard(queryFeatures);
+                    return;
+                }
+
+                const features = sortFeaturesByDateDesc(queryFeatures());
 
                 if (!features.length) return;
 
@@ -1626,6 +1965,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                         view: features.length > 1 ? "list" : "detail",
                         index: 0,
                         pinned: false,
+                        cityName,
                     };
                     lastHoverTweetHTML = null;
                 }
@@ -1643,6 +1983,28 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                     .addTo(map);
                 centerSelectedInList(popup);
                 bindHoverPopupEvents();
+            };
+
+            map.on("mousemove", "tweets-hover-area", (e) => {
+                // Sur mobile, les navigateurs tactiles émulent souvent un
+                // mousemove/mouseenter juste avant le vrai "click" sur un tap.
+                // Ce hover n'a aucun sens au doigt, et le popup qu'il ouvre ici
+                // n'est jamais stylé "mobile" (className fixe sur `popup`) : il
+                // s'affichait donc en plein sur le premier tap, à la place du
+                // popup épinglé mobile, et consommait ce premier tap (d'où le
+                // besoin de taper 2 fois). On coupe donc ce chemin sur mobile
+                // et on laisse uniquement le handler "click" gérer l'ouverture.
+                if (isMobileViewport()) return;
+                if (pinnedPopupRef.current) return;
+                // Souris au-dessus de la popup elle-même : MapLibre voit quand même le
+                // mousemove (la popup est dans le conteneur du canvas) et interroge la
+                // carte sous le curseur. On ignore, sinon la popup de survol est
+                // ré-injectée (setHTML) et la vidéo en lecture est recréée.
+                if (e.originalEvent?.target?.closest?.(".maplibregl-popup")) return;
+
+                showTweetHover(() =>
+                    map.queryRenderedFeatures(e.point, { layers: ["tweets-hover-area"] })
+                );
             });
 
             map.on("mouseleave", "tweets-hover-area", () => {
@@ -1655,17 +2017,84 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                 scheduleHoverClose(HOVER_CLOSE_DELAY_MS);
             });
 
-            map.on("click", "tweets-hover-area", (e) => {
-                // Clic venu de l'intérieur d'une popup : on ne recrée rien (la vidéo continue)
-                if (e.originalEvent?.target?.closest?.(".maplibregl-popup")) return;
-                e.originalEvent.stopPropagation();
-
-                const features = sortFeaturesByDateDesc(
+            // Survol d'un point medium : le contour de sa ville est mis en avant.
+            map.on("mousemove", "tweets-hover-area", (e) => {
+                if (isMobileViewport()) return;
+                const names = [...new Set(
                     map.queryRenderedFeatures(e.point, { layers: ["tweets-hover-area"] })
-                );
+                        .filter((f) => f.properties?.location_accuracy === "medium" && f.properties.location_name)
+                        .map((f) => f.properties.location_name)
+                )];
+                setCityBoundaryHover(map, names);
+            });
+            // Quittant un point, on garde le contour en avant si le curseur est encore sur une ville
+            map.on("mouseleave", "tweets-hover-area", (e) => {
+                const name = cityNameAt(e.point);
+                setCityBoundaryHover(map, name ? [name] : []);
+            });
 
-                if (!features.length) return;
+            // ── Survol du contour d'une ville medium : ouvre la popup de ses tweets ──
+            // Les points restent prioritaires (leur propre handler gère alors la popup).
+            const cityNameAt = (point) => {
+                if (!map.getLayer("city-boundaries-fill")) return null;
+                if (map.queryRenderedFeatures(point, { layers: ["tweets-hover-area"] }).length) return null;
+                return map.queryRenderedFeatures(point, { layers: ["city-boundaries-fill"] })[0]
+                    ?.properties?.location_name ?? null;
+            };
+            // Tweets visibles DANS le contour de la ville : ceux de la ville (même location_name)
+            // mais aussi les tweets plus précis (autre lieu, autre précision) dont le point tombe
+            // dans le polygone. Même format que queryRenderedFeatures (propriétés imbriquées
+            // sérialisées, ce qu'attend renderTweetStack), sans doublons de tuiles.
+            const cityTweetFeatures = (name) => {
+                const polys = map.__cityBoundaryIndex?.get(name);
+                const seen = new Set();
+                return map.querySourceFeatures("tweets").filter((f) => {
+                    const c = f.geometry?.coordinates;
+                    const inside = polys && Array.isArray(c)
+                        ? pointInCountry(polys, c[0], c[1])
+                        // contour inconnu : repli sur le lien par nom
+                        : f.properties?.location_accuracy === "medium" && f.properties?.location_name === name;
+                    if (!inside) return false;
+                    const key = f.properties.url ?? f.properties.id;
+                    if (seen.has(key)) return false;
+                    seen.add(key);
+                    return true;
+                });
+            };
+            let hoveredCity = null;
+            map.on("mousemove", (e) => {
+                if (isMobileViewport() || isDrawModeRef.current) return;
+                if (e.originalEvent?.target?.closest?.(".maplibregl-popup")) return; // sur la popup : on ne bouge rien
+                const name = cityNameAt(e.point);
+                if (name === hoveredCity) return;
+                const left = hoveredCity !== null;
+                hoveredCity = name;
+                if (!name) {
+                    // Sorti de la ville (et pas sur un point : leur handler gère son propre cas)
+                    if (left && !map.queryRenderedFeatures(e.point, { layers: ["tweets-hover-area"] }).length) {
+                        setCityBoundaryHover(map, []);
+                        isHoveringTweet = false;
+                        if (!isDrawModeRef.current) map.getCanvas().style.cursor = "";
+                        scheduleHoverClose(HOVER_CLOSE_DELAY_MS);
+                    }
+                    return;
+                }
+                setCityBoundaryHover(map, [name]);
+                if (pinnedPopupRef.current) return;
+                showTweetHover(() => cityTweetFeatures(name), name);
+            });
+            map.getCanvas().addEventListener("mouseleave", () => {
+                hoveredCity = null;
+                setCityBoundaryHover(map, []);
+            });
 
+            // Ouvre la popup épinglée (dock mobile / popup desktop) pour une pile de tweets.
+            // Partagé par le clic sur un point et le clic sur le contour d'une ville medium.
+            // pinnedCityName : ville dont le contour a ouvert la popup épinglée (null si ouverte
+            // depuis un point / le SidePanel). Sert à refermer la popup en recliquant le contour.
+            let pinnedCityName = null;
+            const openPinnedTweetStack = (features, cityName = null) => {
+                hideHoverCard();
                 if (pinnedPopupRef.current) { pinnedPopupRef.current.remove(); setPinnedPopup(null); }
                 // La popup de survol laisse la place à la popup épinglée
                 if (popup.isOpen()) popup.remove();
@@ -1681,14 +2110,16 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                     view: features.length > 1 ? "list" : "detail",
                     index: 0,
                     pinned: true,
+                    cityName,
                 };
                 bindTweetStackNav();
 
+                // Mobile : bottom sheet. Desktop : panneau "dock" à droite (voir .tweet-popup--dock).
                 const newPinnedPopup = new maptilersdk.Popup({
-                    closeButton: mobile,
+                    closeButton: true,
                     closeOnClick: !mobile,
                     maxWidth: "none",
-                    className: mobile ? "tweet-popup tweet-popup--mobile" : "tweet-popup",
+                    className: mobile ? "tweet-popup tweet-popup--mobile" : "tweet-popup tweet-popup--dock",
                     anchor: "bottom",
                 })
                     .setLngLat(coords)
@@ -1698,12 +2129,58 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                 centerSelectedInList(newPinnedPopup);
 
                 setPinnedPopup(newPinnedPopup);
+                pinnedCityName = cityName;
+                // Le contour de la ville reste sélectionné tant que la popup est ouverte
+                // (aussi quand elle vient d'un point medium)
+                setCityBoundarySelected(map, cityName ? [cityName] : [...new Set(
+                    features
+                        .filter((f) => f.properties?.location_accuracy === "medium" && f.properties.location_name)
+                        .map((f) => f.properties.location_name)
+                )]);
                 newPinnedPopup.on("close", () => {
+                    pinnedCityName = null;
+                    setCityBoundarySelected(map, []);
                     setPinnedPopup(null);
                     resetSheetPadding(map);
+                    if (!mobile) applyPanelPaddingRef.current?.(true); // le globe reprend toute la place
                     if (tweetStack?.pinned) tweetStack = null;
                 });
                 revealPointAboveSheet(map, newPinnedPopup, coords);
+                // Desktop : le dock s'ouvre à droite, la carte se recentre sur le point dans l'espace restant
+                if (!mobile) applyPanelPaddingRef.current?.(true, coords);
+            };
+
+            map.on("click", "tweets-hover-area", (e) => {
+                // Clic venu de l'intérieur d'une popup : on ne recrée rien (la vidéo continue)
+                if (e.originalEvent?.target?.closest?.(".maplibregl-popup")) return;
+                e.originalEvent.stopPropagation();
+
+                const features = sortFeaturesByDateDesc(
+                    map.queryRenderedFeatures(e.point, { layers: ["tweets-hover-area"] })
+                );
+
+                if (!features.length) return;
+                openPinnedTweetStack(features);
+            });
+
+            // Clic sur le contour d'une ville medium : même popup épinglée que pour un point.
+            // Les points restent prioritaires (cityNameAt renvoie null s'il y en a un sous le
+            // curseur) et le pays dessous n'est pas sélectionné (le contour le bloque, voir
+            // countryBlockingLayers).
+            map.on("click", (e) => {
+                if (isDrawModeRef.current) return;
+                if (e.originalEvent?.target?.closest?.(".maplibregl-popup")) return;
+                const name = cityNameAt(e.point);
+                if (!name) return;
+                e.originalEvent.stopPropagation();
+                // Popup déjà ouverte pour CETTE ville : un nouveau clic sur le contour la referme
+                if (pinnedPopupRef.current && pinnedCityName === name) {
+                    pinnedPopupRef.current.remove();
+                    return;
+                }
+                const features = sortFeaturesByDateDesc(cityTweetFeatures(name));
+                if (!features.length) return;
+                openPinnedTweetStack(features, name);
             });
 
             const getChokepointPopupHTML = (props, lang = getCurrentLang()) => {
@@ -1766,6 +2243,8 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                 if (isMobileViewport()) return;
 
                 if (!e.features.length) return;
+                // Un tweet sous le curseur est prioritaire : un seul hover à la fois
+                if (map.queryRenderedFeatures(e.point, { layers: ["tweets-hover-area"] }).length) return;
                 if (!isDrawModeRef.current) map.getCanvas().style.cursor = "pointer";
 
                 showChokepointPopup(
@@ -1824,7 +2303,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                 // Curseur sur un tweet / topic location : ils ont la priorité sur la zone.
                 // On coupe la surbrillance et on lâche la main sur le popup (c'est le
                 // handler du tweet / topic qui l'a déjà remplacé ou fermé : ne pas le retirer ici).
-                if (map.queryRenderedFeatures(e.point, { layers: AREA_BLOCKING_LAYERS }).length) {
+                if (map.queryRenderedFeatures(e.point, { layers: withCityBlock(map, AREA_BLOCKING_LAYERS) }).length) {
                     lastBlockedAt = performance.now();
                     if (highlightedPortname !== null) {
                         highlightedPortname = null;
@@ -1891,7 +2370,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                 // SANS poser mobileChokepointClickConsumed : le handler du tweet
                 // s'occupe du tap, et le tap "ailleurs" ferme l'éventuelle popup
                 // chokepoint précédente.
-                if (map.queryRenderedFeatures(e.point, { layers: AREA_BLOCKING_LAYERS }).length) return;
+                if (map.queryRenderedFeatures(e.point, { layers: withCityBlock(map, AREA_BLOCKING_LAYERS) }).length) return;
 
                 mobileChokepointClickConsumed = true;
                 setTimeout(() => {
@@ -2153,7 +2632,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                 // Un tweet / une icône / une zone de détroit sous le curseur ont la priorité :
                 // on coupe la surbrillance et on lâche la main sur le popup (leur handler l'a
                 // déjà remplacé ou fermé : ne pas le retirer ici).
-                if (map.queryRenderedFeatures(e.point, { layers: CONFLICT_ZONE_BLOCKING_LAYERS }).length) {
+                if (map.queryRenderedFeatures(e.point, { layers: withCityBlock(map, CONFLICT_ZONE_BLOCKING_LAYERS) }).length) {
                     czLastBlockedAt = performance.now();
                     if (highlightedZoneId !== null) {
                         highlightedZoneId = null;
@@ -2204,7 +2683,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                 // Tweet / icône / zone de détroit sous le doigt : ils ont la priorité.
                 // On sort SANS poser mobileZoneClickConsumed (le tap ferme alors une éventuelle
                 // popup de zone précédente).
-                if (map.queryRenderedFeatures(e.point, { layers: CONFLICT_ZONE_BLOCKING_LAYERS }).length) return;
+                if (map.queryRenderedFeatures(e.point, { layers: withCityBlock(map, CONFLICT_ZONE_BLOCKING_LAYERS) }).length) return;
 
                 mobileZoneClickConsumed = true;
                 setTimeout(() => { mobileZoneClickConsumed = false; }, 0);
@@ -2385,7 +2864,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                 if (isMobileViewport()) return;
                 if (isDrawModeRef.current) { clearPairHover(); return; }
 
-                if (map.queryRenderedFeatures(e.point, { layers: PAIR_BLOCKING_LAYERS }).length) {
+                if (map.queryRenderedFeatures(e.point, { layers: withCityBlock(map, PAIR_BLOCKING_LAYERS) }).length) {
                     pairLastBlockedAt = performance.now();
                     clearPairHover();
                     return;
@@ -2417,7 +2896,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
             // Sur mobile : un tap sur le théâtre / la frontière ouvre une popup épinglée.
             map.on("click", (e) => {
                 if (!isMobileViewport() || isDrawModeRef.current) return;
-                if (map.queryRenderedFeatures(e.point, { layers: PAIR_BLOCKING_LAYERS }).length) return;
+                if (map.queryRenderedFeatures(e.point, { layers: withCityBlock(map, PAIR_BLOCKING_LAYERS) }).length) return;
 
                 const pair = queryPair(e.point);
                 if (!pair) return; // tap ailleurs : la popup se ferme seule (closeOnClick)
@@ -2496,18 +2975,31 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
             // Desktop : seuls tweets et icônes de détroit sont prioritaires sur le pays.
             // Mobile : un tap ouvre déjà une popup sur les zones / détroits, on s'en écarte aussi.
             const countryBlockingLayers = () =>
-                isMobileViewport() ? PAIR_BLOCKING_LAYERS : ["tweets-hover-area", "chokepoints"];
-            const queryCountry = (point) => {
+                withCityBlock(map, isMobileViewport() ? PAIR_BLOCKING_LAYERS : ["tweets-hover-area", "chokepoints"]);
+            // Survol : UN SEUL hover à la fois. Le pays passe après tout le reste (tweets, villes, détroits,
+            // zones, théâtres / frontières militaires) : sous l'un d'eux, le pays n'est pas survolé.
+            // Le CLIC (sélection du pays) garde la règle ci-dessus : on peut toujours cliquer le pays dessous.
+            const pairHoverAt = (point) => {
+                const layers = PAIR_HIT_LAYERS.filter((id) => map.getLayer(id));
+                if (!layers.length) return false;
+                const pad = 5; // mêmes 5 px de tolérance que queryPair (frontière de 2 px)
+                return map.queryRenderedFeatures(
+                    [[point.x - pad, point.y - pad], [point.x + pad, point.y + pad]], { layers }
+                ).length > 0;
+            };
+            const queryCountry = (point, forHover = false) => {
                 if (!map.getLayer(COUNTRY_FILL)) return null;
-                const blocking = countryBlockingLayers().filter((id) => map.getLayer(id));
+                const layers = forHover ? withCityBlock(map, PAIR_BLOCKING_LAYERS) : countryBlockingLayers();
+                const blocking = layers.filter((id) => map.getLayer(id));
                 if (blocking.length && map.queryRenderedFeatures(point, { layers: blocking }).length) return null;
+                if (forHover && pairHoverAt(point)) return null;
                 return map.queryRenderedFeatures(point, { layers: [COUNTRY_FILL] })[0]?.properties?.name ?? null;
             };
 
             map.on("mousemove", (e) => {
                 if (isMobileViewport()) return;
                 if (isDrawModeRef.current) { setCountryHover(null); return; }
-                setCountryHover(queryCountry(e.point));
+                setCountryHover(queryCountry(e.point, true));
             });
             map.getCanvas().addEventListener("mouseleave", () => setCountryHover(null));
 
@@ -2552,6 +3044,49 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                     setTweetsRevision((v) => v + 1);
                 })
                 .catch((err) => console.warn("/countries indisponible :", err));
+
+            // ═══════════════════════════════════════════
+            // Contours de villes (tweets "medium") : chargés en arrière-plan, dessinés
+            // SOUS les points des tweets (avant leur première couche).
+            // ═══════════════════════════════════════════
+            fetch(`${API}/city-boundaries`)
+                .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+                .then((fc) => {
+                    if (!mapRef.current || map.getSource("city-boundaries")) return;
+                    map.__cityBoundaryIndex = buildCountryIndex(fc, "location_name"); // pour cityTweetFeatures
+                    map.addSource("city-boundaries", { type: "geojson", data: fc });
+                    const cityBeforeId = map.getLayer("pulse-high-importance_score") ? "pulse-high-importance_score" : undefined;
+                    map.addLayer({
+                        id: "city-boundaries-fill", type: "fill", source: "city-boundaries",
+                        filter: ["==", ["get", "location_name"], "__none__"],
+                        paint: { "fill-color": CITY_OTHER_COLOR, "fill-opacity": 0.1 },
+                    }, cityBeforeId);
+                    map.addLayer({
+                        id: "city-boundaries-line", type: "line", source: "city-boundaries",
+                        filter: ["==", ["get", "location_name"], "__none__"],
+                        layout: { "line-join": "round" },
+                        paint: {
+                            "line-color": CITY_OTHER_COLOR,
+                            "line-width": 1.2,
+                            "line-opacity": 0.7,
+                            "line-dasharray": [3, 2],
+                        },
+                    }, cityBeforeId);
+                    // Contour mis en avant au survol d'un point medium (filtre piloté par setCityBoundaryHover)
+                    map.addLayer({
+                        id: "city-boundaries-hover-fill", type: "fill", source: "city-boundaries",
+                        filter: ["==", ["get", "location_name"], "__none__"],
+                        paint: { "fill-color": CITY_OTHER_COLOR, "fill-opacity": 0.3 },
+                    }, cityBeforeId);
+                    map.addLayer({
+                        id: "city-boundaries-hover-line", type: "line", source: "city-boundaries",
+                        filter: ["==", ["get", "location_name"], "__none__"],
+                        layout: { "line-join": "round" },
+                        paint: { "line-color": CITY_OTHER_COLOR, "line-width": 2.5, "line-opacity": 1 },
+                    }, cityBeforeId);
+                    applyCityBoundariesFilter(map); // utilise les derniers tweets filtrés
+                })
+                .catch((err) => console.warn("/city-boundaries indisponible :", err));
 
             //PULSE
             // PULSE - Military Lines
@@ -2742,6 +3277,24 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
             const enrichedTweets = buildEnrichedTweets(allTweetsRef.current, timeRange, activeWeaponTypes, activeObjectiveTypes, activeLabel, searchText, drawnQuadrilateral, lang);
             const filteredTweets = filterByCountry(enrichedTweets, countryPolys, "point");
 
+            // Topics du pays sélectionné, SANS le filtre activeLabel (liste "facettée",
+            // même logique que availableLabelsForFilters pour les armes/objectifs) :
+            // le SidePanel continue d'afficher tous les topics du pays quand un topic
+            // est sélectionné, au lieu de se réduire à la seule chip active.
+            // Priorité : filtres période / armes / objectifs / recherche / rectangle.
+            if (selectedCountry && countryPolys) {
+                const noLabelTweets = filterByCountry(
+                    buildEnrichedTweets(allTweetsRef.current, timeRange, activeWeaponTypes, activeObjectiveTypes, null, searchText, drawnQuadrilateral, lang),
+                    countryPolys,
+                    "point"
+                );
+                filteredTweets.availableLabelsForCountry = [...new Set(
+                    noLabelTweets.features.map((f) => f.properties?.label).filter(Boolean)
+                )].sort();
+            } else {
+                delete filteredTweets.availableLabelsForCountry;
+            }
+
             // Le tweet sélectionné est sorti du jeu filtré (topic, période, armes,
             // objectifs, recherche, rectangle) : on retire le pulse et on désélectionne.
             const selId = selectedTweetIdRef.current;
@@ -2760,6 +3313,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
             if (tweetSource) {
                 tweetSource.setData(filteredTweets);
                 setDataTweets(filteredTweets);
+                applyCityBoundariesFilter(map, filteredTweets);
                 if (onTweetsLoaded) onTweetsLoaded(filteredTweets);
             }
 
@@ -2794,7 +3348,9 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
     // Si la carte n'a pas encore chargé ses données, loadAllData lira directement
     // la version fusionnée (latestBootstrapRef).
     useEffect(() => {
-        if (!bootstrapData?.merged || !allTweetsRef.current) return;
+        // Pas de données, ou payload lite (le cache local vient déjà de lui) : rien à faire.
+        if (!bootstrapData || bootstrapData.partial || !allTweetsRef.current) return;
+        // Même référence que le cache local : déjà à jour.
         if (allTweetsRef.current === bootstrapData.tweets) return;
         const emptyFC = { type: "FeatureCollection", features: [] };
         allTweetsRef.current = bootstrapData.tweets ?? emptyFC;
@@ -3051,37 +3607,30 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                 aria-label={t.mapLabel}
             />
 
-            {/* Bouton d'ouverture du panneau Théâtres */}
-            <button
-                type="button"
-                className={`map-ctrl-btn map-ctrl-btn--float${theatersOpen ? " is-active" : ""}`}
-                title={t.theatersButton}
-                aria-expanded={theatersOpen}
-                onClick={() => setTheatersOpen((v) => !v)}
-                style={{ left: searchBarLeftOffset }}
-            >
-                <PiBookOpenTextBold size={16} />
-            </button>
-
-            <TheatersDrawer
-                open={theatersOpen}
-                onClose={() => setTheatersOpen(false)}
-                topics={bootstrapData?.topics || []}
-                summariesByTopic={bootstrapData?.topic_summaries || {}}
-                lang={lang}
-                onSelectTopic={handleSelectTheater}
-                initialSlug={getInitialTheaterSlug()}
-            />
+            {/* Bouton d'ouverture du panneau Théâtres (masqué sur desktop : la topbar le remplace) */}
+            {!hideTheatersButton && (
+                <a
+                    href={theatersIndexPath(lang)}
+                    className="map-ctrl-btn map-ctrl-btn--float"
+                    title={t.theatersButton}
+                    aria-label={t.theatersButton}
+                    style={{ left: searchBarLeftOffset, display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none" }}
+                >
+                    <PiBookOpenTextBold size={16} />
+                </a>
+            )}
 
             {/* Barre de recherche (si applicable) */}
-            {onSearchTextChange && (
+            {onSearchTextChange && (() => {
+                const searchNode = (
                 <div
                     ref={searchContainerRef}
                     className="map-kw-list"
-                    style={{ left: searchBarLeftOffset + 42 }} // laisse la place au bouton Théâtres
+                    style={searchSlot ? undefined : { left: searchBarLeftOffset + (hideTheatersButton ? 0 : 42) }}
                 >
                     <div className="map-search">
                         <input
+                            ref={searchInputRef}
                             type="text"
                             className={`map-search-input${localSearchText ? " has-value" : ""}`}
                             value={localSearchText}
@@ -3140,7 +3689,9 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                         </div>
                     )}
                 </div>
-            )}
+                );
+                return searchSlot ? createPortal(searchNode, searchSlot) : searchNode;
+            })()}
 
             {/* Barre d'outils en bas à gauche : dessin + filtres + export + performance */}
             {/* Affichée dès que les données sont chargées, même si les filtres
@@ -3292,18 +3843,6 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                         onClick={() => setPerformanceMode((v) => !v)}
                     >
                         <CgPerformance size={17} />
-                    </button>
-
-                    {/* 5. Fond de carte : vector <-> satellite */}
-                    <button
-                        type="button"
-                        className={`map-ctrl-btn${basemap === "satellite" ? " is-active" : ""}`}
-                        aria-pressed={basemap === "satellite"}
-                        title={(BASEMAP_TITLES[basemap][lang] ?? BASEMAP_TITLES[basemap].en)}
-                        aria-label={(BASEMAP_TITLES[basemap][lang] ?? BASEMAP_TITLES[basemap].en)}
-                        onClick={handleToggleBasemap}
-                    >
-                        {basemap === "satellite" ? <MdOutlineMap size={17} /> : <MdSatelliteAlt size={16} />}
                     </button>
                 </div>
             )}

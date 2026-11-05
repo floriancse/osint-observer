@@ -35,7 +35,7 @@
     top: 8px;
     right: 8px;
     z-index: 300;
-    background: rgba(13, 19, 32, 0.85);
+    background: rgba(12, 12, 12, 0.85);
     -webkit-backdrop-filter: blur(8px);
     backdrop-filter: blur(8px);
   }
@@ -141,6 +141,21 @@
   color: var(--ox-muted);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+.sp-country-badge {
+  font-size: 0.74rem;
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--ox-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.sp-country-badge::before {
+  content: "·";
+  content: "·" / "";
+  margin-right: 6px;
 }
 
 /* Séparateur décoratif (ignoré par les lecteurs d'écran quand le navigateur gère l'alternative vide) */
@@ -267,7 +282,7 @@
     top: 8px;
     right: 46px;
     z-index: 300;
-    background: rgba(13, 19, 32, 0.85);
+    background: rgba(12, 12, 12, 0.85);
     -webkit-backdrop-filter: blur(8px);
     backdrop-filter: blur(8px);
   }
@@ -362,7 +377,7 @@
 .sp-pill:hover,
 .sp-pill--open {
   background: var(--ox-surface-2);
-  border-color: #2e3b55;
+  border-color: #3a3a3a;
   color: var(--ox-text);
 }
 
@@ -458,7 +473,7 @@
 .sp-topic-bar:hover,
 .sp-topic-bar--open {
   background: var(--ox-surface-2);
-  border-color: #2e3b55;
+  border-color: #3a3a3a;
 }
 
 .sp-topic-bar--active {
@@ -551,7 +566,7 @@
 
 .sp-chip:hover {
   background: var(--ox-surface-3);
-  border-color: #2e3b55;
+  border-color: #3a3a3a;
   color: var(--ox-text);
 }
 
@@ -796,3 +811,179 @@
     animation: none;
   }
 }
+
+/* ── Recherche dans le panneau (rendue par MapView via un portail) ── */
+.sp-search { padding: 0 12px 10px; }
+.sp-search:empty { display: none; }
+.sp-search .map-kw-list {
+  position: relative;
+  left: auto;
+  top: auto;
+  right: auto;
+  bottom: auto;
+  width: 100%;
+  max-width: none;
+  transform: none;
+}
+.sp-search .map-search { width: 100%; }
+.sp-search .map-search-input { width: 100%; box-sizing: border-box; }
+/* Suggestions : déroulées sous le champ, DANS le flux : elles repoussent
+   les tweets vers le bas au lieu de les recouvrir */
+.sp-search .map-suggest {
+  position: static;
+  margin-top: 6px;
+  max-height: 50vh;
+  overflow-y: auto;
+  background: var(--ox-surface);
+  border: 1px solid var(--ox-border);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+}
+
+/* Desktop : le nom du site est affiché dans la topbar ; le <h1> reste dans le DOM (SEO, accessibilité) */
+@media (min-width: 769px) {
+  .sp-title {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+}
+/* ═══════════════════════════════════════════
+   REFONTE VISUELLE — palette neutre, cartes arrondies, étiquettes mono, contrôles en pilules.
+   Tout est regroupé ici (surcharges) : supprimer ce bloc revient à l'ancien style.
+   ═══════════════════════════════════════════ */
+.sidepanel {
+  --sp-panel: #111111;   /* fond du panneau */
+  --sp-card: #191919;    /* cartes */
+  --sp-sunken: #050505;  /* champs / segmented control (en creux) */
+  --sp-line: #272727;    /* séparateurs, chips */
+  --sp-active: #242424;  /* segment actif, survol */
+  --sp-muted: #8c8c8c;
+  --sp-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  background: var(--sp-panel);
+}
+
+.sidepanel-header {
+  background: var(--sp-panel);
+  border-bottom: 1px solid var(--sp-line);
+}
+
+/* Titre : gros, serré, très gras ; compteur et pays en étiquettes mono */
+.sp-topbar { align-items: flex-start; padding: 18px 14px 10px 20px; }
+.sp-heading { gap: 4px; }
+.sp-title-group { flex-wrap: wrap; row-gap: 4px; }
+.sp-feed {
+  font-size: 1.45rem;
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.035em;
+  color: var(--ox-text);
+}
+.sp-count,
+.sp-country-badge {
+  font-family: var(--sp-mono);
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sp-muted);
+}
+.sp-count { margin-left: 4px; }
+.sp-count::before,
+.sp-country-badge::before { content: none; }
+
+/* Recherche : pilule en creux, bordure nette */
+.sp-search { padding: 4px 14px 12px; }
+.sp-search .map-search-input {
+  height: 42px;
+  padding: 0 16px 0 42px;
+  border-radius: 9999px;
+  background-color: var(--sp-sunken);
+  border:1px solid var(--sp-line);
+  box-shadow: none;
+  font-size: 0.86rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238c8c8c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E");
+  background-position: 16px center;
+}
+.sp-search .map-search-input.has-value { padding-right: 38px; }
+.sp-search .map-search-input:hover { border-color: #666666; }
+.sp-search .map-search-input:focus { border-color: #8c8c8c; box-shadow: none; }
+.sp-search .map-search-input::placeholder { color: var(--sp-muted); }
+.sp-search .map-suggest {
+  background: var(--sp-card);
+  border: 1px solid #2a2a2a;
+  border-radius: 20px;
+  padding: 6px;
+}
+
+/* Filtres : pilules en creux */
+.sp-topic { padding: 2px 14px 10px; }
+.sp-pill,
+.sp-topic-bar {
+  height: 34px;
+  background: var(--sp-sunken);
+  border: 1px solid var(--sp-line);
+}
+.sp-pill:hover,
+.sp-pill--open,
+.sp-topic-bar:hover,
+.sp-topic-bar--open {
+  background: var(--sp-active);
+  border-color: #3a3a3a;
+}
+.sp-topic-bar--active { border-color: var(--ox-accent); background: var(--ox-accent-soft); }
+.sp-dd-menu { background: var(--sp-card); border-color: #2a2a2a; border-radius: 16px; }
+/* Menu de langue : rendu dans un portail (<body>), donc HORS de .sidepanel où sont déclarées
+   les variables --sp-* : elles n'existent pas ici, d'où le fond transparent. On pose des
+   valeurs de repli (mêmes couleurs que .sidepanel). */
+.sp-lang-menu { background: var(--sp-card, #191919); border-color: #2a2a2a; border-radius: 16px; }
+.sp-dd-item:hover,
+.sp-dd-item:focus-visible { background: var(--sp-active); }
+.sp-lang-item:hover,
+.sp-lang-item:focus-visible { background: var(--sp-active, #242424); }
+
+/* Tri : segmented control (pilule en creux, segment actif plus clair) */
+.sp-tabs {
+  gap: 2px;
+  margin: 2px 14px 12px;
+  padding: 3px;
+  background: var(--sp-sunken);
+  border: 1px solid var(--sp-line);
+  border-radius: 9999px;
+}
+.sp-tab {
+  height: 30px;
+  border-radius: 9999px;
+  font-family: var(--sp-mono);
+  font-size: 0.74rem;
+  letter-spacing: 0.02em;
+}
+.sp-tab:hover:not(:disabled) { background: #1b1b1b; }
+.sp-tab[aria-selected="true"],
+.sp-tab[aria-selected="true"]:hover:not(:disabled) { background: var(--sp-active); color: var(--ox-text); }
+.sp-tab[aria-selected="true"]::after { content: none; }
+
+/* Liste : un tweet = une carte arrondie */
+.osint-tweet-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.osint-tweet-card-wrapper {
+  border: 1px solid transparent;
+  border-bottom: 1px solid transparent;
+  overflow: hidden;
+}
+.osint-tweet-card-wrapper:hover { background: #1e1e1e; }
+.osint-tweet-card-wrapper--selected,
+.osint-tweet-card-wrapper--selected:hover {
+  background: var(--ox-accent-soft);
+  border: 1px solid var(--ox-accent);
+}
+
+.sidepanel-content::-webkit-scrollbar-thumb { border-color: var(--sp-panel); }
+.skeleton-card { background: var(--sp-card); border-color: var(--sp-line); border-radius: 12px; }

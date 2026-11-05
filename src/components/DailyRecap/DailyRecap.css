@@ -1,0 +1,297 @@
+/* Tokens --ox-* définis dans popupUtils.css */
+.recap {
+  position: fixed;
+  inset: 0;
+  z-index: 400; /* au-dessus du SidePanel (z-index 100) */
+  background: var(--ox-bg);
+  color: var(--ox-text);
+  overflow-y: auto;
+}
+
+.recap-close {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  z-index: 2;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  background: var(--ox-surface);
+  border: 1px solid var(--ox-border);
+  border-radius: 9999px;
+  color: var(--ox-text-2);
+  cursor: pointer;
+}
+.recap-close:hover { background: var(--ox-surface-2); }
+
+.recap-page {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 34px 48px 48px;
+  box-sizing: border-box;
+}
+
+.recap-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ox-muted);
+}
+
+/* ── Fil d'Ariane ── */
+.recap-crumbs {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.82rem;
+  color: var(--ox-muted);
+  margin-bottom: 34px;
+}
+.recap-crumb {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: var(--ox-muted);
+  cursor: pointer;
+}
+button.recap-crumb:hover { color: var(--ox-text); }
+.recap-crumb--current { color: var(--ox-text-2); cursor: default; }
+
+/* ── Haut de page : texte à gauche, carte de chiffres à droite ── */
+.recap-top {
+  display: grid;
+  grid-template-columns: minmax(0, 7fr) minmax(0, 4fr);
+  gap: 64px;
+  align-items: start;
+}
+
+.recap-kicker { margin: 0 0 18px; }
+.recap-title {
+  margin: 0;
+  font-size: clamp(2.4rem, 5vw, 4.4rem);
+  line-height: 1.02;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  max-width: 12em;
+}
+.recap-meta {
+  margin: 20px 0 0;
+  font-size: 0.8rem;
+  color: var(--ox-muted);
+}
+.recap-body {
+  margin: 26px 0 0;
+  max-width: 40em;
+  font-size: 1.12rem;
+  line-height: 1.6;
+  color: var(--ox-text-2);
+}
+
+.recap-body p { margin: 0; }
+
+/* Points clés du résumé global */
+.recap-points {
+  list-style: none;
+  margin: 24px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.recap-points li {
+  display: grid;
+  grid-template-columns: 8em minmax(0, 1fr);
+  gap: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--ox-border);
+  font-size: 0.98rem;
+  line-height: 1.55;
+}
+.recap-point-theme { padding-top: 0.28em; }
+/* Variante placée sous la carte, pleine largeur */
+.recap-points--page { margin: 40px 0 0; color: var(--ox-text-2); }
+.recap-body .recap-body-date { margin-top: 20px; }
+
+/* Squelette pendant le chargement */
+.recap-skel {
+  height: 1em;
+  margin-bottom: 12px;
+  border-radius: 6px;
+  background: var(--ox-surface-2);
+  animation: recap-pulse 1.4s ease-in-out infinite;
+}
+.recap-skel--short { width: 60%; }
+@keyframes recap-pulse { 50% { opacity: 0.45; } }
+
+.recap-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 34px;
+}
+.recap-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 20px;
+  border-radius: 9999px;
+  font: inherit;
+  font-size: 0.92rem;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.recap-btn--primary {
+  background: var(--ox-text);
+  color: var(--ox-bg);
+  border: 0;
+  font-weight: 600;
+}
+.recap-btn--primary:hover { background: #fff; }
+.recap-btn--ghost {
+  background: transparent;
+  color: var(--ox-text-2);
+  border: 1px solid var(--ox-border);
+}
+.recap-btn--ghost:hover { background: var(--ox-surface); }
+.recap-btn--link {
+  background: none;
+  border: 0;
+  color: var(--ox-muted);
+  padding: 0 6px;
+}
+.recap-btn--link:hover { color: var(--ox-text); }
+
+/* ── Carte de chiffres ── */
+.recap-card {
+  background: var(--ox-surface);
+  border: 1px solid var(--ox-border);
+  border-radius: 22px;
+  overflow: hidden;
+}
+.recap-card-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 22px 22px 0;
+}
+.recap-big {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 10px 22px 22px;
+}
+.recap-big strong {
+  font-size: clamp(3.4rem, 6vw, 5rem);
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+}
+.recap-big span { font-size: 0.9rem; color: var(--ox-muted); }
+
+.recap-cols {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-top: 1px solid var(--ox-border);
+}
+.recap-col {
+  padding: 14px 16px 16px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.recap-col + .recap-col { border-left: 1px solid var(--ox-border); padding-left: 16px; }
+.recap-col-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.78rem;
+  color: var(--ox-text-2);
+  line-height: 1.2;
+}
+.recap-col b {
+  font-size: 1.5rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.recap-rows {
+  list-style: none;
+  margin: 0;
+  padding: 8px 22px 12px;
+  border-top: 1px solid var(--ox-border);
+}
+.recap-rows li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 0;
+  font-size: 0.82rem;
+  color: var(--ox-text-2);
+}
+.recap-mono-num {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-weight: 600;
+}
+
+/* ── Symboles (carte + légendes) ── */
+.recap-sym {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: none;
+}
+.recap-sym--mil { background: #ED0C0C; }
+.recap-sym--other { background: #4f9dff; }
+.recap-sym--verified { border: 1.5px solid #fff; width: 10px; height: 10px; box-sizing: border-box; }
+
+/* ── Carte 2D statique : rien n'est interactif ── */
+.recap-mapwrap { margin: 40px 0 0; }
+.recap-map {
+  position: relative;
+  background: var(--ox-surface);
+  border: 1px solid var(--ox-border);
+  border-radius: 22px;
+  padding: 18px 22px;
+  pointer-events: none;
+  user-select: none;
+}
+.recap-map svg { display: block; width: 100%; height: auto; }
+.recap-dots {
+  fill: none;
+  stroke: var(--ox-surface-3);
+  stroke-width: 1.15;
+  stroke-linecap: round;
+}
+.recap-map-note {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--ox-muted);
+}
+.recap-caption {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 6px 0;
+}
+
+@media (max-width: 960px) {
+  .recap-page { padding: 18px 18px 36px; }
+  .recap-top { grid-template-columns: minmax(0, 1fr); gap: 32px; }
+  .recap-crumbs { margin-right: 44px; margin-bottom: 24px; }
+  .recap-points li { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .recap-point-theme { padding-top: 0; }
+  .recap-map { padding: 8px; border-radius: 16px; }
+}

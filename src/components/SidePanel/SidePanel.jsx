@@ -7,9 +7,14 @@ import { useBootstrap } from "../../context/BootstrapContext";
 import { useTime, PERIOD_PRESETS } from "../../context/TimeContext";
 import { useLang } from "../../context/LangContext";
 import { translateTheaterLabel } from "../../utils/theaterLabels";
+import usePersistentState from "../../utils/usePersistentState";
+import NewEventsBanner from "./NewEventsBanner";
 
 // Nom de chaque langue dans sa propre langue (entrées du menu de langue).
 const LANG_NAMES = { fr: "Français", en: "English", es: "Español" };
+
+// Titre du badge pays (traduit si LangContext fournit l'entrée, sinon repli).
+const COUNTRY_BADGE_LABELS = { fr: "Pays sélectionné", en: "Selected country", es: "País seleccionado" };
 
 const SkeletonLoader = () => (
     <div className="skeleton-list">
@@ -67,9 +72,15 @@ function TweetArticle({ feature, lang, priority = false, ...rest }) {
     return <article ref={ref} {...rest} />;
 }
 
-export default function SidePanel({ tweets, collapsed, activeLabel, onLabelChange, onTweetClick, selectedTweetId, onToggle, onResize }) {
+export default function SidePanel({ tweets, selectedCountry, collapsed, activeLabel, onLabelChange, onTweetClick, selectedTweetId, onToggle, onResize }) {
     const isLoading = !tweets;
-    const { t, dateLocale, lang, setLang, availableLangs } = useLang();
+    const { t, dateLocale, lang, setLang, availableLangs, translateEntity } = useLang();
+
+    // Nom du pays sélectionné, adapté à la langue active : LangContext tient à jour
+    // un dictionnaire entity_names_<lang> rempli depuis /bootstrap (world_areas).
+    // Repli automatique sur le nom brut (anglais) si le pays est inconnu du dictionnaire
+    // ou si la langue active est l'anglais (pas de dictionnaire pour elle).
+    const localizedCountry = selectedCountry ? translateEntity(selectedCountry) : null;
 
     // ── Menu de langue ──
     // Rendu dans un portail (<body>) en position fixe : il n'est ainsi ni rogné par l'overflow du
@@ -168,7 +179,7 @@ export default function SidePanel({ tweets, collapsed, activeLabel, onLabelChang
             day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
         })
         : null;
-    const [sortConfig, setSortConfig] = useState({ key: 'date', direction: 'desc' });
+    const [sortConfig, setSortConfig] = usePersistentState("sp.sort", { key: 'date', direction: 'desc' });
     const [topicsOpen, setTopicsOpen] = useState(false);
     const [allUniqueLabels, setAllUniqueLabels] = useState([]);
     const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -234,6 +245,25 @@ export default function SidePanel({ tweets, collapsed, activeLabel, onLabelChang
     const labelCountsRef = useRef({});
 
     useEffect(() => {
+        // Pays sélectionné : `tweets.features` est déjà filtré côté MapView
+        // (filterByCountry), mais les métadonnées facettées
+        // (availableLabelsForFilters / allLabelsForTimeRange) ont été calculées
+        // AVANT le filtre pays : elles listeraient TOUS les topics de la période.
+        // On utilise donc availableLabelsForCountry (calculée par MapView : tous
+        // les topics du pays sur la période, SANS le filtre activeLabel), avec
+        // repli sur les features si la métadonnée n'est pas là.
+        if (selectedCountry) {
+            if (tweets?.availableLabelsForCountry) {
+                setAllUniqueLabels(tweets.availableLabelsForCountry);
+            } else if (tweets?.features) {
+                const labels = [...new Set(
+                    tweets.features.map(f => f.properties.label).filter(Boolean)
+                )].sort();
+                setAllUniqueLabels(labels);
+            }
+            return;
+        }
+
         if (tweets?.availableLabelsForFilters) {
             setAllUniqueLabels(tweets.availableLabelsForFilters);
         }
@@ -257,7 +287,9 @@ export default function SidePanel({ tweets, collapsed, activeLabel, onLabelChang
             }, {});
             labelCountsRef.current = { ...labelCountsRef.current, ...counts };
         }
-    }, [tweets]);
+    // selectedCountry : bascule entre la liste des topics globaux (métadonnées
+    // facettées) et la liste dérivée des tweets du pays sélectionné.
+    }, [tweets, selectedCountry]);
 
     // Réinitialise la pagination quand on change de filtre, de tri, ou que
     // de nouvelles données arrivent (sinon on garde un compte obsolète).
@@ -301,6 +333,9 @@ export default function SidePanel({ tweets, collapsed, activeLabel, onLabelChang
 
     });
     const currentCount = sortedTweets.length;
+    // Après « N nouveaux événements » : retour en haut de la liste (les plus récents y sont).
+    const scrollListToTop = () =>
+        panelRef.current?.querySelector(".sidepanel-content")?.scrollTo({ top: 0, behavior: "smooth" });
     const visibleTweets = sortedTweets.slice(0, visibleCount);
     const hasMore = visibleCount < sortedTweets.length;
 
@@ -336,6 +371,19 @@ export default function SidePanel({ tweets, collapsed, activeLabel, onLabelChang
                             <div className="sp-title-group">
                                 <h2 className="sp-feed">{t.feedTitle}</h2>
                                 {!isLoading && rangeCovered && <span className="sp-count">{t.eventsCount(currentCount)}</span>}
+                                {/* Pays sélectionné sur la carte : badge à côté du compteur.
+                                    selectedCountry vient de GET /countries (properties.name, anglais) ;
+                                    translateEntity() le traduit dans la langue active
+                                    (dictionnaire entity_names_fr / _es du bootstrap). */}
+                                {localizedCountry && (
+                                    <span
+                                        className="sp-country-badge"
+                                        title={COUNTRY_BADGE_LABELS[lang] ?? localizedCountry}
+                                        lang={lang}
+                                    >
+                                        {localizedCountry}
+                                    </span>
+                                )}
                             </div>
                         </div>
                         <div className="sp-topbar-actions">
@@ -395,6 +443,10 @@ export default function SidePanel({ tweets, collapsed, activeLabel, onLabelChang
                             </button>
                         </div>
                     </div>
+
+                    {/* Emplacement de la barre de recherche : MapView y rend son champ (portail),
+                        car toute la logique (suggestions, tendances, filtre) y vit. */}
+                    <div id="sp-search-slot" className="sp-search" />
 
                     {/* Filtre par sujet : une barre qui déplie tous les sujets d'un coup */}
                     <div
@@ -493,6 +545,9 @@ export default function SidePanel({ tweets, collapsed, activeLabel, onLabelChang
                         ))}
                     </div>
 
+                    {/* « N nouveaux événements » : visible seulement si le serveur en a de plus récents */}
+                    <NewEventsBanner onApplied={scrollListToTop} />
+
                 </div>
 
                 {isLoading ? (
@@ -508,7 +563,18 @@ export default function SidePanel({ tweets, collapsed, activeLabel, onLabelChang
                                 className={`osint-tweet-card-wrapper${selectedTweetId != null && String(feature.properties.id) === String(selectedTweetId) ? ' osint-tweet-card-wrapper--selected' : ''}`}
                                 style={{ cursor: 'pointer' }}
                                 onClick={(e) => {
-                                    if (e.target.closest('.tweet-card-link, .tweet-card-videos, .tweet-card-video, .tweet-card-carousel-btn')) return;
+                                    if (e.target.closest('.tweet-card-link, .tweet-card-more, .tweet-card-carousel-btn')) return;
+                                    // Média : on n'ignore le clic que s'il tombe réellement sur la
+                                    // vidéo. Le conteneur .tweet-card-videos occupe toute la largeur,
+                                    // donc le vide à droite de la vidéo doit sélectionner le tweet.
+                                    const mediaEl = e.target.closest('.tweet-card-video');
+                                    if (mediaEl) {
+                                        const visual = mediaEl.querySelector('video, img') ?? mediaEl;
+                                        const r = visual.getBoundingClientRect();
+                                        const onMedia = e.clientX >= r.left && e.clientX <= r.right
+                                            && e.clientY >= r.top && e.clientY <= r.bottom;
+                                        if (onMedia) return;
+                                    }
                                     const wasSelected = selectedTweetId != null
                                         && String(feature.properties.id) === String(selectedTweetId);
                                     onTweetClick?.(feature);

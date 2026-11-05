@@ -1,11 +1,12 @@
 /* Styles des boutons flottants de la carte (.map-ctrl-btn).
    Fichier chargé EAGERLY par MapApp.jsx : le bouton "rouvrir le panneau" est rendu par
    MapApp pendant que le chunk lazy de MapView (et donc MapView.css) se télécharge ;
-   sans ces règles il s'affichait brut (non stylé) pendant quelques instants. */
+   sans ces règles il s'affichait brut (non stylé) pendant quelques instants.
+   Tokens --ox-* définis dans popupUtils.css ; replis neutres identiques à TopBar.css. */
 
 .map-ctrl-btn--float {
-  background: #0c1320;
-  border: 1px solid var(--ox-border);
+  background: var(--ox-bg, #0c0c0c);
+  border: 1px solid var(--ox-border, #2a2a2a);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
 }
 
@@ -20,27 +21,28 @@
   padding: 0;
   border: 1px solid transparent;
   border-radius: 20px;
-  background: #0c1320;
-  color: var(--ox-muted);
+  background: var(--ox-bg, #0c0c0c);
+  color: var(--ox-muted, #8a8a8a);
   cursor: pointer;
   user-select: none;
   transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
+/* Survol : fond légèrement relevé (avant, il était identique au fond au repos) */
 .map-ctrl-btn:hover {
-  background: #0c1320;
-  color: var(--ox-text);
+  background: var(--ox-surface-2, #1a1a1a);
+  color: var(--ox-text, #f2f2f2);
 }
 
 .map-ctrl-btn.is-active {
-  background: #0c1320;
-  color: var(--ox-accent);
+  background: var(--ox-bg, #0c0c0c);
+  color: var(--ox-accent, #5aa9ff);
 }
 
 .map-ctrl-btn:focus-visible,
 .map-ctrl-badge:focus-visible,
 .map-search-clear:focus-visible {
-  outline: 2px solid var(--ox-accent);
+  outline: 2px solid var(--ox-accent, #5aa9ff);
   outline-offset: 2px;
 }
 
@@ -49,16 +51,16 @@
   position: absolute;
   top: 8px;
   z-index: 999;
-  border: 1px solid var(--ox-border, #26324a);
+  border: 1px solid var(--ox-border, #2a2a2a);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
 }
 
 .map-ctrl-btn--float:hover {
-  border-color: #2e3b55;
+  border-color: #333333;
 }
 
 .map-ctrl-btn--float.is-active {
-  border-color: var(--ox-accent);
+  border-color: var(--ox-accent, #5aa9ff);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -71,14 +73,15 @@
    ═══════════════════════════════════════════ */
 .ox-spinner {
   --ox-sp-period: 2.4s;
+  --ox-sp-accent: var(--ox-accent, #5aa9ff);
   position: relative;
   width: 88px;
   height: 88px;
   border-radius: 50%;
   box-sizing: border-box;
-  border: 1px solid rgba(79, 157, 255, 0.55);
-  background: rgba(79, 157, 255, 0.04);
-  color: rgba(131, 146, 167, 0.5);
+  border: 1px solid color-mix(in srgb, var(--ox-sp-accent) 55%, transparent);
+  background: color-mix(in srgb, var(--ox-sp-accent) 4%, transparent);
+  color: rgba(255, 255, 255, 0.28); /* cercles et réticule : gris neutre */
 }
 
 /* Réticule */
@@ -106,10 +109,10 @@
   border-radius: 50%;
   background: conic-gradient(
     from 0deg,
-    rgba(79, 157, 255, 0) 0deg,
-    rgba(79, 157, 255, 0) 250deg,
-    rgba(79, 157, 255, 0.3) 358deg,
-    rgba(79, 157, 255, 0.95) 360deg
+    color-mix(in srgb, var(--ox-sp-accent) 0%, transparent) 0deg,
+    color-mix(in srgb, var(--ox-sp-accent) 0%, transparent) 250deg,
+    color-mix(in srgb, var(--ox-sp-accent) 30%, transparent) 358deg,
+    color-mix(in srgb, var(--ox-sp-accent) 95%, transparent) 360deg
   );
   animation: ox-sp-rotate var(--ox-sp-period) linear infinite;
   animation-delay: var(--ox-sp-t, 0s);
@@ -139,7 +142,7 @@
   height: 4px;
   margin: -2px 0 0 -2px;
   border-radius: 50%;
-  background: var(--ox-accent, #4f9dff);
+  background: var(--ox-sp-accent);
 }
 
 @keyframes ox-sp-rotate {

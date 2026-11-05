@@ -5,7 +5,7 @@
 //
 // À ajuster pour coller au vrai SidePanel (sinon léger décalage au remplacement) :
 const SIDEPANEL_WIDTH = 360;               // largeur du SidePanel sur desktop, en px (mesurée sur capture : ~717px à 2x, bordure incluse)
-const PANEL_BG = "#0f1726";                // fond du SidePanel
+const PANEL_BG = "#111111";                // fond du SidePanel
 const PANEL_BORDER = "rgba(255,255,255,0.08)";
 
 export default function AppSkeleton() {
@@ -17,7 +17,7 @@ export default function AppSkeleton() {
         position: "fixed",
         inset: 0,
         display: "flex",
-        background: "var(--ox-bg, #0d1320)",
+        background: "var(--ox-bg, #111111)",
       }}
     >
       <style>{`

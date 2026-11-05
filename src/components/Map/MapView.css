@@ -5,14 +5,14 @@
   width: 100%;
   height: 100%;
   /* Même fond que le spinner / l'app : pas de flash noir pendant le chargement */
-  background: var(--ox-bg, #0d1320);
+  background: var(--ox-bg, #0c0c0c);
 }
 
 .map-container {
   width: 100%;
   height: 100%;
   left: 0px;
-  background: var(--ox-bg, #0d1320);
+  background: var(--ox-bg, #0c0c0c);
 }
 
 /* Tant que le style + les couches ne sont pas prêts (cf. MAP_REVEAL_MODE dans MapView.jsx) :
@@ -32,7 +32,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--ox-bg, #0d1320);
+  background: var(--ox-bg, #0c0c0c);
 }
 
 /* Fondu à l'apparition (animation et non transition : ne gêne pas les transitions
@@ -60,7 +60,7 @@
 .map-toolbar,
 .map-search-input,
 .map-suggest {
-  background: #0c1320;
+  background: #111111;
 
   border: 1px solid var(--ox-border);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
@@ -71,7 +71,8 @@
 /* Barre d'outils en bas à gauche : un seul groupe */
 .map-toolbar {
   position: absolute;
-  left: 8px;
+  /* --sp-offset (posée par MapApp) = largeur du SidePanel qui recouvre la carte ; 0 sinon */
+  left: calc(8px + var(--sp-offset, 0px));
   bottom: 8px;
   z-index: 999;
   display: flex;
@@ -231,7 +232,8 @@
   top: auto !important;
   right: auto !important;
   bottom: 56px !important;   /* bas-gauche, au-dessus de la barre d'outils */
-  left: 8px !important;
+  /* Comme la barre d'outils : décalé de la largeur du SidePanel quand il recouvre la carte (--sp-offset, posée par MapApp) */
+  left: calc(8px + var(--sp-offset, 0px)) !important;
   z-index: 5;
 }
 
@@ -422,7 +424,7 @@
   gap: 10px;
   padding: 12px 14px;
   white-space: nowrap;
-  background: rgba(13, 19, 32, 0.94);
+  background: rgba(12, 12, 12, 0.94);
   -webkit-backdrop-filter: blur(16px);
   backdrop-filter: blur(16px);
   border: 1px solid var(--ox-border);
@@ -508,7 +510,7 @@
 }
 
 .theater-popup-freshness-dot--stale {
-  background: #3b4a63;
+  background: #444444;
 }
 
 @keyframes theater-dot-hot {
@@ -558,7 +560,7 @@
 .theater-popup-summary-overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(160deg, rgba(8, 12, 20, 0.92) 0%, rgba(8, 12, 20, 0.76) 40%, rgba(8, 12, 20, 0.5) 100%);
+  background: linear-gradient(160deg, rgba(5, 5, 5, 0.92) 0%, rgba(5, 5, 5, 0.76) 40%, rgba(5, 5, 5, 0.5) 100%);
 }
 
 .theater-popup-summary-inner {
@@ -581,7 +583,7 @@
   margin: 0;
   font-size: 0.82rem;
   line-height: 1.6;
-  color: #e3e8f0;
+  color: #e8e8e8;
   text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
 }
 
@@ -629,7 +631,7 @@
   height: 7px;
   border-radius: 50%;
   background: var(--ox-accent);
-  box-shadow: 0 0 0 3px #0d1320;
+  box-shadow: 0 0 0 3px #0c0c0c;
 }
 
 .theater-popup-event::after {
@@ -695,7 +697,7 @@
 
 .maplibregl-ctrl-attrib.maplibregl-compact,
 .maplibregl-ctrl-attrib.maplibregl-compact-show {
-  background-color: rgba(13, 19, 32, 0.88) !important;
+  background-color: rgba(12, 12, 12, 0.88) !important;
   color: var(--ox-muted) !important;
   border-radius: 12px !important;
 }
@@ -868,5 +870,101 @@
   .theater-popup-freshness-dot--warm {
     animation: none !important;
     box-shadow: none !important;
+  }
+}
+/* ═══════════════════════════════════════════
+   DOCK DESKTOP — popup d'un point cliqué / grille de tweets
+   Popups marquées "tweet-popup--dock" : au lieu de flotter près du point, le même contenu
+   s'ouvre dans un panneau ancré à droite (miroir du SidePanel flottant à gauche).
+   ═══════════════════════════════════════════ */
+@media (min-width: 769px) {
+  .tweet-popup--dock.maplibregl-popup {
+    position: absolute !important;
+    top: var(--panel-top, 58px) !important;
+    right: var(--float-gap, 12px) !important;
+    bottom: var(--float-gap, 12px) !important;
+    left: auto !important;
+    transform: none !important;
+    width: min(440px, 36vw) !important;
+    max-width: none !important;
+    height: auto !important;
+    /* Colonne flex : le contenu remplit le panneau par flex (et non par height: 100%,
+       qui ne se résout pas toujours sur un popup en position absolue). */
+    display: flex !important;
+    flex-direction: column !important;
+    z-index: 600;
+  }
+
+  .tweet-popup--dock .maplibregl-popup-tip { display: none !important; }
+
+  .tweet-popup--dock .maplibregl-popup-content {
+    width: 100% !important;
+    height: auto !important;
+    flex: 1 1 auto;
+    min-height: 0;
+    max-width: none !important;
+    box-sizing: border-box;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+    background: #111111 !important;
+    border: 1px solid #2a2a2a !important;
+    border-radius: 28px !important;
+    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45) !important;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    scrollbar-width: thin;
+    scrollbar-color: #262626 transparent;
+    animation: tweet-dock-in 0.18s ease-out;
+  }
+
+  /* La grille (pile de tweets) remplit le panneau au lieu d'avoir sa propre hauteur max */
+  /* Vue liste : le panneau ne scrolle plus, c'est la liste qui scrolle (l'en-tête reste visible),
+     comme pour le bottom sheet mobile. */
+  .tweet-popup--dock .maplibregl-popup-content:has(.tweet-list) {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden !important;
+  }
+
+  .tweet-popup--dock .maplibregl-popup-content > .tweet-list {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  .tweet-popup--dock .tweet-list-header { flex: 0 0 auto; }
+
+  .tweet-popup--dock .tweet-list-items {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .tweet-popup--dock .maplibregl-popup-close-button {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 5;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    color: #c7c7c7;
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .tweet-popup--dock .maplibregl-popup-close-button:hover { background: #2e2e2e; color: #f2f2f2; }
+
+  @keyframes tweet-dock-in {
+    from { opacity: 0; transform: translateX(24px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .tweet-popup--dock .maplibregl-popup-content { animation: none; }
   }
 }
