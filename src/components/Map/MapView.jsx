@@ -1,32 +1,29 @@
 /* eslint-disable */
 import { forwardRef, useImperativeHandle, useRef, useState, useEffect, useMemo } from "react";
-import { createPortal } from "react-dom";
 import "./MapView.css";
 import * as maptilersdk from "@maptiler/sdk";
 import "@maptiler/sdk/dist/maptiler-sdk.css";
 import { useTime } from "../../context/TimeContext";
 import { useLang } from "../../context/LangContext";
-import { createPopupHTML, createPopupListHTML, createHoverCardHTML, sortFeaturesByDateDesc, getLocationName } from "../../utils/popupUtils";
+import { createPopupHTML, createPopupListHTML, sortFeaturesByDateDesc, getLocationName } from "../../utils/popupUtils";
 import { filterTweets, buildEnrichedTweets, getSearchableText } from "../../utils/tweetFilters";
 import { getCurrentLang, translateChokepointStatus, translateChokepoint, chokepointDurationHTML, DATE_LOCALES } from "../../utils/typeLabels";
 import { loadChokepointImages } from "../../utils/chokepointIcons";
 import { useBootstrap, useKeywords } from "../../context/BootstrapContext";
-import { MdOutlineDraw, MdSearch, MdTrendingUp, MdClose, MdOutlineFlag } from "react-icons/md";
+import { MdOutlineDraw, MdSearch, MdTrendingUp, MdClose, MdSatelliteAlt, MdOutlineMap, MdOutlineFlag } from "react-icons/md";
 import { PiBookOpenTextBold } from "react-icons/pi";
 import { CgPerformance } from "react-icons/cg";
 import { FaFilter } from "react-icons/fa";
+import TheatersDrawer from "./TheatersDrawer";
 import MapSpinner, { SHOW_MAP_SPINNER } from "./MapSpinner";
-import { theatersIndexPath } from "../../utils/theatersIndexRoute";
+import { getInitialTheaterSlug } from "../../utils/theaterRoute";
 import { buildSearch } from "../../utils/urlState";
 
 const MAPTILER_API_KEY = process.env.REACT_APP_MAPTILER_API_KEY;
 maptilersdk.config.apiKey = MAPTILER_API_KEY;
-const STYLE_URL = `https://api.maptiler.com/maps/01a1a86e-f9bf-7a29-b93c-c7219d176885/style.json?key=${MAPTILER_API_KEY}`;
-export { STYLE_URL }; // plus utilisé par la carte principale (satellite uniquement), gardé pour les autres imports
-// hybrid-v4 = imagerie satellite + étiquettes (pays, villes, frontières). Pour l'imagerie seule :
-// remplacer "hybrid-v4" par "satellite-v4". Le voile d'assombrissement (applySatelliteDim) se place
-// sous les étiquettes du style, qui restent donc lisibles.
-const SATELLITE_STYLE_URL = `https://api.maptiler.com/maps/01a1a86e-f9bf-7a29-b93c-c7219d176885/style.json?key=${MAPTILER_API_KEY}`;
+const STYLE_URL = `https://api.maptiler.com/maps/019e947a-cdc7-7112-be5f-b04019239e3c/style.json?key=${MAPTILER_API_KEY}`;
+export { STYLE_URL };
+const SATELLITE_STYLE_URL = `https://api.maptiler.com/maps/satellite-v4/style.json?key=${MAPTILER_API_KEY}`;
 const API = process.env.REACT_APP_API_URL;
 
 // ── Contours de villes sous les tweets "medium" ──────────────────────────────
@@ -100,72 +97,25 @@ const setCityBoundarySelected = (map, names) => {
 const SHOW_CONFLICT_ZONES = false;
 const CZ_VISIBILITY = SHOW_CONFLICT_ZONES ? "visible" : "none";
 
-// Popup de survol des tweets (desktop). Désactivée : le contenu d'un point / d'une pile de tweets
-// s'affiche uniquement dans le dock à droite, ouvert au clic. Mettre à true pour la réactiver.
-const SHOW_TWEET_HOVER_POPUP = false;
-
-// Carte compacte au survol (desktop) : titre traduit, @compte · date, pays, « cliquer pour les
-// détails ». Informative seulement (le clic ouvre toujours le dock). false pour la couper.
-const SHOW_TWEET_HOVER_CARD = true;
-// Décalage (px) de la carte par rapport au point, selon l'ancre : elle s'écarte du point
-// pour ne pas le recouvrir. Pas de triangle (masqué en CSS).
-const HOVER_CARD_OFFSETS = {
-    left: [16, 0], right: [-16, 0],
-    "top-left": [16, -4], "top-right": [-16, -4],
-    "bottom-left": [16, 4], "bottom-right": [-16, 4],
-    top: [0, 16], bottom: [0, -16], center: [0, 0],
-};
-
-// ── Fond de carte : satellite assombri ───────────────────────────────────────
-// Une seule vue (satellite MapTiler). On l'assombrit pour que les données (points, zones,
-// lignes) ressortent. Deux mécanismes cumulés (le 2e garantit le résultat même si le style
-// n'expose pas de couche "raster" classique) :
-//  1. propriétés raster-* sur les couches raster du style ;
-//  2. un voile noir semi-transparent inséré juste APRÈS la dernière couche raster, donc sous
-//     toutes les couches de données (et sous d'éventuelles étiquettes du fond).
-// À appeler au "load", AVANT l'ajout des couches de données. Idempotent.
-// Réglages :
-//  - overlayOpacity : opacité du voile noir (0 = aucun, 0.5-0.7 = sombre)
-//  - brightnessMax  : plafond de luminosité raster (1 = inchangé)
-//  - saturation     : -1 (noir et blanc) à 1 ; négatif = couleurs ternes
-//  - contrast       : -1 à 1
-const SATELLITE_DIM = { overlayOpacity: 0.2, brightnessMax: 1, saturation: -0.1, contrast: 0.1 };
-const SATELLITE_DIM_ID = "basemap-dim";
-const WORLD_POLYGON = {
-    type: "Feature",
-    properties: {},
-    geometry: {
-        type: "Polygon",
-        coordinates: [[[-180, -85.05], [180, -85.05], [180, 85.05], [-180, 85.05], [-180, -85.05]]],
-    },
-};
-const applySatelliteDim = (map) => {
-    if (map.getLayer(SATELLITE_DIM_ID)) return;
-    const layers = map.getStyle()?.layers ?? [];
-    let lastRaster = -1;
-    layers.forEach((l, i) => {
-        if (l.type !== "raster") return;
-        lastRaster = i;
-        try {
-            map.setPaintProperty(l.id, "raster-brightness-max", SATELLITE_DIM.brightnessMax);
-            map.setPaintProperty(l.id, "raster-saturation", SATELLITE_DIM.saturation);
-            map.setPaintProperty(l.id, "raster-contrast", SATELLITE_DIM.contrast);
-        } catch { /* couche non modifiable : le voile prend le relais */ }
-    });
-    if (!map.getSource(SATELLITE_DIM_ID)) {
-        map.addSource(SATELLITE_DIM_ID, { type: "geojson", data: WORLD_POLYGON });
+// ── Changement de fond de carte ──────────────────────────────────────────────
+// map.setStyle() remplace tout le style : les sources/couches ajoutées à la main
+// (tweets, zones, détroits, rectangle...) disparaîtraient. transformStyle reçoit
+// l'ancien style (sérialisé, donc avec les données GeoJSON à jour) et le nouveau :
+// on reporte sur le nouveau toutes les sources GeoJSON de l'ancien et les couches
+// qui les utilisent. Les couches du fond (vector ou satellite) ne sont jamais reprises.
+const keepCustomLayers = (previous, next) => {
+    if (!previous) return next;
+    const nextSources = next.sources ?? {};
+    const customSources = {};
+    for (const [id, src] of Object.entries(previous.sources ?? {})) {
+        if (src.type === "geojson" && !(id in nextSources)) customSources[id] = src;
     }
-    // Juste après la dernière couche raster ; sinon tout en bas de la pile.
-    const beforeId = lastRaster >= 0 ? layers[lastRaster + 1]?.id : layers[0]?.id;
-    map.addLayer(
-        {
-            id: SATELLITE_DIM_ID,
-            type: "fill",
-            source: SATELLITE_DIM_ID,
-            paint: { "fill-color": "#000000", "fill-opacity": SATELLITE_DIM.overlayOpacity, "fill-antialias": false },
-        },
-        beforeId
-    );
+    const customLayers = (previous.layers ?? []).filter((l) => l.source && l.source in customSources);
+    return {
+        ...next,
+        sources: { ...nextSources, ...customSources },
+        layers: [...(next.layers ?? []), ...customLayers],
+    };
 };
 
 // Les images (addImage) sont stockées dans le style : elles sont perdues au setStyle.
@@ -303,6 +253,10 @@ const filterByCountry = (fc, polys, kind = "point") => {
 
 const COUNTRY_TITLES = { fr: "Pays sélectionné", en: "Selected country", es: "País seleccionado" };
 
+const BASEMAP_TITLES = {
+    vector: { fr: "Passer en vue satellite", en: "Switch to satellite view", es: "Cambiar a vista satélite" },
+    satellite: { fr: "Revenir au fond de carte", en: "Back to map view", es: "Volver al mapa" },
+};
 // Comportement au chargement de la carte :
 //  "canvas" : seule la carte est masquée (fond sombre) jusqu'à ce que le style et les couches
 //             soient prêts, puis apparaît en fondu ; les contrôles restent visibles.
@@ -313,14 +267,6 @@ const MAP_REVEAL_MODE = "canvas";
 // puis la couche est retirée au-delà de THEATERS_FADE_END.
 const THEATERS_FADE_START = 6;
 const THEATERS_FADE_END = 9;
-
-// ── Rotation lente du globe ──
-// Le globe tourne doucement dès le chargement, et reprend après une période d'inactivité
-// tant que la vue est dézoomée (globe encore entièrement / presque entièrement visible).
-const SPIN_DEG_PER_SEC = 3;        // vitesse : ~2 min pour un tour complet
-const SPIN_IDLE_MS = 5000;         // inactivité avant la reprise (après un clic, un drag, une molette...)
-const SPIN_RAMP_SEC = 2;           // accélération progressive à chaque reprise
-const SPIN_MAX_ZOOM_OFFSET = 1.2;  // au-dessus du zoom "globe entier" + ce décalage, pas de rotation
 const THEATERS_FILL_OPACITY = ['interpolate', ['linear'], ['zoom'], THEATERS_FADE_START, 0.2, THEATERS_FADE_END, 0];
 
 // Zones de conflit (clusters d'événements) : même principe que les théâtres,
@@ -469,15 +415,13 @@ const centerSelectedInList = (p) => {
     list.scrollTop += sr.top - lr.top - (lr.height - sr.height) / 2;
 };
 
-const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activeWeaponTypes, activeObjectiveTypes, searchText, onSearchTextChange, searchBarLeftOffset = 5, filtersOpen = false, onToggleFilters, onRectangleDrawn, onCountryChange, onLoadingChange, onTweetPopupClose, selectedTweetId = null, sidePanelOpen = false, initialView = null, initialRectangle = null, initialTweetId = null, onMoveEnd, onTheatersChange, hideTheatersButton = false }, ref) {
+const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activeWeaponTypes, activeObjectiveTypes, searchText, onSearchTextChange, searchBarLeftOffset = 5, filtersOpen = false, onToggleFilters, onRectangleDrawn, onCountryChange, onLoadingChange, onTweetPopupClose, selectedTweetId = null, sidePanelOpen = false, initialView = null, initialRectangle = null, initialTweetId = null, onMoveEnd }, ref) {
     const { timeRange } = useTime();
     const { t, lang, mapLanguage, setEntityNamesFr, setEntityNamesEs, setActorNamesFr, setActorNamesEs, translateActor, translateEntity } = useLang();
 
     // ── Panneau latéral "Théâtres" ──
     // Ouvert d'emblée si l'URL est /content/<slug>/ (le panneau sélectionne alors ce théâtre)
-    const [theatersOpen, setTheatersOpen] = useState(false);
-    // Remonte l'état du tiroir Théâtres au parent (topbar)
-    useEffect(() => { onTheatersChange?.(theatersOpen); }, [theatersOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+    const [theatersOpen, setTheatersOpen] = useState(() => getInitialTheaterSlug() !== null);
     const theaterOutlineIdRef = useRef(null); // topic_id (valeur exacte de la source) dont l'area est activée par le panneau
 
     // ── Debounce de la recherche texte ──
@@ -503,12 +447,6 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
         return () => clearTimeout(timeoutId);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [localSearchText]);
-    // Emplacement de la recherche dans le SidePanel (#sp-search-slot). Absent => on la rend sur la carte comme avant.
-    const [searchSlot, setSearchSlot] = useState(null);
-    useEffect(() => {
-        const el = document.getElementById("sp-search-slot");
-        setSearchSlot((prev) => (prev === el ? prev : el));
-    });
     const { data: bootstrapData, error: bootstrapError } = useBootstrap();
     // Dernier bootstrap connu : loadAllData (asynchrone) lit celui-ci plutôt que la
     // valeur résolue au 1er rendu, pour voir les tweets plus anciens s'ils sont déjà arrivés.
@@ -748,8 +686,8 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                 const target = { center: coords, zoom: Math.max(map.getZoom(), 5) };
                 // animate: false => saut instantané (ouverture initiale, carte encore masquée
                 // derrière le spinner : inutile de jouer un vol de 1,2 s que personne ne voit).
-                if (animate) map.flyTo({ ...target, duration: 1200, padding: { top: 0, bottom: 0, left: leftPadRef.current, right: rightPadRef.current } });
-                else map.jumpTo({ ...target, padding: { top: 0, bottom: 0, left: leftPadRef.current, right: rightPadRef.current } });
+                if (animate) map.flyTo({ ...target, duration: 1200, padding: { top: 0, bottom: 0, left: 0, right: 0 } });
+                else map.jumpTo({ ...target, padding: { top: 0, bottom: 0, left: 0, right: 0 } });
             }
 
             if (!fly || !isMobileViewport()) return;
@@ -841,52 +779,6 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
     // Pause du pulse du tweet sélectionné quand le SidePanel recouvre la carte
     // (mobile uniquement) : inutile de rendre la carte ~60 fois/s si elle est cachée.
     const highlightPausedRef = useRef(false);
-
-    // ── Décalage du globe : SidePanel flottant à gauche, panneau "dock" des points à droite (desktop) ──
-    // Les deux panneaux sont posés PAR-DESSUS la carte : on ajoute un padding gauche / droit égal à leur
-    // encombrement, ce qui recentre le globe dans l'espace restant. Replié / fermé (ou mobile) : 0.
-    const sidePanelOpenRef = useRef(sidePanelOpen);
-    const leftPadRef = useRef(0);
-    const rightPadRef = useRef(0);
-    const applyPanelPaddingRef = useRef(null);
-    const computePad = () => {
-        if (isMobileViewport()) return { left: 0, right: 0 };
-        let left = 0;
-        if (sidePanelOpenRef.current) {
-            const el = document.querySelector(".sidepanel");
-            if (el?.offsetWidth) left = el.offsetLeft + el.offsetWidth + 12; // bord droit du panneau + marge flottante
-        }
-        const dock = document.querySelector(".tweet-popup--dock");
-        const right = dock?.offsetWidth ? dock.offsetWidth + 24 : 0; // largeur du dock + marges
-        return { left, right };
-    };
-    // center (optionnel) : recentre aussi la carte sur ce point (ouverture du dock sur un point cliqué).
-    const applyPanelPadding = (animate, center) => {
-        const map = mapRef.current;
-        if (!map) return;
-        const { left, right } = computePad();
-        const changed = left !== leftPadRef.current || right !== rightPadRef.current;
-        if (!changed && !center) return;
-        leftPadRef.current = left;
-        rightPadRef.current = right;
-        const padding = { ...map.getPadding(), left, right };
-        const opts = center ? { padding, center } : { padding };
-        if (animate) map.easeTo({ ...opts, duration: center ? 350 : 150 });
-        else map.jumpTo(opts);
-    };
-    applyPanelPaddingRef.current = applyPanelPadding;
-    useEffect(() => {
-        sidePanelOpenRef.current = sidePanelOpen;
-        applyPanelPadding(true); // ouverture / fermeture : transition douce
-    }, [sidePanelOpen]); // eslint-disable-line react-hooks/exhaustive-deps
-    useEffect(() => {
-        // Redimensionnement du panneau (poignée de largeur, fenêtre) : suivi en continu, sans animation
-        const el = document.querySelector(".sidepanel");
-        if (!el || typeof ResizeObserver === "undefined") return undefined;
-        const ro = new ResizeObserver(() => applyPanelPadding(false));
-        ro.observe(el);
-        return () => ro.disconnect();
-    }, []); // eslint-disable-line react-hooks/exhaustive-deps
     useEffect(() => {
         const evaluate = () => {
             const paused = sidePanelOpen && isMobileViewport();
@@ -930,12 +822,33 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
     };
     // ── Performance mode (désactive les pulses quand trop de tweets sont chargés) ──
     const [performanceMode, setPerformanceMode] = useState(false);
+    // Fond de carte : "vector" (style MapTiler personnalisé) ou "satellite"
+    const [basemap, setBasemap] = useState("vector");
+    const handleToggleBasemap = () => {
+        const map = mapRef.current;
+        if (!map) return;
+        const next = basemap === "vector" ? "satellite" : "vector";
+        setBasemap(next);
+        // Une fois le nouveau style chargé : on restaure ce que setStyle() réinitialise
+        // (images, projection globe, langue des étiquettes, animation du tweet sélectionné).
+        map.once("style.load", () => {
+            try {
+                ensureHatchImages(map);
+                ensureCrosshairImages(map);
+                loadChokepointImages(map);
+                map.setProjection({ type: "globe" });
+                if (next === "vector" && appliedMapLangRef.current) map.setLanguage(appliedMapLangRef.current);
+                if (map.__highlightActive) map.__startHighlightPulse?.();
+                map.__reapplyCountryState?.(); // feature-state perdu au setStyle
+            } catch { /* carte déjà détruite */ }
+        });
+        map.setStyle(next === "satellite" ? SATELLITE_STYLE_URL : STYLE_URL, { transformStyle: keepCustomLayers });
+    };
     // Feedback du bouton "Copier le lien" (icône coche pendant ~1,8 s)
     const [linkCopied, setLinkCopied] = useState(false);
     const performanceModeRef = useRef(false);
     const militaryPulseFrameRef = useRef(null);
     const resumeAnimationsRef = useRef(null);
-    const spinFrameRef = useRef(null); // requestAnimationFrame de la rotation du globe
     const tweetCount = dataTweets?.features?.length || 0;
     // Nombre de filtres arme + objectif actifs : affiché en pastille sur le bouton filtres de la toolbar
     const activeFilterCount = (activeWeaponTypes?.length || 0) + (activeObjectiveTypes?.length || 0);
@@ -1072,7 +985,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
 
         const map = new maptilersdk.Map({
             container: containerRef.current,
-            style: SATELLITE_STYLE_URL,
+            style: STYLE_URL,
             // Étiquettes de la carte dans la langue de l'app dès le premier rendu
             language: mapLanguageRef.current,
             center: initialViewRef.current?.center ?? [37, 37],
@@ -1087,7 +1000,6 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
 
         mapRef.current = map;
         appliedMapLangRef.current = mapLanguageRef.current;
-        applyPanelPaddingRef.current?.(false); // globe décalé dès le 1er rendu si le panneau est ouvert
 
         // Secours : si le style de la carte ne se charge pas (clé MapTiler refusée,
         // réseau, rendu Googlebot...), l'événement "load" n'arrive jamais et les
@@ -1122,9 +1034,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
         let userInteracted = Boolean(initialViewRef.current);
         const markInteracted = () => { userInteracted = true; };
         map.on("dragstart", markInteracted);
-        // Les petits déplacements de la rotation ne doivent pas mettre à jour l'URL (permalink).
-        let isSpinStep = false;
-        map.on("moveend", () => { if (!isSpinStep) onMoveEndRef.current?.(); });
+        map.on("moveend", () => onMoveEndRef.current?.());
         map.on("zoomstart", (e) => {
             // Ignore les zooms déclenchés par notre propre resize (pas d'event
             // "originalEvent" venant de l'utilisateur dans ce cas).
@@ -1139,68 +1049,11 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
         window.addEventListener("resize", handleResize);
         map.once("remove", () => window.removeEventListener("resize", handleResize));
 
-        // ── Rotation lente du globe (voir constantes SPIN_*) ──
-        // Armée d'emblée, sauf si l'URL porte une vue / un tweet précis : dans ce cas elle ne
-        // démarre qu'après la première interaction de l'utilisateur (puis l'inactivité).
-        let spinArmed = !(initialViewRef.current || initialTweetIdRef.current);
-        let spinLastInteraction = 0;
-        let spinPointerDown = false;
-        let spinRamp = 0;
-        let spinLastTs = 0;
-        const spinInteract = () => { spinArmed = true; spinLastInteraction = performance.now(); };
-        const spinPointerDownH = () => { spinPointerDown = true; spinInteract(); };
-        const spinPointerUpH = () => { spinPointerDown = false; spinLastInteraction = performance.now(); };
-        const spinCanvas = map.getCanvasContainer();
-        spinCanvas.addEventListener("pointerdown", spinPointerDownH);
-        spinCanvas.addEventListener("wheel", spinInteract, { passive: true });
-        window.addEventListener("pointerup", spinPointerUpH);
-        window.addEventListener("pointercancel", spinPointerUpH);
-        const spinStep = (ts) => {
-            spinFrameRef.current = requestAnimationFrame(spinStep);
-            const dt = Math.min((ts - spinLastTs) / 1000, 0.1);
-            spinLastTs = ts;
-            const blocked =
-                !spinArmed || spinPointerDown || document.hidden ||
-                ts - spinLastInteraction < SPIN_IDLE_MS ||
-                map.isMoving() ||
-                map.getZoom() > getFitGlobeZoom(
-                    containerRef.current?.clientWidth, containerRef.current?.clientHeight
-                ) + SPIN_MAX_ZOOM_OFFSET ||
-                isDrawModeRef.current ||
-                selectedTweetIdRef.current != null ||
-                selectedCountryRef.current ||
-                highlightPausedRef.current ||
-                pinnedPopupRef.current ||
-                containerRef.current?.querySelector(".maplibregl-popup");
-            if (blocked) { spinRamp = 0; return; }
-            spinRamp = Math.min(1, spinRamp + dt / SPIN_RAMP_SEC);
-            const c = map.getCenter();
-            isSpinStep = true;
-            try {
-                map.setCenter([((c.lng + SPIN_DEG_PER_SEC * spinRamp * dt + 540) % 360) - 180, c.lat]);
-            } finally { isSpinStep = false; }
-        };
-        const startSpin = () => {
-            if (spinFrameRef.current) return;
-            if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
-            spinLastTs = performance.now();
-            spinFrameRef.current = requestAnimationFrame(spinStep);
-        };
-        map.once("remove", () => {
-            if (spinFrameRef.current) { cancelAnimationFrame(spinFrameRef.current); spinFrameRef.current = null; }
-            spinCanvas.removeEventListener("pointerdown", spinPointerDownH);
-            spinCanvas.removeEventListener("wheel", spinInteract);
-            window.removeEventListener("pointerup", spinPointerUpH);
-            window.removeEventListener("pointercancel", spinPointerUpH);
-        });
-
         map.on("load", async () => {
             mapLoaded = true;
             clearTimeout(fallbackTimer);
-            startSpin();
             map.doubleClickZoom.disable();
             map.setProjection({ type: 'globe' });
-            applySatelliteDim(map); // fond assombri, sous toutes les couches de données
             const dataTweets = await loadAllData(map);
             let popup = new maptilersdk.Popup({
                 closeButton: false,
@@ -1365,7 +1218,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                 type: 'line',
                 source: 'military-lines',
                 paint: {
-                    'line-color': '#b8b8b8',
+                    'line-color': '#7d8288',
                     'line-width': 0.5
                 }
             });
@@ -1837,66 +1690,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                 if (tweetStack?.view === "list") updateTweetStack();
             };
 
-            // ── Carte de survol compacte (SHOW_TWEET_HOVER_CARD) ──
-            // Popup distincte de `popup` (celle de la pile interactive) : pas de pointeur,
-            // aucun état à synchroniser, fermée dès que le curseur quitte le point.
-            const hoverCard = new maptilersdk.Popup({
-                closeButton: false,
-                closeOnClick: false,
-                maxWidth: "none",
-                className: "tweet-hover-popup",
-                // Ancre et décalage choisis à chaque affichage (voir showHoverCard) : la carte
-                // flotte à côté du point, sans triangle, et reste dans l'écran.
-                offset: HOVER_CARD_OFFSETS,
-            });
-            let hoverCardKey = null;
-            const hideHoverCard = () => {
-                hoverCardKey = null;
-                if (hoverCard.isOpen()) hoverCard.remove();
-            };
-            // Pays d'un point : point-in-polygon sur les contours de /countries (les mêmes que
-            // le filtre par pays). On ne mémorise pas un échec : les contours peuvent arriver après.
-            const countryNameCache = new Map();
-            const countryNameAt = (lng, lat) => {
-                const index = countryIndexRef.current;
-                if (!index || !Number.isFinite(lng) || !Number.isFinite(lat)) return null;
-                const k = `${lng.toFixed(3)},${lat.toFixed(3)}`;
-                if (countryNameCache.has(k)) return countryNameCache.get(k);
-                for (const [name, polys] of index) {
-                    if (pointInCountry(polys, lng, lat)) { countryNameCache.set(k, name); return name; }
-                }
-                return null;
-            };
-            const showHoverCard = (queryFeatures) => {
-                if (isDrawModeRef.current) return;
-                const features = sortFeaturesByDateDesc(queryFeatures());
-                if (!features.length) return;
-                const first = features[0];
-                const [lng, lat] = first.geometry.coordinates;
-                const lang = getCurrentLang();
-                // mousemove tire en continu : on ne ré-injecte le HTML que si la pile ou la langue change
-                const key = `${first.properties.id ?? first.properties.url}|${features.length}|${lang}`;
-                if (key === hoverCardKey && hoverCard.isOpen()) return;
-                hoverCardKey = key;
-                const country = countryNameAt(lng, lat);
-                // Côté de la carte selon la position du point à l'écran : à droite du point (ou à
-                // gauche près du bord droit), au-dessus / au-dessous près des bords haut / bas.
-                const pt = map.project([lng, lat]);
-                const { clientWidth: w, clientHeight: h } = map.getContainer();
-                const side = pt.x > w * 0.6 ? "right" : "left";
-                const vert = pt.y < h * 0.35 ? "top" : pt.y > h * 0.65 ? "bottom" : "";
-                hoverCard.options.anchor = vert ? `${vert}-${side}` : side;
-                hoverCard
-                    .setLngLat([lng, lat])
-                    .setHTML(createHoverCardHTML(first.properties, lang, {
-                        countryName: country ? translateEntityRef.current(country) : "",
-                        count: features.length,
-                    }))
-                    .addTo(map);
-            };
-
             const scheduleHoverClose = (delay) => {
-                hideHoverCard(); // la carte de survol n'est pas interactive : fermeture immédiate
                 clearTimeout(hoverCloseTimer);
                 hoverCloseTimer = setTimeout(() => {
                     if (isHoveringTweet || popupHovered || pinnedPopupRef.current || isHoveringConflictArea) return;
@@ -1933,7 +1727,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                 isHoveringConflictArea = false;
                 clearTimeout(hoverCloseTimer);
 
-                if (SHOW_TWEET_HOVER_POPUP && currentHoverPopup !== 'tweet') {
+                if (currentHoverPopup !== 'tweet') {
                     conflictPopup.remove();
                     popup.remove();
                     currentHoverPopup = 'tweet';
@@ -1942,13 +1736,6 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                 }
 
                 if (!isDrawModeRef.current) map.getCanvas().style.cursor = 'pointer';
-
-                // Pas de popup interactive au survol : le clic ouvre le dock (openPinnedTweetStack).
-                // On affiche seulement la carte compacte.
-                if (!SHOW_TWEET_HOVER_POPUP) {
-                    if (SHOW_TWEET_HOVER_CARD) showHoverCard(queryFeatures);
-                    return;
-                }
 
                 const features = sortFeaturesByDateDesc(queryFeatures());
 
@@ -2094,7 +1881,6 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
             // depuis un point / le SidePanel). Sert à refermer la popup en recliquant le contour.
             let pinnedCityName = null;
             const openPinnedTweetStack = (features, cityName = null) => {
-                hideHoverCard();
                 if (pinnedPopupRef.current) { pinnedPopupRef.current.remove(); setPinnedPopup(null); }
                 // La popup de survol laisse la place à la popup épinglée
                 if (popup.isOpen()) popup.remove();
@@ -2114,12 +1900,11 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                 };
                 bindTweetStackNav();
 
-                // Mobile : bottom sheet. Desktop : panneau "dock" à droite (voir .tweet-popup--dock).
                 const newPinnedPopup = new maptilersdk.Popup({
-                    closeButton: true,
+                    closeButton: mobile,
                     closeOnClick: !mobile,
                     maxWidth: "none",
-                    className: mobile ? "tweet-popup tweet-popup--mobile" : "tweet-popup tweet-popup--dock",
+                    className: mobile ? "tweet-popup tweet-popup--mobile" : "tweet-popup",
                     anchor: "bottom",
                 })
                     .setLngLat(coords)
@@ -2142,12 +1927,9 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                     setCityBoundarySelected(map, []);
                     setPinnedPopup(null);
                     resetSheetPadding(map);
-                    if (!mobile) applyPanelPaddingRef.current?.(true); // le globe reprend toute la place
                     if (tweetStack?.pinned) tweetStack = null;
                 });
                 revealPointAboveSheet(map, newPinnedPopup, coords);
-                // Desktop : le dock s'ouvre à droite, la carte se recentre sur le point dans l'espace restant
-                if (!mobile) applyPanelPaddingRef.current?.(true, coords);
             };
 
             map.on("click", "tweets-hover-area", (e) => {
@@ -2243,8 +2025,6 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                 if (isMobileViewport()) return;
 
                 if (!e.features.length) return;
-                // Un tweet sous le curseur est prioritaire : un seul hover à la fois
-                if (map.queryRenderedFeatures(e.point, { layers: ["tweets-hover-area"] }).length) return;
                 if (!isDrawModeRef.current) map.getCanvas().style.cursor = "pointer";
 
                 showChokepointPopup(
@@ -2976,30 +2756,17 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
             // Mobile : un tap ouvre déjà une popup sur les zones / détroits, on s'en écarte aussi.
             const countryBlockingLayers = () =>
                 withCityBlock(map, isMobileViewport() ? PAIR_BLOCKING_LAYERS : ["tweets-hover-area", "chokepoints"]);
-            // Survol : UN SEUL hover à la fois. Le pays passe après tout le reste (tweets, villes, détroits,
-            // zones, théâtres / frontières militaires) : sous l'un d'eux, le pays n'est pas survolé.
-            // Le CLIC (sélection du pays) garde la règle ci-dessus : on peut toujours cliquer le pays dessous.
-            const pairHoverAt = (point) => {
-                const layers = PAIR_HIT_LAYERS.filter((id) => map.getLayer(id));
-                if (!layers.length) return false;
-                const pad = 5; // mêmes 5 px de tolérance que queryPair (frontière de 2 px)
-                return map.queryRenderedFeatures(
-                    [[point.x - pad, point.y - pad], [point.x + pad, point.y + pad]], { layers }
-                ).length > 0;
-            };
-            const queryCountry = (point, forHover = false) => {
+            const queryCountry = (point) => {
                 if (!map.getLayer(COUNTRY_FILL)) return null;
-                const layers = forHover ? withCityBlock(map, PAIR_BLOCKING_LAYERS) : countryBlockingLayers();
-                const blocking = layers.filter((id) => map.getLayer(id));
+                const blocking = countryBlockingLayers().filter((id) => map.getLayer(id));
                 if (blocking.length && map.queryRenderedFeatures(point, { layers: blocking }).length) return null;
-                if (forHover && pairHoverAt(point)) return null;
                 return map.queryRenderedFeatures(point, { layers: [COUNTRY_FILL] })[0]?.properties?.name ?? null;
             };
 
             map.on("mousemove", (e) => {
                 if (isMobileViewport()) return;
                 if (isDrawModeRef.current) { setCountryHover(null); return; }
-                setCountryHover(queryCountry(e.point, true));
+                setCountryHover(queryCountry(e.point));
             });
             map.getCanvas().addEventListener("mouseleave", () => setCountryHover(null));
 
@@ -3607,26 +3374,34 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                 aria-label={t.mapLabel}
             />
 
-            {/* Bouton d'ouverture du panneau Théâtres (masqué sur desktop : la topbar le remplace) */}
-            {!hideTheatersButton && (
-                <a
-                    href={theatersIndexPath(lang)}
-                    className="map-ctrl-btn map-ctrl-btn--float"
-                    title={t.theatersButton}
-                    aria-label={t.theatersButton}
-                    style={{ left: searchBarLeftOffset, display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none" }}
-                >
-                    <PiBookOpenTextBold size={16} />
-                </a>
-            )}
+            {/* Bouton d'ouverture du panneau Théâtres */}
+            <button
+                type="button"
+                className={`map-ctrl-btn map-ctrl-btn--float${theatersOpen ? " is-active" : ""}`}
+                title={t.theatersButton}
+                aria-expanded={theatersOpen}
+                onClick={() => setTheatersOpen((v) => !v)}
+                style={{ left: searchBarLeftOffset }}
+            >
+                <PiBookOpenTextBold size={16} />
+            </button>
+
+            <TheatersDrawer
+                open={theatersOpen}
+                onClose={() => setTheatersOpen(false)}
+                topics={bootstrapData?.topics || []}
+                summariesByTopic={bootstrapData?.topic_summaries || {}}
+                lang={lang}
+                onSelectTopic={handleSelectTheater}
+                initialSlug={getInitialTheaterSlug()}
+            />
 
             {/* Barre de recherche (si applicable) */}
-            {onSearchTextChange && (() => {
-                const searchNode = (
+            {onSearchTextChange && (
                 <div
                     ref={searchContainerRef}
                     className="map-kw-list"
-                    style={searchSlot ? undefined : { left: searchBarLeftOffset + (hideTheatersButton ? 0 : 42) }}
+                    style={{ left: searchBarLeftOffset + 42 }} // laisse la place au bouton Théâtres
                 >
                     <div className="map-search">
                         <input
@@ -3689,9 +3464,7 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                         </div>
                     )}
                 </div>
-                );
-                return searchSlot ? createPortal(searchNode, searchSlot) : searchNode;
-            })()}
+            )}
 
             {/* Barre d'outils en bas à gauche : dessin + filtres + export + performance */}
             {/* Affichée dès que les données sont chargées, même si les filtres
@@ -3843,6 +3616,18 @@ const MapView = forwardRef(function MapView({ onTweetsLoaded, activeLabel, activ
                         onClick={() => setPerformanceMode((v) => !v)}
                     >
                         <CgPerformance size={17} />
+                    </button>
+
+                    {/* 5. Fond de carte : vector <-> satellite */}
+                    <button
+                        type="button"
+                        className={`map-ctrl-btn${basemap === "satellite" ? " is-active" : ""}`}
+                        aria-pressed={basemap === "satellite"}
+                        title={(BASEMAP_TITLES[basemap][lang] ?? BASEMAP_TITLES[basemap].en)}
+                        aria-label={(BASEMAP_TITLES[basemap][lang] ?? BASEMAP_TITLES[basemap].en)}
+                        onClick={handleToggleBasemap}
+                    >
+                        {basemap === "satellite" ? <MdOutlineMap size={17} /> : <MdSatelliteAlt size={16} />}
                     </button>
                 </div>
             )}

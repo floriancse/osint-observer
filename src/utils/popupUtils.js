@@ -578,18 +578,6 @@ export function getLocationName(props, lang) {
   return t?.[lang] || t?.en || props.location_name || "";
 }
 
-// Titre court du tweet dans la langue demandée (carte de survol). Lit
-// `headline_translations` (cf. /bootstrap). Repli : anglais, puis résumé traduit,
-// puis début du texte traduit / brut (tweet pas encore traduit).
-export function getHeadline(props, lang) {
-  const h = parseJSONProp(props.headline_translations, {});
-  const direct = h?.[lang] || h?.en;
-  if (direct) return direct;
-  const s = parseJSONProp(props.summary_translations, {});
-  const tr = parseJSONProp(props.translations, {});
-  return truncate(s?.[lang] || tr?.[lang] || props.text || "", 90);
-}
-
 // Tri chronologique décroissant (le plus récent en premier). À importance égale
 // l'ordre d'origine est conservé (Array.sort est stable). Utilisé par MapView
 // AVANT de construire la pile : la liste ET la vue détaillée (flèches ◀ ▶, index)
@@ -611,51 +599,6 @@ function truncate(value, max) {
   // coupe au dernier espace pour éviter de casser un mot (si pas trop loin)
   const lastSpace = cut.lastIndexOf(" ");
   return (lastSpace > max * 0.6 ? cut.slice(0, lastSpace) : cut).trimEnd() + "…";
-}
-
-// Carte compacte affichée au SURVOL d'un point / d'une pile : avatar, titre (langue
-// active), @compte · date relative, pays, « cliquer pour les détails ». Purement
-// informative (pointer-events: none côté CSS) : le clic ouvre le dock comme avant.
-// `countryName` : déjà traduit par l'appelant (MapView). `count` : taille de la pile.
-export function createHoverCardHTML(props, lang = getCurrentLang(), { countryName = "", count = 1 } = {}) {
-  const ui = getUI(lang);
-  const isImportant = ['4', '5'].includes(String(props.importance_score || '0').trim());
-  const rawDate = props.created_at ?? props.date ?? new Date();
-  const username = String(props.username ?? '').replace(/^@/, '');
-  const avatar = avatarCache[props.username]
-    ?? (avatarCache[props.username] = {
-      local: `${process.env.PUBLIC_URL || ""}/img/${encodeURI(props.username)}.jpg`,
-      remote: `https://unavatar.io/twitter/${username}`,
-    });
-  const headline = getHeadline(props, lang);
-  // Initiales du titre : affichées derrière l'avatar, visibles si la photo du compte manque.
-  const initials = Array.from(headline.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => Array.from(w)[0] ?? "").join("")).join("").toUpperCase();
-  // Pays introuvable (point en mer, contours pas encore chargés) : on retombe sur le lieu.
-  const place = countryName || getLocationName(props, lang);
-
-  return `
-  <div class="tweet-hover-card${isImportant ? ' important' : ''}">
-    <div class="tweet-hover-header">
-      <div class="tweet-hover-avatar">
-        <span class="tweet-hover-initials" aria-hidden="true">${escapeHTML(initials)}</span>
-        <img src="${avatar.local}" data-fallback="${avatar.remote}" alt="" loading="eager" onerror="if(this.dataset.fallback){this.src=this.dataset.fallback;delete this.dataset.fallback}else{this.style.display='none'}">
-      </div>
-      <div class="tweet-hover-main">
-        <div class="tweet-hover-meta">
-          <span class="tweet-hover-status${isImportant ? ' important' : ''}" aria-hidden="true"></span>
-          <span class="tweet-hover-user">${escapeHTML(username)}</span>
-          <span class="tweet-card-dot">·</span>
-          <span class="tweet-hover-time"${relativeTimeAttrs(rawDate, lang)}>${getTimeAgo(rawDate, lang)}</span>
-          ${count > 1 ? `<span class="tweet-hover-count">${escapeHTML(ui.moreEvents(count - 1))}</span>` : ''}
-        </div>
-        <div class="tweet-hover-headline">${escapeHTML(headline)}</div>
-      </div>
-    </div>
-    <div class="tweet-hover-footer">
-      <span class="tweet-hover-country">${escapeHTML(place)}</span>
-      <span class="tweet-hover-cta">${escapeHTML(ui.clickForDetails)}</span>
-    </div>
-  </div>`;
 }
 
 // Vue "liste" d'une pile de tweets (plusieurs événements au même endroit).
@@ -824,7 +767,7 @@ if (typeof window !== "undefined" && !window.__relativeTimeTimer) {
   window.__relativeTimeTimer = setInterval(() => {
     if (document.visibilityState !== "visible") return; // onglet masqué : inutile
     document
-      .querySelectorAll(".tweet-card-time[data-ts], .tweet-list-item-time[data-ts], .tweet-hover-time[data-ts]")
+      .querySelectorAll(".tweet-card-time[data-ts], .tweet-list-item-time[data-ts]")
       .forEach((el) => {
         el.textContent = getTimeAgo(el.dataset.ts, el.dataset.lang || getCurrentLang());
       });
@@ -884,6 +827,7 @@ export function createPopupHTML(props, pinned, currentIndex, totalCount, showIma
       remote: `https://unavatar.io/twitter/${props.username.slice(1)}`,
     });
   const rawText = translations?.[lang] || props.text;
+  console.log(lang, "affiché:", String(rawText ?? "").length, "original:", String(props.text ?? "").length);
   const locationName = getLocationName(props, lang);
   const fullText = String(rawText ?? "");
   const shortText = truncateKeepingUrls(fullText, 500);

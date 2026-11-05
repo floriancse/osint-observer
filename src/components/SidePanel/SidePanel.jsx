@@ -444,10 +444,6 @@ export default function SidePanel({ tweets, selectedCountry, collapsed, activeLa
                         </div>
                     </div>
 
-                    {/* Emplacement de la barre de recherche : MapView y rend son champ (portail),
-                        car toute la logique (suggestions, tendances, filtre) y vit. */}
-                    <div id="sp-search-slot" className="sp-search" />
-
                     {/* Filtre par sujet : une barre qui déplie tous les sujets d'un coup */}
                     <div
                         className="sp-topic"
