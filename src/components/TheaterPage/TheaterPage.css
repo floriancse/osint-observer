@@ -8,13 +8,13 @@
 .tp-root {
   /* Palette OSINT Watch (tokens --ox-*). Le fond de page est plus sombre que la
      colonne d'article : c'est ce contraste qui dessine l'article. */
-  --tp-page: color-mix(in srgb, var(--ox-bg, #0c0c0c) 72%, #000);
-  --tp-paper: var(--ox-bg, #0c0c0c);
-  --tp-ink: var(--ox-text, #f2f2f2);
-  --tp-ink-2: var(--ox-text-2, #c7c7c7);
-  --tp-muted: var(--ox-muted, #8a8a8a);
+  --tp-page: color-mix(in srgb, var(--ox-bg, #0d1320) 72%, #000);
+  --tp-paper: var(--ox-bg, #0d1320);
+  --tp-ink: var(--ox-text, #e8ecf3);
+  --tp-ink-2: var(--ox-text-2, #b8c0cf);
+  --tp-muted: var(--ox-muted, #8b95a7);
   --tp-rule: var(--ox-line, rgba(255, 255, 255, 0.1));
-  --tp-border: var(--ox-border, #2a2a2a);
+  --tp-border: var(--ox-border, #26324a);
   --tp-accent: var(--ox-accent, #5aa9ff);
   --tp-link: var(--tp-accent);
   /* Titres / chapô : serif éditorial. Étiquettes, dates, méta : mono. Corps : sans (Hanken Grotesk). */
@@ -268,7 +268,7 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #777777;
+  background: #6b7686;
 }
 .tp-dot--hot { background: #ff5a4d; }
 .tp-dot--warm { background: #f5a524; }
@@ -517,8 +517,8 @@
 .tp-panel--map .tp-panel-title { margin-bottom: 14px; }
 
 .tp-map {
-  --tp-ocean: #0a0a0a;
-  --tp-land: #2a2a2a;
+  --tp-ocean: #090e17;
+  --tp-land: #2a2f3b;
   --tp-land-line: color-mix(in srgb, var(--tp-paper) 60%, #fff);
   position: relative;
   display: block;
